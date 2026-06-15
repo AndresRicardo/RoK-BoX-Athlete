@@ -1,5 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
+import Navigation from '../components/Navigation';
 import './MainLayout.css';
 
 function MainLayout({ children }) {
@@ -34,9 +35,14 @@ function MainLayout({ children }) {
           </nav>
         </div>
       </header>
-      <main className="main-content">
-        {children}
-      </main>
+
+      <div className="main-shell">
+        <Navigation />
+        <main className="main-content">
+          {children}
+        </main>
+      </div>
+
       <footer className="main-footer">
         <p>© 2024 RöK BoX - CrossFit Box</p>
       </footer>
