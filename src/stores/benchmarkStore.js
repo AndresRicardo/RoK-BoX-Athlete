@@ -1,5 +1,8 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase/client';
+import useProfileStore from './profileStore';
+import usePRStore from './prStore';
+import useAchievementStore from './achievementStore';
 
 const useBenchmarkStore = create((set, get) => ({
   benchmarks: [],
@@ -64,6 +67,15 @@ const useBenchmarkStore = create((set, get) => ({
       benchmarks: [data, ...state.benchmarks],
       saving: false,
     }));
+
+    const { profile } = useProfileStore.getState();
+    const { prs } = usePRStore.getState();
+    const benchmarksNow = [data, ...get().benchmarks];
+    useAchievementStore
+      .getState()
+      .checkAndUnlock(userId, { prs, benchmarks: benchmarksNow, profile })
+      .catch(() => {});
+
     return data;
   },
 

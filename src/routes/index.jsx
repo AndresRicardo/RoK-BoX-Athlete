@@ -8,6 +8,7 @@ import PRNew from '../pages/PRNew';
 import Benchmarks from '../pages/Benchmarks';
 import BenchmarkNew from '../pages/BenchmarkNew';
 import BenchmarkResult from '../pages/BenchmarkResult';
+import Achievements from '../pages/Achievements';
 import MainLayout from '../layouts/MainLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
@@ -97,6 +98,16 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <BenchmarkResult />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/achievements',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <Achievements />
         </MainLayout>
       </ProtectedRoute>
     ),

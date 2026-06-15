@@ -5,6 +5,8 @@ import useAuthStore from './stores/authStore';
 import useProfileStore from './stores/profileStore';
 import usePRStore from './stores/prStore';
 import useBenchmarkStore from './stores/benchmarkStore';
+import useAchievementStore from './stores/achievementStore';
+import AchievementModal from './components/AchievementModal';
 
 function AppRoot() {
   const initialize = useAuthStore((s) => s.initialize);
@@ -19,10 +21,16 @@ function AppRoot() {
       useProfileStore.getState().reset();
       usePRStore.getState().reset();
       useBenchmarkStore.getState().reset();
+      useAchievementStore.getState().reset();
     }
   }, [userId]);
 
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <AchievementModal />
+    </>
+  );
 }
 
 export default AppRoot;

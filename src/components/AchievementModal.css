@@ -1,0 +1,131 @@
+.achievement-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: var(--space-3);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1); }
+}
+
+.achievement-modal {
+  background-color: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-md);
+  padding: var(--space-4);
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  animation: popIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 0 40px rgba(255, 200, 21, 0.3);
+}
+
+.achievement-modal-icon {
+  font-size: 4rem;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  animation: bounce 0.6s ease 0.2s;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+.achievement-modal-label {
+  color: var(--color-primary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+}
+
+.achievement-modal-title {
+  color: var(--color-text);
+  font-size: 1.5rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.achievement-modal-description {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.achievement-modal-tier {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 0.25rem;
+}
+
+.tier-bronze {
+  background-color: rgba(205, 127, 50, 0.2);
+  color: #cd7f32;
+  border: 1px solid #cd7f32;
+}
+
+.tier-silver {
+  background-color: rgba(192, 192, 192, 0.2);
+  color: #c0c0c0;
+  border: 1px solid #c0c0c0;
+}
+
+.tier-gold {
+  background-color: rgba(255, 200, 21, 0.2);
+  color: var(--color-primary);
+  border: 1px solid var(--color-primary);
+}
+
+.tier-platinum {
+  background: linear-gradient(135deg, rgba(255, 200, 21, 0.3), rgba(192, 192, 192, 0.3));
+  color: var(--color-text);
+  border: 1px solid var(--color-primary);
+  box-shadow: 0 0 12px rgba(255, 200, 21, 0.4);
+}
+
+.achievement-modal-btn {
+  margin-top: var(--space-2);
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: inherit;
+  background-color: var(--color-primary);
+  color: var(--color-bg);
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.achievement-modal-btn:hover {
+  background-color: var(--color-text);
+}
+
+.achievement-modal-btn:active {
+  transform: scale(0.97);
+}

@@ -3,6 +3,7 @@ import { supabase } from '../supabase/client';
 import useProfileStore from './profileStore';
 import usePRStore from './prStore';
 import useBenchmarkStore from './benchmarkStore';
+import useAchievementStore from './achievementStore';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -64,6 +65,7 @@ const useAuthStore = create((set, get) => ({
     useProfileStore.getState().reset();
     usePRStore.getState().reset();
     useBenchmarkStore.getState().reset();
+    useAchievementStore.getState().reset();
 
     set({
       user: null,
