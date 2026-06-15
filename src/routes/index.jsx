@@ -2,22 +2,40 @@ import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
-import Profile from '../pages/Profile';
-import ProfileEdit from '../pages/ProfileEdit';
-import PRs from '../pages/PRs';
-import PRNew from '../pages/PRNew';
-import Benchmarks from '../pages/Benchmarks';
-import BenchmarkNew from '../pages/BenchmarkNew';
-import BenchmarkResult from '../pages/BenchmarkResult';
-import Achievements from '../pages/Achievements';
-import Skills from '../pages/Skills';
 import MainLayout from '../layouts/MainLayout';
 import PageLoader from '../components/PageLoader';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
 
 // eslint-disable-next-line react-refresh/only-export-components
+const Profile = lazy(() => import('../pages/Profile'));
+// eslint-disable-next-line react-refresh/only-export-components
+const ProfileEdit = lazy(() => import('../pages/ProfileEdit'));
+// eslint-disable-next-line react-refresh/only-export-components
+const PRs = lazy(() => import('../pages/PRs'));
+// eslint-disable-next-line react-refresh/only-export-components
+const PRNew = lazy(() => import('../pages/PRNew'));
+// eslint-disable-next-line react-refresh/only-export-components
+const Benchmarks = lazy(() => import('../pages/Benchmarks'));
+// eslint-disable-next-line react-refresh/only-export-components
+const BenchmarkNew = lazy(() => import('../pages/BenchmarkNew'));
+// eslint-disable-next-line react-refresh/only-export-components
+const BenchmarkResult = lazy(() => import('../pages/BenchmarkResult'));
+// eslint-disable-next-line react-refresh/only-export-components
+const Achievements = lazy(() => import('../pages/Achievements'));
+// eslint-disable-next-line react-refresh/only-export-components
+const Skills = lazy(() => import('../pages/Skills'));
+// eslint-disable-next-line react-refresh/only-export-components
 const History = lazy(() => import('../pages/History'));
+
+// eslint-disable-next-line react-refresh/only-export-components
+function LazyPage({ component: Component }) {
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Component />
+    </Suspense>
+  );
+}
 
 const router = createBrowserRouter([
   {
@@ -43,7 +61,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <Profile />
+          <LazyPage component={Profile} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -53,7 +71,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <ProfileEdit />
+          <LazyPage component={ProfileEdit} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -63,7 +81,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <PRs />
+          <LazyPage component={PRs} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -73,7 +91,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <PRNew />
+          <LazyPage component={PRNew} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -83,7 +101,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <PRNew />
+          <LazyPage component={PRNew} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -93,7 +111,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <Benchmarks />
+          <LazyPage component={Benchmarks} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -103,7 +121,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <BenchmarkNew />
+          <LazyPage component={BenchmarkNew} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -113,7 +131,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <BenchmarkResult />
+          <LazyPage component={BenchmarkResult} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -123,7 +141,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <BenchmarkNew />
+          <LazyPage component={BenchmarkNew} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -133,7 +151,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <Achievements />
+          <LazyPage component={Achievements} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -143,7 +161,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <Skills />
+          <LazyPage component={Skills} />
         </MainLayout>
       </ProtectedRoute>
     ),
@@ -153,9 +171,7 @@ const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MainLayout>
-          <Suspense fallback={<PageLoader />}>
-            <History />
-          </Suspense>
+          <LazyPage component={History} />
         </MainLayout>
       </ProtectedRoute>
     ),

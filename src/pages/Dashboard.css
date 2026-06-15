@@ -160,20 +160,6 @@
   font-size: 0.8rem;
 }
 
-.dashboard-placeholder {
-  background-color: var(--color-surface);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  text-align: center;
-  border: 2px dashed var(--color-muted);
-}
-
-.dashboard-placeholder p {
-  color: var(--color-muted);
-  margin: 0;
-  font-size: 0.9rem;
-}
-
 .dashboard-cta {
   background: linear-gradient(135deg, var(--color-surface) 0%, var(--color-bg) 100%);
   border: 2px solid var(--color-primary);

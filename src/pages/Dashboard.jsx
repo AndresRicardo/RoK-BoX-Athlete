@@ -114,10 +114,6 @@ function Dashboard() {
           <span>Realizados</span>
         </div>
       </div>
-
-      <div className="dashboard-placeholder">
-        <p>Las funcionalidades deportivas estarán disponibles en las próximas fases.</p>
-      </div>
     </div>
   );
 }

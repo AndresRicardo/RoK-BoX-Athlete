@@ -25,6 +25,13 @@
   margin-bottom: var(--space-4);
 }
 
+.login-logo {
+  display: block;
+  margin: 0 auto var(--space-3);
+  width: clamp(64px, 18vw, 88px);
+  height: auto;
+}
+
 .login-title {
   font-size: clamp(1.5rem, 6vw, 2.25rem);
   margin: 0;
