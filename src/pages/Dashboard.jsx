@@ -2,18 +2,21 @@ import { useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
+import usePRStore from '../stores/prStore';
 import './Dashboard.css';
 
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { profile, loading, fetchProfile } = useProfileStore();
+  const { prs, fetchPRs } = usePRStore();
 
   useEffect(() => {
     if (user?.id) {
       fetchProfile(user.id);
+      fetchPRs(user.id);
     }
-  }, [user, fetchProfile]);
+  }, [user, fetchProfile, fetchPRs]);
 
   const greetingName =
     profile?.first_name?.trim() || user?.email?.split('@')[0] || 'Atleta';
@@ -60,9 +63,9 @@ function Dashboard() {
       )}
 
       <div className="dashboard-cards">
-        <div className="card" onClick={() => navigate('/profile')}>
+        <div className="card" onClick={() => navigate('/prs')}>
           <h3>PRs</h3>
-          <p>0</p>
+          <p>{prs.length}</p>
           <span>Marcas Personales</span>
         </div>
         <div className="card" onClick={() => navigate('/profile')}>

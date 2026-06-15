@@ -3,6 +3,8 @@ import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
 import Profile from '../pages/Profile';
 import ProfileEdit from '../pages/ProfileEdit';
+import PRs from '../pages/PRs';
+import PRNew from '../pages/PRNew';
 import MainLayout from '../layouts/MainLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
@@ -42,6 +44,26 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <ProfileEdit />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/prs',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <PRs />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/prs/new',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <PRNew />
         </MainLayout>
       </ProtectedRoute>
     ),

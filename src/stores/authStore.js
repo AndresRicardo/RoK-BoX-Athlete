@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase/client';
 import useProfileStore from './profileStore';
+import usePRStore from './prStore';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -60,6 +61,7 @@ const useAuthStore = create((set, get) => ({
     }
 
     useProfileStore.getState().reset();
+    usePRStore.getState().reset();
 
     set({
       user: null,
