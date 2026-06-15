@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Login from '../pages/Login';
 import Dashboard from '../pages/Dashboard';
@@ -11,8 +12,12 @@ import BenchmarkResult from '../pages/BenchmarkResult';
 import Achievements from '../pages/Achievements';
 import Skills from '../pages/Skills';
 import MainLayout from '../layouts/MainLayout';
+import PageLoader from '../components/PageLoader';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
+
+// eslint-disable-next-line react-refresh/only-export-components
+const History = lazy(() => import('../pages/History'));
 
 const router = createBrowserRouter([
   {
@@ -119,6 +124,18 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <Skills />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/history',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <Suspense fallback={<PageLoader />}>
+            <History />
+          </Suspense>
         </MainLayout>
       </ProtectedRoute>
     ),

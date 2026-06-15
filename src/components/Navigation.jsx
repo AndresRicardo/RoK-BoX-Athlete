@@ -6,6 +6,7 @@ const ITEMS = [
   { to: '/dashboard', label: 'Inicio', icon: '🏠' },
   { to: '/prs', label: 'PRs', icon: '🏋️' },
   { to: '/benchmarks', label: 'WODs', icon: '⏱️' },
+  { to: '/history', label: 'Histórico', icon: '📈' },
   { to: '/skills', label: 'Skills', icon: '💪' },
   { to: '/achievements', label: 'Logros', icon: '🏆' },
   { to: '/profile', label: 'Perfil', icon: '👤' },
