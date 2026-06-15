@@ -1,0 +1,104 @@
+.dashboard {
+  padding: var(--space-2) 0;
+}
+
+.dashboard-header {
+  margin-bottom: var(--space-3);
+}
+
+.dashboard-header h1 {
+  color: var(--color-primary);
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  margin: 0 0 0.5rem 0;
+  word-break: break-word;
+}
+
+.dashboard-header p {
+  color: var(--color-muted);
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.dashboard-cards {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.card {
+  background-color: var(--color-surface);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  border: 2px solid var(--color-muted);
+  text-align: center;
+  transition: border-color 0.3s ease, transform 0.2s ease;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.card:hover {
+  border-color: var(--color-primary);
+}
+
+.card:active {
+  transform: scale(0.99);
+}
+
+.card h3 {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  margin: 0 0 0.5rem 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.card p {
+  color: var(--color-primary);
+  font-size: 2.5rem;
+  font-weight: bold;
+  margin: 0.5rem 0;
+  line-height: 1;
+}
+
+.card span {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+}
+
+.dashboard-placeholder {
+  background-color: var(--color-surface);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  text-align: center;
+  border: 2px dashed var(--color-muted);
+}
+
+.dashboard-placeholder p {
+  color: var(--color-muted);
+  margin: 0;
+  font-size: 0.9rem;
+}
+
+@media (min-width: 480px) {
+  .dashboard-cards {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-3);
+  }
+
+  .card p {
+    font-size: 3rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .dashboard-cards {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .dashboard-header {
+    margin-bottom: var(--space-4);
+  }
+}
