@@ -130,25 +130,21 @@ const useBenchmarkStore = create((set, get) => ({
       notes: fields.notes?.trim() || null,
     };
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('benchmarks')
       .update(payload)
       .eq('id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
+      .eq('user_id', userId);
 
     if (error) {
       set({ saving: false, error: error.message });
       throw error;
     }
 
-    set((state) => ({
-      benchmarks: state.benchmarks.map((b) => (b.id === id ? data : b)),
-      saving: false,
-    }));
+    await get().fetchBenchmarks(userId);
 
-    return data;
+    set({ saving: false });
+    return get().benchmarks.find((b) => b.id === id) || null;
   },
 
   isBetter: (candidate, current, type) => {

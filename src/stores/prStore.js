@@ -126,25 +126,21 @@ const usePRStore = create((set, get) => ({
       notes: fields.notes?.trim() || null,
     };
 
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('prs')
       .update(payload)
       .eq('id', id)
-      .eq('user_id', userId)
-      .select()
-      .single();
+      .eq('user_id', userId);
 
     if (error) {
       set({ saving: false, error: error.message });
       throw error;
     }
 
-    set((state) => ({
-      prs: state.prs.map((p) => (p.id === id ? data : p)),
-      saving: false,
-    }));
+    await get().fetchPRs(userId);
 
-    return data;
+    set({ saving: false });
+    return get().prs.find((p) => p.id === id) || null;
   },
 
   getBestByMovement: () => {
