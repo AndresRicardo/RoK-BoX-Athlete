@@ -16,11 +16,6 @@ const useBenchmarkStore = create((set, get) => ({
       return [];
     }
 
-    const existing = get().benchmarks;
-    if (existing.length > 0) {
-      return existing;
-    }
-
     set({ loading: true, error: null });
 
     const { data, error } = await supabase

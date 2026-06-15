@@ -16,11 +16,6 @@ const usePRStore = create((set, get) => ({
       return [];
     }
 
-    const existing = get().prs;
-    if (existing.length > 0) {
-      return existing;
-    }
-
     set({ loading: true, error: null });
 
     const { data, error } = await supabase
