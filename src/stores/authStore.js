@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase/client';
+import useProfileStore from './profileStore';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -57,6 +58,8 @@ const useAuthStore = create((set, get) => ({
       set({ loading: false });
       throw error;
     }
+
+    useProfileStore.getState().reset();
 
     set({
       user: null,
