@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
 import usePRStore from '../stores/prStore';
+import useBenchmarkStore from '../stores/benchmarkStore';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -10,13 +11,15 @@ function Dashboard() {
   const { user } = useAuthStore();
   const { profile, loading, fetchProfile } = useProfileStore();
   const { prs, fetchPRs } = usePRStore();
+  const { benchmarks, fetchBenchmarks } = useBenchmarkStore();
 
   useEffect(() => {
     if (user?.id) {
       fetchProfile(user.id);
       fetchPRs(user.id);
+      fetchBenchmarks(user.id);
     }
-  }, [user, fetchProfile, fetchPRs]);
+  }, [user, fetchProfile, fetchPRs, fetchBenchmarks]);
 
   const greetingName =
     profile?.first_name?.trim() || user?.email?.split('@')[0] || 'Atleta';
@@ -73,9 +76,9 @@ function Dashboard() {
           <p>0</p>
           <span>Desbloqueados</span>
         </div>
-        <div className="card" onClick={() => navigate('/profile')}>
+        <div className="card" onClick={() => navigate('/benchmarks')}>
           <h3>Benchmarks</h3>
-          <p>0</p>
+          <p>{benchmarks.length}</p>
           <span>Realizados</span>
         </div>
       </div>

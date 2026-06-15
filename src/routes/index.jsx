@@ -5,6 +5,8 @@ import Profile from '../pages/Profile';
 import ProfileEdit from '../pages/ProfileEdit';
 import PRs from '../pages/PRs';
 import PRNew from '../pages/PRNew';
+import Benchmarks from '../pages/Benchmarks';
+import BenchmarkNew from '../pages/BenchmarkNew';
 import MainLayout from '../layouts/MainLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
@@ -64,6 +66,26 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <PRNew />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/benchmarks',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <Benchmarks />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/benchmarks/new',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <BenchmarkNew />
         </MainLayout>
       </ProtectedRoute>
     ),
