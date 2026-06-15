@@ -26,7 +26,7 @@ function Skills() {
     lockMovement,
   } = useMovementStore();
 
-  const [tab, setTab] = useState('explore');
+  const [tab, setTab] = useState('mine');
   const [category, setCategory] = useState('all');
   const [query, setQuery] = useState('');
 
