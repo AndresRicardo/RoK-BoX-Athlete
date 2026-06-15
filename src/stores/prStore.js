@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { supabase } from '../supabase/client';
 import useProfileStore from './profileStore';
 import useBenchmarkStore from './benchmarkStore';
+import useMovementStore from './movementStore';
 import useAchievementStore from './achievementStore';
 
 const usePRStore = create((set, get) => ({
@@ -133,6 +134,15 @@ const usePRStore = create((set, get) => ({
     }
 
     await get().fetchPRs(userId);
+
+    const { profile } = useProfileStore.getState();
+    const { benchmarks } = useBenchmarkStore.getState();
+    const { movements } = useMovementStore.getState();
+    const { prs: prsNow } = get();
+    useAchievementStore
+      .getState()
+      .checkAndUnlock(userId, { prs: prsNow, benchmarks, profile, movements })
+      .catch(() => {});
 
     set({ saving: false });
     return get().prs.find((p) => p.id === id) || null;
