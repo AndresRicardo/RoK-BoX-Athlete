@@ -24,11 +24,6 @@ function Login() {
     <div className="login-page">
       <div className="login-container">
         <div className="login-header">
-          <img
-            src="/isotipo%20limpio.svg"
-            alt="RöK BoX Athlete"
-            className="login-logo"
-          />
           <h1 className="login-title">
             <span className="title-r">R</span>
             <span className="title-o">ö</span>

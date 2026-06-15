@@ -51,20 +51,27 @@ function Dashboard() {
 
   return (
     <div className="dashboard">
-      <Link to="/profile" className="dashboard-profile-link">
-        <div className="dashboard-profile-avatar">
-          {avatarUrl ? (
-            <img src={avatarUrl} alt={greetingName} />
-          ) : (
-            <span>{initials}</span>
-          )}
-        </div>
-        <div className="dashboard-profile-info">
-          <h1>Bienvenido, {greetingName}</h1>
-          <span className="dashboard-view-profile">Ver perfil</span>
-        </div>
-        <span className="dashboard-profile-arrow" aria-hidden="true">→</span>
-      </Link>
+      <div className="dashboard-header-row">
+        <Link to="/profile" className="dashboard-profile-link">
+          <div className="dashboard-profile-avatar">
+            {avatarUrl ? (
+              <img src={avatarUrl} alt={greetingName} />
+            ) : (
+              <span>{initials}</span>
+            )}
+          </div>
+          <div className="dashboard-profile-info">
+            <h1>Bienvenido, {greetingName}</h1>
+            <span className="dashboard-view-profile">Ver perfil</span>
+          </div>
+          <span className="dashboard-profile-arrow" aria-hidden="true">→</span>
+        </Link>
+        <img
+          src="/isotipo%20limpio.svg"
+          alt="RöK BoX Athlete"
+          className="dashboard-logo"
+        />
+      </div>
 
       <p className="dashboard-subtitle">Tu perfil deportivo digital de RöK BoX</p>
 
