@@ -7,6 +7,7 @@ import PRs from '../pages/PRs';
 import PRNew from '../pages/PRNew';
 import Benchmarks from '../pages/Benchmarks';
 import BenchmarkNew from '../pages/BenchmarkNew';
+import BenchmarkResult from '../pages/BenchmarkResult';
 import MainLayout from '../layouts/MainLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
@@ -86,6 +87,16 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <BenchmarkNew />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/benchmarks/new/:wodName',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <BenchmarkResult />
         </MainLayout>
       </ProtectedRoute>
     ),
