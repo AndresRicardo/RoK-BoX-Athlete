@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import './MainLayout.css';
 
@@ -19,13 +19,13 @@ function MainLayout({ children }) {
     <div className="main-layout">
       <header className="main-header">
         <div className="header-content">
-          <div className="logo">
+          <Link to="/dashboard" className="logo">
             <span className="logo-r">R</span>
             <span className="logo-o">ö</span>
             <span className="logo-k">K</span>
             <span className="logo-box"> BoX</span>
             <span className="logo-athlete"> Athlete</span>
-          </div>
+          </Link>
           <nav className="main-nav">
             <span className="user-email">{user?.email}</span>
             <button onClick={handleLogout} className="logout-btn">
