@@ -158,7 +158,7 @@ function PRNew() {
 
           {type === 'strength' && (
             <div className="form-group">
-              <label htmlFor="weight">Peso (kg) *</label>
+              <label htmlFor="weight">Peso (lb) *</label>
               <input
                 id="weight"
                 type="number"
@@ -168,7 +168,7 @@ function PRNew() {
                 max="999"
                 value={weightKg}
                 onChange={(e) => setWeightKg(e.target.value)}
-                placeholder="ej. 100"
+                placeholder="ej. 225"
                 required
               />
             </div>

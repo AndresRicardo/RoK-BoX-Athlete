@@ -12,7 +12,7 @@ const TYPE_LABELS = {
 };
 
 function formatValue(pr) {
-  if (pr.type === 'strength') return `${pr.value_numeric} kg`;
+  if (pr.type === 'strength') return `${pr.value_numeric} lb`;
   if (pr.type === 'reps') return `${pr.value_numeric} reps`;
   const total = Math.round(pr.value_numeric);
   const m = Math.floor(total / 60);

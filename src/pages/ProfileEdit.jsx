@@ -208,7 +208,7 @@ function ProfileEdit() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="weight_kg">Peso (kg)</label>
+              <label htmlFor="weight_kg">Peso (lb)</label>
               <input
                 id="weight_kg"
                 name="weight_kg"
@@ -219,7 +219,7 @@ function ProfileEdit() {
                 max="500"
                 value={form.weight_kg}
                 onChange={handleChange}
-                placeholder="ej. 75.5"
+                placeholder="ej. 165"
               />
             </div>
             <div className="form-group">

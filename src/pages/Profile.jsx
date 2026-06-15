@@ -111,7 +111,7 @@ function Profile() {
           <div className="profile-field">
             <span className="field-label">Peso</span>
             <span className="field-value">
-              {profile.weight_kg != null ? `${profile.weight_kg} kg` : '—'}
+              {profile.weight_kg != null ? `${profile.weight_kg} lb` : '—'}
             </span>
           </div>
           <div className="profile-field">
