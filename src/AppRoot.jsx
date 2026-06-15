@@ -6,6 +6,7 @@ import useProfileStore from './stores/profileStore';
 import usePRStore from './stores/prStore';
 import useBenchmarkStore from './stores/benchmarkStore';
 import useAchievementStore from './stores/achievementStore';
+import useMovementStore from './stores/movementStore';
 import AchievementModal from './components/AchievementModal';
 
 function AppRoot() {
@@ -22,6 +23,7 @@ function AppRoot() {
       usePRStore.getState().reset();
       useBenchmarkStore.getState().reset();
       useAchievementStore.getState().reset();
+      useMovementStore.getState().reset();
     }
   }, [userId]);
 

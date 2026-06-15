@@ -152,6 +152,38 @@ export const ACHIEVEMENTS = [
     tier: 'bronze',
     check: ({ profile }) => profile?.discipline === 'rx',
   },
+  {
+    id: 'first_skill',
+    name: 'Primera skill',
+    description: 'Desbloqueaste tu primer movimiento',
+    icon: '💪',
+    tier: 'bronze',
+    check: ({ movements }) => movements && movements.length >= 1,
+  },
+  {
+    id: 'skills_10',
+    name: '10 skills',
+    description: '10 movimientos desbloqueados',
+    icon: '💪',
+    tier: 'silver',
+    check: ({ movements }) => movements && movements.length >= 10,
+  },
+  {
+    id: 'skills_25',
+    name: '25 skills',
+    description: '25 movimientos desbloqueados',
+    icon: '💪',
+    tier: 'gold',
+    check: ({ movements }) => movements && movements.length >= 25,
+  },
+  {
+    id: 'skills_50',
+    name: '50 skills',
+    description: '50 movimientos desbloqueados',
+    icon: '👑',
+    tier: 'platinum',
+    check: ({ movements }) => movements && movements.length >= 50,
+  },
 ];
 
 export function getAchievementById(id) {

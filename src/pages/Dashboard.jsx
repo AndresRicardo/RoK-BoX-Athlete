@@ -5,7 +5,9 @@ import useProfileStore from '../stores/profileStore';
 import usePRStore from '../stores/prStore';
 import useBenchmarkStore from '../stores/benchmarkStore';
 import useAchievementStore from '../stores/achievementStore';
+import useMovementStore from '../stores/movementStore';
 import { ACHIEVEMENTS } from '../data/achievements';
+import { TOTAL_MOVEMENTS } from '../data/movements';
 import './Dashboard.css';
 
 function Dashboard() {
@@ -15,6 +17,7 @@ function Dashboard() {
   const { prs, fetchPRs } = usePRStore();
   const { benchmarks, fetchBenchmarks } = useBenchmarkStore();
   const { unlocked, fetchAchievements, checkAndUnlock } = useAchievementStore();
+  const { unlocked: skills, fetchMovements } = useMovementStore();
 
   useEffect(() => {
     if (user?.id) {
@@ -22,14 +25,20 @@ function Dashboard() {
       fetchPRs(user.id);
       fetchBenchmarks(user.id);
       fetchAchievements(user.id);
+      fetchMovements(user.id);
     }
-  }, [user, fetchProfile, fetchPRs, fetchBenchmarks, fetchAchievements]);
+  }, [user, fetchProfile, fetchPRs, fetchBenchmarks, fetchAchievements, fetchMovements]);
 
   useEffect(() => {
     if (user?.id && !loading) {
-      checkAndUnlock(user.id, { prs, benchmarks, profile }).catch(() => {});
+      checkAndUnlock(user.id, {
+        prs,
+        benchmarks,
+        profile,
+        movements: skills,
+      }).catch(() => {});
     }
-  }, [user, loading, prs, benchmarks, profile, checkAndUnlock]);
+  }, [user, loading, prs, benchmarks, profile, skills, checkAndUnlock]);
 
   const greetingName =
     profile?.first_name?.trim() || user?.email?.split('@')[0] || 'Atleta';
@@ -77,11 +86,19 @@ function Dashboard() {
         </div>
       )}
 
-      <div className="dashboard-cards">
+      <div className="dashboard-cards dashboard-cards-4">
         <div className="card" onClick={() => navigate('/prs')}>
           <h3>PRs</h3>
           <p>{prs.length}</p>
           <span>Marcas Personales</span>
+        </div>
+        <div className="card" onClick={() => navigate('/skills')}>
+          <h3>Skills</h3>
+          <p>
+            {skills.length}
+            <span className="card-total">/{TOTAL_MOVEMENTS}</span>
+          </p>
+          <span>Movimientos</span>
         </div>
         <div className="card" onClick={() => navigate('/achievements')}>
           <h3>Logros</h3>

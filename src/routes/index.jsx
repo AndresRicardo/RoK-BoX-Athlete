@@ -9,6 +9,7 @@ import Benchmarks from '../pages/Benchmarks';
 import BenchmarkNew from '../pages/BenchmarkNew';
 import BenchmarkResult from '../pages/BenchmarkResult';
 import Achievements from '../pages/Achievements';
+import Skills from '../pages/Skills';
 import MainLayout from '../layouts/MainLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
@@ -108,6 +109,16 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <Achievements />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/skills',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <Skills />
         </MainLayout>
       </ProtectedRoute>
     ),
