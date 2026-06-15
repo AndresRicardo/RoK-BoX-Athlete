@@ -79,6 +79,16 @@ const router = createBrowserRouter([
     ),
   },
   {
+    path: '/prs/:id/edit',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <PRNew />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
     path: '/benchmarks',
     element: (
       <ProtectedRoute>
@@ -104,6 +114,16 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <BenchmarkResult />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/benchmarks/:id/edit',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <BenchmarkNew />
         </MainLayout>
       </ProtectedRoute>
     ),

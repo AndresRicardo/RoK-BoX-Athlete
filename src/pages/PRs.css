@@ -279,6 +279,34 @@
   border-color: #ff6b6b;
 }
 
+.pr-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.pr-item-edit {
+  background-color: transparent;
+  color: var(--color-muted);
+  border: 1px solid var(--color-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pr-item-edit:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
 .pr-item-confirm {
   display: flex;
   align-items: center;

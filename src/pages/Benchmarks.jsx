@@ -209,13 +209,22 @@ function Benchmarks() {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            className="benchmark-item-delete"
-                            onClick={() => setConfirmId(b.id)}
-                            aria-label={`Eliminar resultado de ${b.name}`}
-                          >
-                            ×
-                          </button>
+                          <div className="benchmark-item-actions">
+                            <button
+                              className="benchmark-item-edit"
+                              onClick={() => navigate(`/benchmarks/${b.id}/edit`)}
+                              aria-label={`Editar resultado de ${b.name}`}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              className="benchmark-item-delete"
+                              onClick={() => setConfirmId(b.id)}
+                              aria-label={`Eliminar resultado de ${b.name}`}
+                            >
+                              ×
+                            </button>
+                          </div>
                         )}
                       </li>
                     );

@@ -297,6 +297,34 @@
   border-color: #ff6b6b;
 }
 
+.benchmark-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.benchmark-item-edit {
+  background-color: transparent;
+  color: var(--color-muted);
+  border: 1px solid var(--color-muted);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.benchmark-item-edit:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
 .benchmark-item-confirm {
   display: flex;
   align-items: center;

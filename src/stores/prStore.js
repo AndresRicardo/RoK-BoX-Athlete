@@ -96,6 +96,57 @@ const usePRStore = create((set, get) => ({
     }));
   },
 
+  getPRById: async (id) => {
+    const local = get().prs.find((p) => p.id === id);
+    if (local) return local;
+
+    set({ loading: true, error: null });
+    const { data, error } = await supabase
+      .from('prs')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      set({ loading: false, error: error.message });
+      throw error;
+    }
+    set({ loading: false });
+    return data;
+  },
+
+  updatePR: async (id, userId, fields) => {
+    set({ saving: true, error: null });
+
+    const payload = {
+      movement: fields.movement.trim(),
+      type: fields.type,
+      value_numeric: fields.value_numeric,
+      achieved_at: fields.achieved_at,
+      notes: fields.notes?.trim() || null,
+    };
+
+    const { data, error } = await supabase
+      .from('prs')
+      .update(payload)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      set({ saving: false, error: error.message });
+      throw error;
+    }
+
+    set((state) => ({
+      prs: state.prs.map((p) => (p.id === id ? data : p)),
+      saving: false,
+    }));
+
+    return data;
+  },
+
   getBestByMovement: () => {
     const { prs } = get();
     const map = new Map();
@@ -112,6 +163,8 @@ const usePRStore = create((set, get) => ({
   reset: () => {
     set({ prs: [], loading: false, error: null, saving: false });
   },
+
+  resetError: () => set({ error: null }),
 }));
 
 export default usePRStore;

@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import usePRStore from '../stores/prStore';
 import './PRNew.css';
@@ -38,8 +38,10 @@ function todayISO() {
 
 function PRNew() {
   const navigate = useNavigate();
+  const { id } = useParams();
+  const isEdit = Boolean(id);
   const { user } = useAuthStore();
-  const { saving, error, createPR } = usePRStore();
+  const { saving, loading, error, createPR, updatePR, getPRById, resetError } = usePRStore();
 
   const [type, setType] = useState('strength');
   const [movement, setMovement] = useState('');
@@ -50,6 +52,36 @@ function PRNew() {
   const [achievedAt, setAchievedAt] = useState(todayISO());
   const [notes, setNotes] = useState('');
   const [validationError, setValidationError] = useState('');
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    if (!isEdit) return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const pr = await getPRById(id);
+        if (cancelled) return;
+        setType(pr.type);
+        setMovement(pr.movement);
+        setAchievedAt(pr.achieved_at?.slice(0, 10) || todayISO());
+        setNotes(pr.notes || '');
+        if (pr.type === 'strength') {
+          setWeightKg(String(pr.value_numeric));
+        } else if (pr.type === 'reps') {
+          setReps(String(pr.value_numeric));
+        } else {
+          const total = Math.round(pr.value_numeric);
+          setMinutes(String(Math.floor(total / 60)));
+          setSeconds(String(total % 60));
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || 'No se pudo cargar el PR');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id, isEdit, getPRById]);
 
   const datalist = useMemo(() => MOVEMENTS[type] || [], [type]);
 
@@ -86,14 +118,20 @@ function PRNew() {
       return;
     }
 
+    const payload = {
+      type,
+      movement: movement.trim(),
+      value_numeric: value,
+      achieved_at: achievedAt,
+      notes,
+    };
+
     try {
-      await createPR(user.id, {
-        type,
-        movement: movement.trim(),
-        value_numeric: value,
-        achieved_at: achievedAt,
-        notes,
-      });
+      if (isEdit) {
+        await updatePR(id, user.id, payload);
+      } else {
+        await createPR(user.id, payload);
+      }
       navigate('/prs');
     } catch {
       // error ya está en prStore.error
@@ -101,6 +139,7 @@ function PRNew() {
   };
 
   const handleTypeChange = (newType) => {
+    if (newType === type) return;
     setType(newType);
     setMovement('');
     setWeightKg('');
@@ -109,11 +148,40 @@ function PRNew() {
     setReps('');
   };
 
+  useEffect(() => () => resetError(), [resetError]);
+
+  if (isEdit && loading) {
+    return (
+      <div className="pr-new">
+        <p className="prs-loading">Cargando PR...</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="pr-new">
+        <div className="form-error">{loadError}</div>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => navigate('/prs')}
+        >
+          Volver a PRs
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="pr-new">
       <div className="pr-new-header">
-        <h1>Registrar PR</h1>
-        <p>Añade una nueva marca personal.</p>
+        <h1>{isEdit ? 'Editar PR' : 'Registrar PR'}</h1>
+        <p>
+          {isEdit
+            ? 'Modifica los datos de tu marca personal.'
+            : 'Añade una nueva marca personal.'}
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="pr-form" noValidate>
@@ -263,7 +331,7 @@ function PRNew() {
             Cancelar
           </button>
           <button type="submit" className="btn-primary" disabled={saving}>
-            {saving ? 'Guardando...' : 'Guardar PR'}
+            {saving ? 'Guardando...' : isEdit ? 'Actualizar PR' : 'Guardar PR'}
           </button>
         </div>
       </form>

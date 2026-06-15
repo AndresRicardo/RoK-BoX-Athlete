@@ -176,13 +176,22 @@ function PRs() {
                             </button>
                           </div>
                         ) : (
-                          <button
-                            className="pr-item-delete"
-                            onClick={() => setConfirmId(pr.id)}
-                            aria-label={`Eliminar PR de ${movement}`}
-                          >
-                            ×
-                          </button>
+                          <div className="pr-item-actions">
+                            <button
+                              className="pr-item-edit"
+                              onClick={() => navigate(`/prs/${pr.id}/edit`)}
+                              aria-label={`Editar PR de ${movement}`}
+                            >
+                              ✎
+                            </button>
+                            <button
+                              className="pr-item-delete"
+                              onClick={() => setConfirmId(pr.id)}
+                              aria-label={`Eliminar PR de ${movement}`}
+                            >
+                              ×
+                            </button>
+                          </div>
                         )}
                       </li>
                     );

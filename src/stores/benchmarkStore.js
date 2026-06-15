@@ -98,6 +98,59 @@ const useBenchmarkStore = create((set, get) => ({
     }));
   },
 
+  getBenchmarkById: async (id) => {
+    const local = get().benchmarks.find((b) => b.id === id);
+    if (local) return local;
+
+    set({ loading: true, error: null });
+    const { data, error } = await supabase
+      .from('benchmarks')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      set({ loading: false, error: error.message });
+      throw error;
+    }
+    set({ loading: false });
+    return data;
+  },
+
+  updateBenchmark: async (id, userId, fields) => {
+    set({ saving: true, error: null });
+
+    const payload = {
+      name: fields.name.trim(),
+      type: fields.type,
+      result_value: fields.result_value,
+      result_unit: fields.result_unit,
+      scaling: fields.scaling,
+      performed_at: fields.performed_at,
+      notes: fields.notes?.trim() || null,
+    };
+
+    const { data, error } = await supabase
+      .from('benchmarks')
+      .update(payload)
+      .eq('id', id)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      set({ saving: false, error: error.message });
+      throw error;
+    }
+
+    set((state) => ({
+      benchmarks: state.benchmarks.map((b) => (b.id === id ? data : b)),
+      saving: false,
+    }));
+
+    return data;
+  },
+
   isBetter: (candidate, current, type) => {
     if (type === 'for_time') return candidate < current;
     return candidate > current;
@@ -122,6 +175,8 @@ const useBenchmarkStore = create((set, get) => ({
   reset: () => {
     set({ benchmarks: [], loading: false, error: null, saving: false });
   },
+
+  resetError: () => set({ error: null }),
 }));
 
 export default useBenchmarkStore;
