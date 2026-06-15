@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
 import './Dashboard.css';
@@ -18,12 +18,28 @@ function Dashboard() {
   const greetingName =
     profile?.first_name?.trim() || user?.email?.split('@')[0] || 'Atleta';
 
+  const avatarUrl =
+    user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+  const initials = `${profile?.first_name?.[0] ?? ''}${profile?.last_name?.[0] ?? ''}`.toUpperCase() || 'RX';
+
   return (
     <div className="dashboard">
-      <div className="dashboard-header">
-        <h1>Bienvenido, {greetingName}</h1>
-        <p>Tu perfil deportivo digital de RöK BoX</p>
-      </div>
+      <Link to="/profile" className="dashboard-profile-link">
+        <div className="dashboard-profile-avatar">
+          {avatarUrl ? (
+            <img src={avatarUrl} alt={greetingName} />
+          ) : (
+            <span>{initials}</span>
+          )}
+        </div>
+        <div className="dashboard-profile-info">
+          <h1>Bienvenido, {greetingName}</h1>
+          <span className="dashboard-view-profile">Ver perfil</span>
+        </div>
+        <span className="dashboard-profile-arrow" aria-hidden="true">→</span>
+      </Link>
+
+      <p className="dashboard-subtitle">Tu perfil deportivo digital de RöK BoX</p>
 
       {!loading && !profile && (
         <div className="dashboard-cta">
