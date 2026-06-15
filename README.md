@@ -1,16 +1,63 @@
-# React + Vite
+# RöK BoX Athlete
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+PWA para atletas de CrossFit. Perfil deportivo digital: PRs, benchmarks, logros y progreso.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **Vite 8** — SPA con HMR
+- **React Router 7** — routing client-side
+- **Zustand 5** — estado global (auth)
+- **Supabase** (self-hosted) — backend, auth con Google OAuth
+- **vite-plugin-pwa** — service worker, manifest, instalable
 
-## React Compiler
+## Características
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Auth con Google OAuth (sin email/password)
+- Sesión persistente
+- Responsive mobile-first
+- PWA instalable (Android + iOS)
+- Offline shell (UI navegable sin red)
 
-## Expanding the ESLint configuration
+## Comandos
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install     # instalar dependencias
+npm run dev     # servidor de desarrollo (http://localhost:5173)
+npm run build   # build de producción → dist/
+npm run preview # servir el build (http://localhost:4173)
+npm run lint    # ESLint
+npm run icons   # regenerar iconos PWA
+```
+
+## Variables de entorno
+
+Crear `.env` en la raíz con:
+
+```env
+VITE_SUPABASE_URL=https://supabase.tu-dominio.com
+VITE_SUPABASE_ANON_KEY=eyJ...
+```
+
+> Nunca commitear `.env`. Está en `.gitignore`.
+
+## Estructura
+
+```
+src/
+├── components/   # ProtectedRoute, PublicRoute
+├── layouts/      # MainLayout (header + footer + content)
+├── pages/        # Login, Dashboard
+├── routes/       # React Router config
+├── stores/       # authStore (Zustand)
+├── supabase/     # cliente Supabase
+├── AppRoot.jsx   # inicializa auth + RouterProvider
+└── main.jsx      # entry point
+```
+
+## Paleta
+
+- Primary: `#FFC815`
+- Background: `#000000`
+- Surface: `#292929`
+- Muted: `#585858`
+- Text: `#FFFFFF`
