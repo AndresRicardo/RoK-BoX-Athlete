@@ -42,7 +42,7 @@ function Profile() {
     return years;
   }, [profile]);
 
-  if (loading && !profile) {
+  if (loading) {
     return (
       <div className="profile-page">
         <p className="profile-loading">Cargando perfil...</p>

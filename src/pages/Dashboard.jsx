@@ -7,7 +7,7 @@ import './Dashboard.css';
 function Dashboard() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  const { profile, fetchProfile } = useProfileStore();
+  const { profile, loading, fetchProfile } = useProfileStore();
 
   useEffect(() => {
     if (user?.id) {
@@ -25,7 +25,7 @@ function Dashboard() {
         <p>Tu perfil deportivo digital de RöK BoX</p>
       </div>
 
-      {!profile && (
+      {!loading && !profile && (
         <div className="dashboard-cta">
           <div className="dashboard-cta-text">
             <h2>Crea tu perfil deportivo</h2>

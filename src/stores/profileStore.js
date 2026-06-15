@@ -13,6 +13,11 @@ const useProfileStore = create((set) => ({
       return null;
     }
 
+    const existing = useProfileStore.getState().profile;
+    if (existing?.id === userId) {
+      return existing;
+    }
+
     set({ loading: true, error: null });
 
     const { data, error } = await supabase
