@@ -2,9 +2,9 @@
 <!-- Created with Inkscape (http://www.inkscape.org/) -->
 
 <svg
-   width="802.06128mm"
-   height="1140.3196mm"
-   viewBox="0 0 802.06126 1140.3196"
+   width="542.01953mm"
+   height="947.06079mm"
+   viewBox="0 0 542.01952 947.06081"
    version="1.1"
    id="svg5"
    xml:space="preserve"
@@ -28,19 +28,19 @@
      inkscape:document-units="mm"
      showgrid="false"
      inkscape:zoom="0.088388348"
-     inkscape:cx="-1674.4289"
-     inkscape:cy="2279.7123"
-     inkscape:window-width="1920"
-     inkscape:window-height="991"
-     inkscape:window-x="-9"
-     inkscape:window-y="-9"
+     inkscape:cx="1012.5769"
+     inkscape:cy="2160.9183"
+     inkscape:window-width="1536"
+     inkscape:window-height="793"
+     inkscape:window-x="2552"
+     inkscape:window-y="-8"
      inkscape:window-maximized="1"
      inkscape:current-layer="g7303" /><defs
      id="defs2" /><g
      inkscape:label="Capa 1"
      inkscape:groupmode="layer"
      id="layer1"
-     transform="translate(-81.903039,-2842.6603)"><g
+     transform="translate(-211.92391,-2939.2897)"><g
        id="g580"
        transform="translate(-244.25641,-64.00508)" /><g
        id="g584-8"
@@ -66,13 +66,7 @@
            transform="matrix(1,0,0,-1,-446.78133,642.02405)"
            style="fill:#eeede8;fill-opacity:1;stroke:#000000" /></g></g><g
        id="g7303"
-       transform="matrix(4.9019608,0,0,4.9019608,1280.5463,-10610.071)"><rect
-         style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0;stroke-linecap:round;stroke-linejoin:round;stroke-miterlimit:5.8;stroke-opacity:1"
-         id="rect7297"
-         width="163.6205"
-         height="232.62518"
-         x="-244.52322"
-         y="2744.3572" /><g
+       transform="matrix(4.9019608,0,0,4.9019608,1280.5463,-10610.071)"><g
          id="g4735"
          transform="translate(94.273106,14.267863)"
          style="fill:#e8e7e2;fill-opacity:1"><path
