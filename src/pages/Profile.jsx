@@ -2,6 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
+import { formatWeightKg } from '../utils/units';
 import './Profile.css';
 
 const DISCIPLINE_LABELS = {
@@ -111,7 +112,9 @@ function Profile() {
           <div className="profile-field">
             <span className="field-label">Peso</span>
             <span className="field-value">
-              {profile.weight_kg != null ? `${profile.weight_kg} lb` : '—'}
+              {profile.weight_kg != null
+                ? `${formatWeightKg(profile.weight_kg)} kg`
+                : '—'}
             </span>
           </div>
           <div className="profile-field">

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
+import { kgToLb, lbToKg } from '../utils/units';
 import './ProfileEdit.css';
 
 const DISCIPLINE_OPTIONS = [
@@ -52,7 +53,10 @@ function ProfileEdit() {
           display_name: data.display_name ?? '',
           birth_date: data.birth_date ?? '',
           gender: data.gender ?? '',
-          weight_kg: data.weight_kg ?? '',
+          weight_kg:
+            data.weight_kg != null
+              ? String(lbToKg(Number(data.weight_kg)).toFixed(1))
+              : '',
           height_cm: data.height_cm ?? '',
           experience_years: data.experience_years ?? '',
           discipline: data.discipline ?? 'rx',
@@ -90,7 +94,10 @@ function ProfileEdit() {
       display_name: form.display_name.trim() || null,
       birth_date: form.birth_date || null,
       gender: form.gender || null,
-      weight_kg: form.weight_kg === '' ? null : Number(form.weight_kg),
+      weight_kg:
+        form.weight_kg === ''
+          ? null
+          : Number(kgToLb(Number(Number(form.weight_kg).toFixed(1))).toFixed(2)),
       height_cm: form.height_cm === '' ? null : Number(form.height_cm),
       experience_years:
         form.experience_years === '' ? null : Number(form.experience_years),
@@ -208,7 +215,7 @@ function ProfileEdit() {
           </div>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="weight_kg">Peso (lb)</label>
+              <label htmlFor="weight_kg">Peso (kg)</label>
               <input
                 id="weight_kg"
                 name="weight_kg"
@@ -219,7 +226,7 @@ function ProfileEdit() {
                 max="500"
                 value={form.weight_kg}
                 onChange={handleChange}
-                placeholder="ej. 165"
+                placeholder="ej. 75"
               />
             </div>
             <div className="form-group">

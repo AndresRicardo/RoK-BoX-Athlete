@@ -1,3 +1,5 @@
+import { lbToKg } from '../utils/units';
+
 export const ACHIEVEMENTS = [
   {
     id: 'first_pr',
@@ -72,7 +74,7 @@ export const ACHIEVEMENTS = [
     check: ({ prs, profile }) => {
       if (!profile?.weight_kg) return false;
       const bs = prs.find((p) => p.movement === 'Back Squat' && p.type === 'strength');
-      return bs && bs.value_numeric >= profile.weight_kg * 2;
+      return bs && lbToKg(bs.value_numeric) >= profile.weight_kg * 2;
     },
   },
   {
@@ -84,7 +86,7 @@ export const ACHIEVEMENTS = [
     check: ({ prs, profile }) => {
       if (!profile?.weight_kg) return false;
       const dl = prs.find((p) => p.movement === 'Deadlift' && p.type === 'strength');
-      return dl && dl.value_numeric >= profile.weight_kg * 2;
+      return dl && lbToKg(dl.value_numeric) >= profile.weight_kg * 2;
     },
   },
   {
@@ -96,7 +98,7 @@ export const ACHIEVEMENTS = [
     check: ({ prs, profile }) => {
       if (!profile?.weight_kg) return false;
       const cj = prs.find((p) => p.movement === 'Clean & Jerk' && p.type === 'strength');
-      return cj && cj.value_numeric >= profile.weight_kg;
+      return cj && lbToKg(cj.value_numeric) >= profile.weight_kg;
     },
   },
   {
