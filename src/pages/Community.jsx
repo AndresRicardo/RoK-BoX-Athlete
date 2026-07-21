@@ -1,14 +1,65 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
 import useFollowStore from '../stores/followStore';
+import useFeedStore from '../stores/feedStore';
 import AthleteRow from '../components/AthleteRow';
+import { getAchievementById } from '../data/achievements';
+import { formatPrValue, formatBenchmarkResult } from '../utils/format';
+import { timeAgo } from '../utils/time';
 import './Community.css';
 
 const TABS = [
+  { value: 'feed', label: 'Feed' },
   { value: 'search', label: 'Buscar' },
   { value: 'following', label: 'Siguiendo' },
 ];
+
+const EVENT_ICONS = {
+  pr: '🏋️',
+  benchmark: '⏱️',
+  achievement: '🏆',
+  skill: '💪',
+};
+
+function renderEventText(e) {
+  const p = e.payload || {};
+  switch (e.event_type) {
+    case 'pr':
+      return (
+        <>
+          registró un PR en <strong>{p.movement}</strong>:{' '}
+          <strong>{formatPrValue(p)}</strong>
+        </>
+      );
+    case 'benchmark':
+      return (
+        <>
+          completó <strong>{p.name}</strong>:{' '}
+          <strong>{formatBenchmarkResult(p)}</strong>
+          {p.scaling ? ` (${p.scaling.toUpperCase()})` : ''}
+        </>
+      );
+    case 'achievement': {
+      const def = getAchievementById(p.achievement_id);
+      return (
+        <>
+          desbloqueó el logro{' '}
+          <strong>{def?.name || p.achievement_id}</strong>
+        </>
+      );
+    }
+    case 'skill':
+      return (
+        <>
+          desbloqueó <strong>{p.movement}</strong>
+        </>
+      );
+    default:
+      return null;
+  }
+}
 
 function Community() {
   const { user } = useAuthStore();
@@ -31,9 +82,19 @@ function Community() {
     fetchFollowingList,
   } = useFollowStore();
 
-  const [tab, setTab] = useState('search');
+  const [tab, setTab] = useState('feed');
   const [query, setQuery] = useState('');
   const [followingPeople, setFollowingPeople] = useState(null);
+
+  const {
+    events,
+    loading: feedLoading,
+    loadingMore,
+    hasMore,
+    error: feedError,
+    fetchFeed,
+    loadMore,
+  } = useFeedStore();
 
   useEffect(() => {
     if (user?.id) {
@@ -42,6 +103,13 @@ function Community() {
       fetchExplore(user.id);
     }
   }, [user, fetchMyNetwork, fetchProfile, fetchExplore]);
+
+  // Feed: carga al entrar al tab y se refresca si cambia mi red
+  useEffect(() => {
+    if (tab === 'feed' && user?.id) {
+      fetchFeed(user.id).catch(() => {});
+    }
+  }, [tab, user, fetchFeed, following.length]);
 
   useEffect(() => {
     if (user?.id && profile?.box_name) {
@@ -134,6 +202,65 @@ function Community() {
       </div>
 
       {error && <div className="form-error">{error}</div>}
+
+      {tab === 'feed' && (
+        <>
+          {feedError && <div className="form-error">{feedError}</div>}
+          {feedLoading ? (
+            <p className="community-loading">Cargando actividad...</p>
+          ) : events.length === 0 ? (
+            <div className="community-empty-state">
+              <h2>Tu feed está vacío</h2>
+              <p>
+                Sigue atletas para ver aquí sus PRs, benchmarks, logros y
+                skills.
+              </p>
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={() => handleTabChange('search')}
+              >
+                Buscar atletas
+              </button>
+            </div>
+          ) : (
+            <>
+              <div className="community-list feed-list">
+                {events.map((e) => (
+                  <Link
+                    key={e.id}
+                    to={`/athletes/${e.user_id}`}
+                    className="feed-card"
+                  >
+                    <span className="feed-card-icon" aria-hidden="true">
+                      {EVENT_ICONS[e.event_type] || '📣'}
+                    </span>
+                    <div className="feed-card-body">
+                      <p className="feed-card-text">
+                        <strong>@{e.athlete?.display_name || 'atleta'}</strong>{' '}
+                        {renderEventText(e)}
+                      </p>
+                      <span className="feed-card-time">
+                        {timeAgo(e.created_at)}
+                      </span>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+              {hasMore && (
+                <button
+                  type="button"
+                  className="feed-load-more"
+                  onClick={() => loadMore().catch(() => {})}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? 'Cargando...' : 'Cargar más'}
+                </button>
+              )}
+            </>
+          )}
+        </>
+      )}
 
       {tab === 'search' && (
         <>
