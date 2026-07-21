@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import usePRStore from '../stores/prStore';
+import {
+  formatPrValue as formatValue,
+  formatShortDate as formatDate,
+} from '../utils/format';
 import './PRs.css';
 
 const TYPE_LABELS = {
@@ -10,23 +14,6 @@ const TYPE_LABELS = {
   reps: 'Reps',
   all: 'Todos',
 };
-
-function formatValue(pr) {
-  if (pr.type === 'strength') return `${pr.value_numeric} lb`;
-  if (pr.type === 'reps') return `${pr.value_numeric} reps`;
-  const total = Math.round(pr.value_numeric);
-  const m = Math.floor(total / 60);
-  const s = total % 60;
-  return `${m}:${String(s).padStart(2, '0')}`;
-}
-
-function formatDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 function PRs() {
   const navigate = useNavigate();

@@ -9,6 +9,7 @@ const ITEMS = [
   { to: '/skills', label: 'Skills', icon: '💪' },
   { to: '/history', label: 'Histórico', icon: '📈' },
   { to: '/achievements', label: 'Logros', icon: '🏆' },
+  { to: '/community', label: 'Comunidad', icon: '👥' },
   { to: '/profile', label: 'Perfil', icon: '👤' },
 ];
 

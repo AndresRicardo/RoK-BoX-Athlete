@@ -1,7 +1,9 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
+import useFollowStore from '../stores/followStore';
+import FollowListModal from '../components/FollowListModal';
 import { formatWeightKg } from '../utils/units';
 import './Profile.css';
 
@@ -23,12 +25,15 @@ function Profile() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { profile, loading, fetchProfile } = useProfileStore();
+  const { following, followers, fetchMyNetwork } = useFollowStore();
+  const [modal, setModal] = useState(null); // 'followers' | 'following' | null
 
   useEffect(() => {
     if (user?.id) {
       fetchProfile(user.id);
+      fetchMyNetwork(user.id).catch(() => {});
     }
-  }, [user, fetchProfile]);
+  }, [user, fetchProfile, fetchMyNetwork]);
 
   const age = useMemo(() => {
     const birthDate = profile?.birth_date;
@@ -86,7 +91,7 @@ function Profile() {
         </div>
         <div className="profile-hero-info">
           <h1>{fullName}</h1>
-          {displayName && <p className="profile-display-name">{displayName}</p>}
+          {displayName && <p className="profile-display-name">@{displayName}</p>}
           <p className="profile-email">{user?.email}</p>
           <div className="profile-chips">
             <span className="chip chip-discipline">
@@ -103,6 +108,25 @@ function Profile() {
           onClick={() => navigate('/profile/edit')}
         >
           Editar
+        </button>
+      </div>
+
+      <div className="profile-social-stats">
+        <button
+          type="button"
+          className="profile-social-stat"
+          onClick={() => setModal('followers')}
+        >
+          <strong>{followers.length}</strong>
+          <span>Seguidores</span>
+        </button>
+        <button
+          type="button"
+          className="profile-social-stat"
+          onClick={() => setModal('following')}
+        >
+          <strong>{following.length}</strong>
+          <span>Siguiendo</span>
         </button>
       </div>
 
@@ -169,6 +193,14 @@ function Profile() {
           </div>
         )}
       </div>
+
+      {modal && (
+        <FollowListModal
+          userId={user.id}
+          type={modal}
+          onClose={() => setModal(null)}
+        />
+      )}
     </div>
   );
 }

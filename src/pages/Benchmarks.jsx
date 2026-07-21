@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useBenchmarkStore from '../stores/benchmarkStore';
+import {
+  formatBenchmarkResult as formatResult,
+  formatShortDate as formatDate,
+} from '../utils/format';
 import './Benchmarks.css';
 
 const TYPE_LABELS = {
@@ -17,31 +21,6 @@ const SCALING_LABELS = {
   scaled: 'Scaled',
   masters: 'Masters',
 };
-
-function formatResult(b) {
-  if (b.result_unit === 'time_seconds') {
-    const total = Math.round(b.result_value);
-    const m = Math.floor(total / 60);
-    const s = total % 60;
-    return `${m}:${String(s).padStart(2, '0')}`;
-  }
-  if (b.result_unit === 'rounds_reps') {
-    const total = Math.round(b.result_value);
-    const r = Math.floor(total / 1000);
-    const e = total % 1000;
-    if (e === 0) return `${r} rounds`;
-    return `${r} + ${e}`;
-  }
-  return `${Math.round(b.result_value)} reps`;
-}
-
-function formatDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString('es-ES', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
-}
 
 function Benchmarks() {
   const navigate = useNavigate();

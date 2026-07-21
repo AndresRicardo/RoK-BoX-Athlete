@@ -1,0 +1,332 @@
+.athlete-profile {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--space-2) 0;
+  padding-bottom: 100px;
+}
+
+.athlete-profile-loading {
+  color: var(--color-muted);
+  text-align: center;
+  padding: var(--space-4);
+}
+
+.athlete-profile-empty {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  text-align: center;
+}
+
+.athlete-profile-empty h1 {
+  color: var(--color-text);
+  font-size: 1.3rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.athlete-profile-empty p {
+  color: var(--color-muted);
+  margin: 0 0 var(--space-2) 0;
+}
+
+.athlete-hero {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md);
+  padding: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.athlete-hero-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.athlete-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background-color: var(--color-bg);
+  border: 3px solid var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.athlete-hero-info {
+  min-width: 0;
+}
+
+.athlete-hero-info h1 {
+  color: var(--color-primary);
+  font-size: clamp(1.3rem, 5vw, 1.75rem);
+  margin: 0;
+  word-break: break-all;
+}
+
+.athlete-full-name {
+  color: var(--color-muted);
+  margin: 0.15rem 0 0.5rem 0;
+  font-size: 0.95rem;
+}
+
+.athlete-chips {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.chip {
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.chip-discipline {
+  background-color: var(--color-primary);
+  color: var(--color-bg);
+}
+
+.chip-box {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-muted);
+}
+
+.athlete-stats {
+  display: flex;
+  gap: var(--space-1);
+}
+
+.athlete-stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+  font-family: inherit;
+  cursor: pointer;
+  min-height: var(--touch-target);
+  transition: border-color 0.15s ease;
+}
+
+.athlete-stat:hover {
+  border-color: var(--color-primary);
+}
+
+.athlete-stat strong {
+  color: var(--color-text);
+  font-size: 1.1rem;
+}
+
+.athlete-stat span {
+  color: var(--color-muted);
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.athlete-follow-btn {
+  flex: 1.5;
+  min-height: var(--touch-target);
+  font-size: 0.95rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary);
+  color: var(--color-bg);
+  border: 2px solid var(--color-primary);
+  transition: all 0.2s ease;
+}
+
+.athlete-follow-btn:hover:not(:disabled) {
+  background-color: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.athlete-follow-btn-following {
+  background-color: transparent;
+  color: var(--color-primary);
+}
+
+.athlete-follow-btn-following:hover:not(:disabled) {
+  background-color: transparent;
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+.athlete-follow-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.athlete-locked {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md);
+  padding: var(--space-4) var(--space-3);
+  text-align: center;
+}
+
+.athlete-locked-icon {
+  font-size: 2rem;
+  display: block;
+  margin-bottom: var(--space-1);
+}
+
+.athlete-locked h2 {
+  color: var(--color-text);
+  font-size: 1.1rem;
+  margin: 0 0 0.5rem 0;
+}
+
+.athlete-locked p {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.athlete-section {
+  margin-bottom: var(--space-3);
+}
+
+.athlete-section h2 {
+  color: var(--color-primary);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0 0 var(--space-1) 0;
+}
+
+.athlete-section-empty {
+  color: var(--color-muted);
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.athlete-activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.athlete-activity-list li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+}
+
+.athlete-activity-name {
+  color: var(--color-text);
+  font-weight: 600;
+  font-size: 0.9rem;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.athlete-activity-value {
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  white-space: nowrap;
+}
+
+.athlete-activity-date {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.athlete-badge-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--space-1);
+}
+
+.athlete-badge {
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-sm);
+  padding: var(--space-1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+}
+
+.athlete-badge-icon {
+  font-size: 1.5rem;
+  line-height: 1;
+}
+
+.athlete-badge-name {
+  color: var(--color-text);
+  font-size: 0.75rem;
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.athlete-badge-cat {
+  color: var(--color-muted);
+  font-size: 0.65rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.athlete-profile .btn-primary {
+  min-height: var(--touch-target);
+  padding: 0 var(--space-3);
+  font-size: 1rem;
+  font-weight: bold;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary);
+  color: var(--color-bg);
+  border: 2px solid var(--color-primary);
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.athlete-profile .btn-primary:hover:not(:disabled) {
+  background-color: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.athlete-profile .form-error {
+  background-color: rgba(255, 0, 0, 0.2);
+  border: 1px solid #ff0000;
+  color: #ff6b6b;
+  padding: 0.75rem var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  text-align: center;
+  margin-bottom: var(--space-2);
+}

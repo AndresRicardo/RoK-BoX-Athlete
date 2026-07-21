@@ -27,6 +27,10 @@ const Achievements = lazy(() => import('../pages/Achievements'));
 const Skills = lazy(() => import('../pages/Skills'));
 // eslint-disable-next-line react-refresh/only-export-components
 const History = lazy(() => import('../pages/History'));
+// eslint-disable-next-line react-refresh/only-export-components
+const Community = lazy(() => import('../pages/Community'));
+// eslint-disable-next-line react-refresh/only-export-components
+const AthleteProfile = lazy(() => import('../pages/AthleteProfile'));
 
 // eslint-disable-next-line react-refresh/only-export-components
 function LazyPage({ component: Component }) {
@@ -172,6 +176,26 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <LazyPage component={History} />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/community',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <LazyPage component={Community} />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/athletes/:id',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <LazyPage component={AthleteProfile} />
         </MainLayout>
       </ProtectedRoute>
     ),

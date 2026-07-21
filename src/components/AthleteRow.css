@@ -1,0 +1,117 @@
+.athlete-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md);
+  padding: var(--space-1);
+}
+
+.athlete-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex: 1;
+  min-width: 0;
+  text-decoration: none;
+  color: inherit;
+}
+
+.athlete-row-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: var(--color-bg);
+  border: 2px solid var(--color-primary);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.athlete-row-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.athlete-row-handle {
+  color: var(--color-text);
+  font-weight: 700;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.athlete-row-name {
+  color: var(--color-muted);
+  font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.athlete-row-chips {
+  display: flex;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  flex-wrap: wrap;
+}
+
+.athlete-row-chip {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  border: 1px solid var(--color-muted);
+  border-radius: 999px;
+  padding: 0.1rem 0.5rem;
+  white-space: nowrap;
+}
+
+.athlete-row-chip-discipline {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.athlete-row-follow {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 var(--space-1);
+  font-size: 0.8rem;
+  font-weight: 700;
+  font-family: inherit;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  background-color: var(--color-primary);
+  color: var(--color-bg);
+  border: 2px solid var(--color-primary);
+  transition: all 0.2s ease;
+}
+
+.athlete-row-follow:hover:not(:disabled) {
+  background-color: var(--color-text);
+  border-color: var(--color-text);
+}
+
+.athlete-row-following {
+  background-color: transparent;
+  color: var(--color-primary);
+}
+
+.athlete-row-following:hover:not(:disabled) {
+  background-color: transparent;
+  color: #ff6b6b;
+  border-color: #ff6b6b;
+}
+
+.athlete-row-follow:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

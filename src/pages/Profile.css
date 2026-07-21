@@ -63,20 +63,43 @@
 }
 
 .profile-edit-btn {
-  position: absolute;
-  top: var(--space-2);
-  right: var(--space-2);
-  min-height: 36px;
-  min-width: 36px;
-  padding: 0 var(--space-2);
-  font-size: 0.8rem;
-  font-weight: bold;
-  background-color: transparent;
-  color: var(--color-primary);
-  border: 1px solid var(--color-primary);
-  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+
+.profile-social-stats {
+  display: flex;
+  gap: var(--space-1);
+  margin-bottom: var(--space-3);
+}
+
+.profile-social-stat {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md);
+  padding: var(--space-1);
+  font-family: inherit;
   cursor: pointer;
-  transition: all 0.2s ease;
+  min-height: var(--touch-target);
+  transition: border-color 0.15s ease;
+}
+
+.profile-social-stat:hover {
+  border-color: var(--color-primary);
+}
+
+.profile-social-stat strong {
+  color: var(--color-primary);
+  font-size: 1.1rem;
+}
+
+.profile-social-stat span {
+  color: var(--color-muted);
+  font-size: 0.85rem;
 }
 
 .profile-edit-btn:hover {
