@@ -122,6 +122,30 @@
   pointer-events: none;
 }
 
+.input-prefix-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-prefix {
+  position: absolute;
+  left: var(--space-2);
+  color: var(--color-primary);
+  font-weight: 700;
+  font-size: 1rem;
+  pointer-events: none;
+}
+
+.input-prefix-wrapper input {
+  padding-left: calc(var(--space-2) + 1rem);
+}
+
+.field-hint {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+}
+
 .form-error {
   background-color: rgba(255, 0, 0, 0.2);
   border: 1px solid #ff0000;

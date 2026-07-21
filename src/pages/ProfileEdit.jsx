@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
 import { kgToLb, lbToKg } from '../utils/units';
+import { HANDLE_REGEX, normalizeHandle } from '../utils/handle';
 import './ProfileEdit.css';
 
 const DISCIPLINE_OPTIONS = [
@@ -65,10 +66,16 @@ function ProfileEdit() {
         });
       } else {
         const meta = user.user_metadata || {};
+        const suggestedHandle = normalizeHandle(
+          (meta.given_name || meta.full_name || '').split(' ')[0],
+        );
         setForm((prev) => ({
           ...prev,
           first_name: prev.first_name || meta.given_name || '',
           last_name: prev.last_name || meta.family_name || '',
+          display_name:
+            prev.display_name ||
+            (suggestedHandle.length >= 3 ? suggestedHandle : ''),
         }));
       }
     });
@@ -76,7 +83,10 @@ function ProfileEdit() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((prev) => ({ ...prev, [name]: value }));
+    setForm((prev) => ({
+      ...prev,
+      [name]: name === 'display_name' ? normalizeHandle(value) : value,
+    }));
   };
 
   const handleSubmit = async (e) => {
@@ -88,10 +98,17 @@ function ProfileEdit() {
       return;
     }
 
+    if (!HANDLE_REGEX.test(form.display_name)) {
+      setValidationError(
+        'El nombre de usuario debe tener 3-20 caracteres: letras minúsculas, números, punto y guion bajo',
+      );
+      return;
+    }
+
     const payload = {
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
-      display_name: form.display_name.trim() || null,
+      display_name: form.display_name,
       birth_date: form.birth_date || null,
       gender: form.gender || null,
       weight_kg:
@@ -109,8 +126,13 @@ function ProfileEdit() {
     try {
       await upsertProfile(user.id, payload);
       navigate('/profile');
-    } catch {
-      // error ya está en profileStore.error
+    } catch (err) {
+      if (err?.code === '23505') {
+        setValidationError(
+          `El nombre de usuario @${form.display_name} ya está en uso`,
+        );
+      }
+      // resto de errores ya están en profileStore.error
     }
   };
 
@@ -170,16 +192,26 @@ function ProfileEdit() {
             </div>
           </div>
           <div className="form-group">
-            <label htmlFor="display_name">Nombre público</label>
-            <input
-              id="display_name"
-              name="display_name"
-              type="text"
-              value={form.display_name}
-              onChange={handleChange}
-              placeholder="Como te conocen en el box"
-              maxLength={40}
-            />
+            <label htmlFor="display_name">Nombre de usuario *</label>
+            <div className="input-prefix-wrapper">
+              <span className="input-prefix" aria-hidden="true">@</span>
+              <input
+                id="display_name"
+                name="display_name"
+                type="text"
+                value={form.display_name}
+                onChange={handleChange}
+                placeholder="tu.usuario"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck="false"
+                maxLength={20}
+                required
+              />
+            </div>
+            <span className="field-hint">
+              Único, en minúsculas. Así te encontrarán otros atletas.
+            </span>
           </div>
         </div>
 
@@ -291,6 +323,9 @@ function ProfileEdit() {
               onChange={handleChange}
               placeholder="RöK BoX"
             />
+            <span className="field-hint">
+              Lo usamos para sugerirte atletas de tu box en Comunidad.
+            </span>
           </div>
           <div className="form-group">
             <label htmlFor="goal">Objetivo</label>
