@@ -6,6 +6,8 @@ import useBenchmarkStore from './benchmarkStore';
 import useAchievementStore from './achievementStore';
 import useMovementStore from './movementStore';
 import useFollowStore from './followStore';
+import useFeedStore from './feedStore';
+import useEngagementStore from './engagementStore';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -70,6 +72,8 @@ const useAuthStore = create((set, get) => ({
     useAchievementStore.getState().reset();
     useMovementStore.getState().reset();
     useFollowStore.getState().reset();
+    useFeedStore.getState().reset();
+    useEngagementStore.getState().reset();
 
     set({
       user: null,

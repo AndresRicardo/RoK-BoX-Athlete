@@ -71,6 +71,32 @@ const useProfileStore = create((set) => ({
     set({ profile: null, saving: false });
   },
 
+  // Sincroniza la foto de Google (user_metadata) a profiles.avatar_url
+  // para que otros atletas la vean. No-op si no hay perfil o no cambio.
+  syncAvatar: async (userId, avatarUrl) => {
+    if (!userId || !avatarUrl) return;
+
+    const { data } = await supabase
+      .from('profiles')
+      .select('avatar_url')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (!data || data.avatar_url === avatarUrl) return;
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ avatar_url: avatarUrl })
+      .eq('id', userId);
+
+    if (!error) {
+      const current = useProfileStore.getState().profile;
+      if (current?.id === userId) {
+        set({ profile: { ...current, avatar_url: avatarUrl } });
+      }
+    }
+  },
+
   reset: () => {
     set({ profile: null, loading: false, error: null, saving: false });
   },

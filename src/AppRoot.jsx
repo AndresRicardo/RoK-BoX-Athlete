@@ -9,15 +9,28 @@ import useAchievementStore from './stores/achievementStore';
 import useMovementStore from './stores/movementStore';
 import useFollowStore from './stores/followStore';
 import useFeedStore from './stores/feedStore';
+import useEngagementStore from './stores/engagementStore';
 import AchievementModal from './components/AchievementModal';
 
 function AppRoot() {
   const initialize = useAuthStore((s) => s.initialize);
-  const userId = useAuthStore((s) => s.user?.id);
+  const user = useAuthStore((s) => s.user);
+  const userId = user?.id;
 
   useEffect(() => {
     initialize();
   }, [initialize]);
+
+  // Sincroniza la foto de Google a profiles (visible para otros atletas)
+  useEffect(() => {
+    if (userId) {
+      const url =
+        user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+      if (url) {
+        useProfileStore.getState().syncAvatar(userId, url).catch(() => {});
+      }
+    }
+  }, [userId, user]);
 
   useEffect(() => {
     if (!userId) {
@@ -28,6 +41,7 @@ function AppRoot() {
       useMovementStore.getState().reset();
       useFollowStore.getState().reset();
       useFeedStore.getState().reset();
+      useEngagementStore.getState().reset();
     }
   }, [userId]);
 

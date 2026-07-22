@@ -110,6 +110,8 @@ function ProfileEdit() {
       first_name: form.first_name.trim(),
       last_name: form.last_name.trim(),
       display_name: form.display_name,
+      avatar_url:
+        user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
       birth_date: form.birth_date || null,
       gender: form.gender || null,
       weight_kg:
