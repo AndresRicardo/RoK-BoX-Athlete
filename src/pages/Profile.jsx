@@ -5,6 +5,7 @@ import useProfileStore from '../stores/profileStore';
 import useFollowStore from '../stores/followStore';
 import FollowListModal from '../components/FollowListModal';
 import { formatWeightKg } from '../utils/units';
+import { parseLocalDate } from '../utils/format';
 import './Profile.css';
 
 const DISCIPLINE_LABELS = {
@@ -38,7 +39,7 @@ function Profile() {
   const age = useMemo(() => {
     const birthDate = profile?.birth_date;
     if (!birthDate) return null;
-    const birth = new Date(birthDate);
+    const birth = parseLocalDate(birthDate);
     const now = new Date();
     let years = now.getFullYear() - birth.getFullYear();
     const monthDiff = now.getMonth() - birth.getMonth();
@@ -151,7 +152,7 @@ function Profile() {
             <span className="field-label">Fecha de nacimiento</span>
             <span className="field-value">
               {profile.birth_date
-                ? new Date(profile.birth_date).toLocaleDateString('es-ES', {
+                ? parseLocalDate(profile.birth_date).toLocaleDateString('es-ES', {
                     day: 'numeric',
                     month: 'long',
                     year: 'numeric',

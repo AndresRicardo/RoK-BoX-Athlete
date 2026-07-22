@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import usePRStore from '../stores/prStore';
+import { todayInputValue } from '../utils/format';
 import './PRNew.css';
 
 const TYPES = [
@@ -33,7 +34,7 @@ const MOVEMENTS = {
 };
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInputValue();
 }
 
 function PRNew() {

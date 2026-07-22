@@ -4,6 +4,7 @@ import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
 import { kgToLb, lbToKg } from '../utils/units';
 import { HANDLE_REGEX, normalizeHandle } from '../utils/handle';
+import { todayInputValue } from '../utils/format';
 import './ProfileEdit.css';
 
 const DISCIPLINE_OPTIONS = [
@@ -226,7 +227,7 @@ function ProfileEdit() {
                 type="date"
                 value={form.birth_date}
                 onChange={handleChange}
-                max={new Date().toISOString().slice(0, 10)}
+                max={todayInputValue()}
               />
             </div>
             <div className="form-group">

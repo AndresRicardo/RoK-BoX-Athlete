@@ -12,6 +12,7 @@ import {
 import useAuthStore from '../stores/authStore';
 import usePRStore from '../stores/prStore';
 import useBenchmarkStore from '../stores/benchmarkStore';
+import { parseLocalDate } from '../utils/format';
 import './History.css';
 
 const FILTERS = [
@@ -68,7 +69,7 @@ function formatChartValue(value, unit, type) {
 }
 
 function formatDateShort(dateStr) {
-  return new Date(dateStr).toLocaleDateString('es-ES', {
+  return parseLocalDate(dateStr).toLocaleDateString('es-ES', {
     day: 'numeric',
     month: 'short',
   });

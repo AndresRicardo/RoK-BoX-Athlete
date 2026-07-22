@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useBenchmarkStore from '../stores/benchmarkStore';
 import { WOD_TYPE_LABELS, findWodByName } from '../data/wods';
+import { todayInputValue } from '../utils/format';
 import './BenchmarkResult.css';
 
 const SCALINGS = [
@@ -19,7 +20,7 @@ const TYPES = [
 ];
 
 function todayISO() {
-  return new Date().toISOString().slice(0, 10);
+  return todayInputValue();
 }
 
 function BenchmarkResult() {

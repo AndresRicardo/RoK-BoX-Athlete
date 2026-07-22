@@ -29,8 +29,24 @@ export function formatBenchmarkResult(b) {
   return `${Math.round(b.result_value)} reps`;
 }
 
+// Parsea 'YYYY-MM-DD' como fecha LOCAL. new Date(str) la interpretaria
+// como medianoche UTC y en zonas UTC- se muestra el dia anterior.
+export function parseLocalDate(dateStr) {
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+// 'YYYY-MM-DD' de hoy en hora local, para valores por defecto y max de
+// inputs type="date". toISOString() devolveria la fecha UTC.
+export function todayInputValue() {
+  const n = new Date();
+  const mm = String(n.getMonth() + 1).padStart(2, '0');
+  const dd = String(n.getDate()).padStart(2, '0');
+  return `${n.getFullYear()}-${mm}-${dd}`;
+}
+
 export function formatShortDate(dateStr) {
-  return new Date(dateStr).toLocaleDateString('es-ES', {
+  return parseLocalDate(dateStr).toLocaleDateString('es-ES', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
