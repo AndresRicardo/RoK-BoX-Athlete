@@ -32,14 +32,14 @@ Supabase is self-hosted. Auth is Google OAuth only (no email/password). Never co
 ```
 src/
 ├── components/     # ProtectedRoute, PublicRoute, Navigation (bottom nav + sidebar), PageLoader,
-│                   # AchievementModal, AthleteRow, FollowListModal
+│                   # AchievementModal, AthleteRow, FollowListModal, FeedEventCard, FeedComments
 ├── layouts/        # MainLayout (Navigation + content)
 ├── pages/          # Login, Dashboard, Profile, ProfileEdit, PRs, PRNew, Benchmarks, BenchmarkNew,
 │                   # BenchmarkResult, Achievements, Skills, History, Community, AthleteProfile
 │                   # (each with its own .css)
 ├── routes/         # React Router config (lazy loading + Suspense for non-critical pages)
 ├── stores/         # Zustand: authStore, profileStore, prStore, benchmarkStore, achievementStore,
-│                   # movementStore, followStore, feedStore
+│                   # movementStore, followStore, feedStore, engagementStore
 ├── data/           # Static catalogs: movements.js, wods.js, achievements.js, labels.js
 ├── supabase/       # Client configuration
 ├── utils/          # units.js (kg/lb), handle.js (@handle rules), format.js (PR/benchmark
@@ -71,6 +71,8 @@ Navigation order: Comunidad, Inicio, PRs, Skills, WODs, Histórico, Logros, Perf
 - `0007_display_name_handle` - `display_name` becomes unique + required @handle (CHECK `^[a-z0-9._]{3,20}$`, unique index, NOT NULL, backfill for existing rows)
 - `0008_follows` - `follows` table (PK follower+followed, no self-follow), `athlete_directory` view (public profile columns), "followers read" policies on the 4 activity tables
 - `0009_feed_events` - `feed_events` table + INSERT/DELETE triggers on the 4 activity tables (fan-out on write)
+- `0010_feed_engagement` - `feed_likes` (PK event+user) + `feed_comments` (delete by author or event owner); INSERT allowed only on events you can see (own or followed)
+- `0011_profile_avatars` - `profiles.avatar_url` (synced from Google user_metadata), defensive UPDATE policy on profiles, `athlete_directory` exposes avatar_url
 
 ## Supabase RLS Pattern
 All tables use `auth.uid() = user_id` (or `auth.uid() = id` for profiles) policies. Users only access their own data. UPDATE policies need both `USING` and `WITH CHECK` (see 0006).
@@ -79,12 +81,15 @@ Social exceptions (0008/0009):
 - `follows`: SELECT open to any authenticated user (public graph); INSERT/DELETE only as `follower_id = auth.uid()`.
 - Activity tables (prs, benchmarks, achievements, unlocked_movements): followers can SELECT via `EXISTS` on follows.
 - `feed_events`: SELECT own events + events from followed users; **no INSERT policy for clients** — only triggers (security definer) write.
-- `athlete_directory` view bypasses profiles RLS exposing only public columns (id, display_name, names, full_name, box_name, discipline, created_at). Email, weight, birth_date, gender stay private.
+- `feed_likes` / `feed_comments`: SELECT open to authenticated (public counters); INSERT only on visible events (own or followed) as `user_id = auth.uid()`; comments deletable by author or event owner.
+- `athlete_directory` view bypasses profiles RLS exposing only public columns (id, display_name, names, full_name, box_name, discipline, avatar_url, created_at). Email, weight, birth_date, gender stay private.
 
 ## Social Model
 - **@handle**: `display_name` is the unique, required, lowercase handle (`utils/handle.js` mirrors the DB CHECK). Search matches `full_name` or `display_name` via the directory view.
 - **Follow**: direct, no approval. Following someone grants read access to their activity and puts their events in your feed.
 - **Feed**: `feed_events` rows created by DB triggers on INSERT (and cleaned on DELETE of the source row). UPDATEs don't generate events (snapshot). Payloads are jsonb display-ready snapshots.
+- **Engagement**: likes/comments on feed events (FASE 13). `engagementStore` batches counters per visible page, likes are optimistic, comments expand per card.
+- **Avatars**: Google photo synced to `profiles.avatar_url` on login (`profileStore.syncAvatar` in `AppRoot`) and on profile save; shown via directory view across social UI, initials as fallback.
 
 ## Store Pattern
 - Each store exposes `fetch*`, mutation methods, and `reset()`.
@@ -93,15 +98,9 @@ Social exceptions (0008/0009):
 - Achievements are re-validated after PR/Benchmark create **and** edit (FASE 10).
 - `followStore`: my network (following/followers ids), search, suggestions (same box), explore, public graph lists.
 - `feedStore`: paginated feed (PAGE_SIZE 20, `range` load-more), hydrates events with directory profiles.
-
-## Conventions
-- UI language: Spanish. Docs/commits: Spanish messages.
-- Weights are stored in lb and displayed in kg (see `src/utils/units.js`); PR values are entered/shown in lb (`src/utils/format.js`).
-- Each page/component defines its own button styles in its .css (no global .btn-primary).
-- PWA: `registerType: 'autoUpdate'`, offline shell, manifest in `vite.config.js`.
-- Deploy: Vercel with SPA rewrites (`vercel.json`).
+- `engagementStore`: likes map (count + likedByMe), comment counts, comments per expanded event, toggleLike optimistic.
 
 ## Current Phase
-FASES 1-12 complete: Auth, Profile, PRs, Benchmarks, Achievements (+ modal), Skills, Navigation, History (evolution charts), Edit PRs/Benchmarks, Achievement re-validation on edit, Social (follows, @handle, search, public profiles) and Activity Feed.
+FASES 1-13 complete: Auth, Profile, PRs, Benchmarks, Achievements (+ modal), Skills, Navigation, History (evolution charts), Edit PRs/Benchmarks, Achievement re-validation on edit, Social (follows, @handle, search, public profiles), Activity Feed, and Feed Engagement (likes, comments, avatars).
 
-Next ideas (FASE 13+): likes/reactions, comments, notifications, realtime feed, avatar sync from Google to profiles, feed events on PR/benchmark edits.
+Next ideas (FASE 14+): notifications (likes/comments/new followers), realtime feed, feed events on PR/benchmark edits.

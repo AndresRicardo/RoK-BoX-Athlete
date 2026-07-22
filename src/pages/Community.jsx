@@ -1,13 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
 import useFollowStore from '../stores/followStore';
 import useFeedStore from '../stores/feedStore';
+import useEngagementStore from '../stores/engagementStore';
 import AthleteRow from '../components/AthleteRow';
-import { getAchievementById } from '../data/achievements';
-import { formatPrValue, formatBenchmarkResult } from '../utils/format';
-import { timeAgo } from '../utils/time';
+import FeedEventCard from '../components/FeedEventCard';
 import './Community.css';
 
 const TABS = [
@@ -16,51 +14,6 @@ const TABS = [
   { value: 'following', label: 'Siguiendo' },
   { value: 'followers', label: 'Seguidores' },
 ];
-
-const EVENT_ICONS = {
-  pr: '🏋️',
-  benchmark: '⏱️',
-  achievement: '🏆',
-  skill: '💪',
-};
-
-function renderEventText(e) {
-  const p = e.payload || {};
-  switch (e.event_type) {
-    case 'pr':
-      return (
-        <>
-          registró un PR en <strong>{p.movement}</strong>:{' '}
-          <strong>{formatPrValue(p)}</strong>
-        </>
-      );
-    case 'benchmark':
-      return (
-        <>
-          completó <strong>{p.name}</strong>:{' '}
-          <strong>{formatBenchmarkResult(p)}</strong>
-          {p.scaling ? ` (${p.scaling.toUpperCase()})` : ''}
-        </>
-      );
-    case 'achievement': {
-      const def = getAchievementById(p.achievement_id);
-      return (
-        <>
-          desbloqueó el logro{' '}
-          <strong>{def?.name || p.achievement_id}</strong>
-        </>
-      );
-    }
-    case 'skill':
-      return (
-        <>
-          desbloqueó <strong>{p.movement}</strong>
-        </>
-      );
-    default:
-      return null;
-  }
-}
 
 function Community() {
   const { user } = useAuthStore();
@@ -100,6 +53,8 @@ function Community() {
     loadMore,
   } = useFeedStore();
 
+  const { fetchEngagement } = useEngagementStore();
+
   useEffect(() => {
     if (user?.id) {
       fetchMyNetwork(user.id);
@@ -114,6 +69,16 @@ function Community() {
       fetchFeed(user.id).catch(() => {});
     }
   }, [tab, user, fetchFeed, following.length]);
+
+  // Likes y contadores de comentarios de los eventos visibles
+  useEffect(() => {
+    if (tab === 'feed' && user?.id && events.length > 0) {
+      fetchEngagement(
+        events.map((e) => e.id),
+        user.id,
+      ).catch(() => {});
+    }
+  }, [tab, user, events, fetchEngagement]);
 
   useEffect(() => {
     if (user?.id && profile?.box_name) {
@@ -245,24 +210,7 @@ function Community() {
             <>
               <div className="community-list feed-list">
                 {events.map((e) => (
-                  <Link
-                    key={e.id}
-                    to={`/athletes/${e.user_id}`}
-                    className="feed-card"
-                  >
-                    <span className="feed-card-icon" aria-hidden="true">
-                      {EVENT_ICONS[e.event_type] || '📣'}
-                    </span>
-                    <div className="feed-card-body">
-                      <p className="feed-card-text">
-                        <strong>@{e.athlete?.display_name || 'atleta'}</strong>{' '}
-                        {renderEventText(e)}
-                      </p>
-                      <span className="feed-card-time">
-                        {timeAgo(e.created_at)}
-                      </span>
-                    </div>
-                  </Link>
+                  <FeedEventCard key={e.id} event={e} />
                 ))}
               </div>
               {hasMore && (

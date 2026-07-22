@@ -11,7 +11,11 @@ function AthleteRow({ athlete, following, saving, onToggleFollow }) {
     <div className="athlete-row">
       <Link to={`/athletes/${athlete.id}`} className="athlete-row-main">
         <div className="athlete-row-avatar" aria-hidden="true">
-          {initials}
+          {athlete.avatar_url ? (
+            <img src={athlete.avatar_url} alt="" />
+          ) : (
+            initials
+          )}
         </div>
         <div className="athlete-row-info">
           <span className="athlete-row-handle">@{athlete.display_name}</span>

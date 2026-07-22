@@ -167,7 +167,11 @@ function AthleteProfile() {
       <div className="athlete-hero">
         <div className="athlete-hero-top">
           <div className="athlete-avatar" aria-hidden="true">
-            {initials}
+            {athlete.avatar_url ? (
+              <img src={athlete.avatar_url} alt="" />
+            ) : (
+              initials
+            )}
           </div>
           <div className="athlete-hero-info">
             <h1>@{athlete.display_name}</h1>
