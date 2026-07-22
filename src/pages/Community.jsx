@@ -14,6 +14,7 @@ const TABS = [
   { value: 'feed', label: 'Feed' },
   { value: 'search', label: 'Buscar' },
   { value: 'following', label: 'Siguiendo' },
+  { value: 'followers', label: 'Seguidores' },
 ];
 
 const EVENT_ICONS = {
@@ -66,6 +67,7 @@ function Community() {
   const { profile, fetchProfile } = useProfileStore();
   const {
     following,
+    followers,
     searchResults,
     suggestions,
     explore,
@@ -80,11 +82,13 @@ function Community() {
     fetchSuggestions,
     fetchExplore,
     fetchFollowingList,
+    fetchFollowersList,
   } = useFollowStore();
 
   const [tab, setTab] = useState('feed');
   const [query, setQuery] = useState('');
   const [followingPeople, setFollowingPeople] = useState(null);
+  const [followersPeople, setFollowersPeople] = useState(null);
 
   const {
     events,
@@ -139,9 +143,20 @@ function Community() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, user, following.length]);
 
+  // Lista de perfiles que me siguen (tab Seguidores)
+  useEffect(() => {
+    if (tab === 'followers' && user?.id) {
+      fetchFollowersList(user.id)
+        .then(setFollowersPeople)
+        .catch(() => setFollowersPeople([]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, user, followers.length]);
+
   const handleTabChange = (value) => {
     setTab(value);
     if (value === 'following') setFollowingPeople(null);
+    if (value === 'followers') setFollowersPeople(null);
   };
 
   const handleToggle = async (athlete) => {
@@ -196,6 +211,9 @@ function Community() {
             {t.label}
             {t.value === 'following' && following.length > 0 && (
               <span className="community-tab-badge">{following.length}</span>
+            )}
+            {t.value === 'followers' && followers.length > 0 && (
+              <span className="community-tab-badge">{followers.length}</span>
             )}
           </button>
         ))}
@@ -326,6 +344,21 @@ function Community() {
           </div>
         ) : (
           renderList(followingPeople)
+        ))}
+
+      {tab === 'followers' &&
+        (followersPeople === null ? (
+          <p className="community-loading">Cargando...</p>
+        ) : followersPeople.length === 0 ? (
+          <div className="community-empty-state">
+            <h2>Aún no tienes seguidores</h2>
+            <p>
+              Cuando otros atletas te sigan, aparecerán aquí. Comparte tu
+              @usuario con tu box.
+            </p>
+          </div>
+        ) : (
+          renderList(followersPeople)
         ))}
     </div>
   );

@@ -15,7 +15,7 @@ function PublicRoute({ children }) {
   }
 
   if (user) {
-    const from = location.state?.from?.pathname || '/dashboard';
+    const from = location.state?.from?.pathname || '/community';
     return <Navigate to={from} replace />;
   }
 

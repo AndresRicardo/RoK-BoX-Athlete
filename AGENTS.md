@@ -55,11 +55,11 @@ src/
 - `/prs`, `/prs/new`, `/prs/:id/edit` - Protected
 - `/benchmarks`, `/benchmarks/new`, `/benchmarks/new/:wodName`, `/benchmarks/:id/edit` - Protected
 - `/achievements`, `/skills`, `/history` - Protected
-- `/community` - Protected (tabs: Feed / Buscar / Siguiendo)
+- `/community` - Protected (tabs: Feed / Buscar / Siguiendo / Seguidores)
 - `/athletes/:id` - Protected (public athlete profile; own id redirects to /profile)
-- `/*` - Redirects to /dashboard
+- `/*` - Redirects to /community (landing = feed)
 
-Navigation order: Inicio, PRs, WODs, Skills, Histórico, Logros, Comunidad, Perfil (bottom nav on mobile, sidebar on desktop).
+Navigation order: Comunidad, Inicio, PRs, Skills, WODs, Histórico, Logros, Perfil (bottom nav on mobile, sidebar on desktop). `/athletes/:id` marks Comunidad as active.
 
 ## Database (supabase/migrations/)
 - `0001_profiles` - Athlete profile (1:1 with auth.users, `id` PK)

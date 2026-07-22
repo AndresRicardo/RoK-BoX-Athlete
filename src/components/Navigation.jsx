@@ -3,13 +3,13 @@ import useAuthStore from '../stores/authStore';
 import './Navigation.css';
 
 const ITEMS = [
+  { to: '/community', label: 'Comunidad', icon: '👥' },
   { to: '/dashboard', label: 'Inicio', icon: '🏠' },
   { to: '/prs', label: 'PRs', icon: '🏋️' },
-  { to: '/benchmarks', label: 'WODs', icon: '⏱️' },
   { to: '/skills', label: 'Skills', icon: '💪' },
+  { to: '/benchmarks', label: 'WODs', icon: '⏱️' },
   { to: '/history', label: 'Histórico', icon: '📈' },
   { to: '/achievements', label: 'Logros', icon: '🏆' },
-  { to: '/community', label: 'Comunidad', icon: '👥' },
   { to: '/profile', label: 'Perfil', icon: '👤' },
 ];
 
@@ -27,6 +27,12 @@ function Navigation() {
 
   const isActive = (path) => {
     if (path === '/dashboard') return location.pathname === '/dashboard';
+    if (path === '/community') {
+      return (
+        location.pathname === '/community' ||
+        location.pathname.startsWith('/athletes')
+      );
+    }
     return location.pathname === path || location.pathname.startsWith(`${path}/`);
   };
 

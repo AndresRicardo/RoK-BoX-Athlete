@@ -66,6 +66,18 @@
   color: var(--color-primary);
 }
 
+@media (max-width: 480px) {
+  .community-tabs {
+    gap: 0.35rem;
+  }
+
+  .community-tab {
+    font-size: 0.8rem;
+    gap: 0.3rem;
+    padding: 0 0.25rem;
+  }
+}
+
 .community-search {
   margin-bottom: var(--space-2);
 }
