@@ -1,6 +1,6 @@
 .notifications-bell {
   position: fixed;
-  bottom: calc(56px + 0.6rem + env(safe-area-inset-bottom, 0));
+  top: 4.25rem;
   right: 0.6rem;
   z-index: 25;
 }
@@ -211,9 +211,15 @@
   font-size: 0.75rem;
 }
 
+@media (min-width: 640px) {
+  .notifications-bell {
+    top: 5.25rem;
+  }
+}
+
 @media (min-width: 1024px) {
   .notifications-bell {
-    bottom: 1.5rem;
+    top: 0.75rem;
     right: 1.5rem;
   }
 }
