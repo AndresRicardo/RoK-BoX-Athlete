@@ -8,6 +8,7 @@ import useMovementStore from './movementStore';
 import useFollowStore from './followStore';
 import useFeedStore from './feedStore';
 import useEngagementStore from './engagementStore';
+import useNotificationStore from './notificationStore';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -82,6 +83,7 @@ const useAuthStore = create((set, get) => ({
     useFollowStore.getState().reset();
     useFeedStore.getState().reset();
     useEngagementStore.getState().reset();
+    useNotificationStore.getState().reset();
 
     set({
       user: null,

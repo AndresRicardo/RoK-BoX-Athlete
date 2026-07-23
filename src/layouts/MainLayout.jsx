@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import Navigation from '../components/Navigation';
+import NotificationsBell from '../components/NotificationsBell';
 import './MainLayout.css';
 
 function MainLayout({ children }) {
@@ -46,6 +47,8 @@ function MainLayout({ children }) {
       <footer className="main-footer">
         <p>© 2024 RöK BoX - CrossFit Box</p>
       </footer>
+
+      <NotificationsBell />
     </div>
   );
 }

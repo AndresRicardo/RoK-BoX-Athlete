@@ -32,14 +32,15 @@ Supabase is self-hosted. Auth is Google OAuth only (no email/password). Never co
 ```
 src/
 ├── components/     # ProtectedRoute, PublicRoute, Navigation (bottom nav + sidebar), PageLoader,
-│                   # AchievementModal, AthleteRow, FollowListModal, FeedEventCard, FeedComments
+│                   # AchievementModal, AthleteRow, FollowListModal, FeedEventCard, FeedComments,
+│                   # NotificationsBell
 ├── layouts/        # MainLayout (Navigation + content)
 ├── pages/          # Login, Dashboard, Profile, ProfileEdit, PRs, PRNew, Benchmarks, BenchmarkNew,
 │                   # BenchmarkResult, Achievements, Skills, History, Community, AthleteProfile
 │                   # (each with its own .css)
 ├── routes/         # React Router config (lazy loading + Suspense for non-critical pages)
 ├── stores/         # Zustand: authStore, profileStore, prStore, benchmarkStore, achievementStore,
-│                   # movementStore, followStore, feedStore, engagementStore
+│                   # movementStore, followStore, feedStore, engagementStore, notificationStore
 ├── data/           # Static catalogs: movements.js, wods.js, achievements.js, labels.js
 ├── supabase/       # Client configuration
 ├── utils/          # units.js (kg/lb), handle.js (@handle rules), format.js (PR/benchmark
@@ -73,6 +74,7 @@ Navigation order: Comunidad, Inicio, PRs, Skills, WODs, Histórico, Logros, Perf
 - `0009_feed_events` - `feed_events` table + INSERT/DELETE triggers on the 4 activity tables (fan-out on write)
 - `0010_feed_engagement` - `feed_likes` (PK event+user) + `feed_comments` (delete by author or event owner); INSERT allowed only on events you can see (own or followed)
 - `0011_profile_avatars` - `profiles.avatar_url` (synced from Google user_metadata), defensive UPDATE policy on profiles, `athlete_directory` exposes avatar_url
+- `0012_notifications` - `notifications` table denormalized (snapshot of event payload + comment body) + INSERT/DELETE triggers on `feed_likes`, INSERT trigger on `feed_comments` and `follows`. RLS: read/update own only; no client INSERT/DELETE (triggers only)
 
 ## Supabase RLS Pattern
 All tables use `auth.uid() = user_id` (or `auth.uid() = id` for profiles) policies. Users only access their own data. UPDATE policies need both `USING` and `WITH CHECK` (see 0006).
@@ -99,8 +101,9 @@ Social exceptions (0008/0009):
 - `followStore`: my network (following/followers ids), search, suggestions (same box), explore, public graph lists.
 - `feedStore`: paginated feed (PAGE_SIZE 20, `range` load-more), hydrates events with directory profiles.
 - `engagementStore`: likes map (count + likedByMe), comment counts, comments per expanded event, toggleLike optimistic.
+- `notificationStore`: 50 most recent + unread count, mark all read, realtime subscription (`postgres_changes` INSERT/UPDATE on `notifications` filtered by `recipient_id`) updates the bell badge live. Hydrates actors from `athlete_directory`.
 
 ## Current Phase
-FASES 1-13 complete: Auth, Profile, PRs, Benchmarks, Achievements (+ modal), Skills, Navigation, History (evolution charts), Edit PRs/Benchmarks, Achievement re-validation on edit, Social (follows, @handle, search, public profiles), Activity Feed, and Feed Engagement (likes, comments, avatars).
+FASES 1-14 complete: Auth, Profile, PRs, Benchmarks, Achievements (+ modal), Skills, Navigation, History (evolution charts), Edit PRs/Benchmarks, Achievement re-validation on edit, Social (follows, @handle, search, public profiles), Activity Feed, Feed Engagement (likes, comments, avatars), and Notifications (real-time bell with likes/comments/follows).
 
-Next ideas (FASE 14+): notifications (likes/comments/new followers), realtime feed, feed events on PR/benchmark edits.
+Next ideas (FASE 15+): realtime feed events, feed events on PR/benchmark edits, push notifications, comment edit, @mentions.
