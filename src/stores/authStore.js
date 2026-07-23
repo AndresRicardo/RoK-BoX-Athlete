@@ -21,7 +21,11 @@ const useAuthStore = create((set, get) => ({
     set({
       session: session,
       user: session?.user
-        ? { id: session.user.id, email: session.user.email }
+        ? {
+            id: session.user.id,
+            email: session.user.email,
+            user_metadata: session.user.user_metadata || {},
+          }
         : null,
       loading: false,
       initialized: true,
@@ -31,7 +35,11 @@ const useAuthStore = create((set, get) => ({
       set({
         session: session,
         user: session?.user
-          ? { id: session.user.id, email: session.user.email }
+          ? {
+              id: session.user.id,
+              email: session.user.email,
+              user_metadata: session.user.user_metadata || {},
+            }
           : null,
       });
     });
