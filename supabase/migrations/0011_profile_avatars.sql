@@ -16,7 +16,12 @@ create policy "Users update own profile"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
-create or replace view public.athlete_directory as
+-- DROP + CREATE (no CREATE OR REPLACE): Postgres no permite insertar
+-- columnas en medio de una vista existente (error 42P16). La vista no
+-- tiene dependencias en otros objetos; el grant se re-ejecuta tras el drop.
+drop view if exists public.athlete_directory;
+
+create view public.athlete_directory as
 select
   id,
   display_name,
