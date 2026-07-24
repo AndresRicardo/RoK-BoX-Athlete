@@ -19,7 +19,7 @@ function Achievements() {
   const { prs, fetchPRs } = usePRStore();
   const { benchmarks, fetchBenchmarks } = useBenchmarkStore();
   const { unlocked, fetchAchievements } = useAchievementStore();
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState('unlocked');
 
   useEffect(() => {
     if (user?.id) {
@@ -99,7 +99,11 @@ function Achievements() {
       </div>
 
       {filtered.length === 0 ? (
-        <p className="achievements-empty">No hay logros en este filtro.</p>
+        <p className="achievements-empty">
+          {filter === 'unlocked' && totalUnlocked === 0
+            ? '🏅 Aún no has desbloqueado logros. ¡Empieza con tu primer PR para conseguir el primero!'
+            : 'No hay logros en este filtro.'}
+        </p>
       ) : (
         <div className="achievements-grid">
           {filtered.map((a) => (
