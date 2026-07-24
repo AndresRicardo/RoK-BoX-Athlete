@@ -136,8 +136,11 @@ Abre cada uno, pega el contenido, **Run**, y verifica que no haya errores antes 
 ## 6. Habilitar Realtime
 
 ```sql
--- En SQL Editor
+-- En SQL Editor (FASE 14: campana de notificaciones)
 alter publication supabase_realtime add table public.notifications;
+
+-- FASE 15: feed en vivo (PRs, benchmarks, logros, skills de seguidos)
+alter publication supabase_realtime add table public.feed_events;
 ```
 
 Verifica con:
@@ -149,7 +152,7 @@ where pubname = 'supabase_realtime'
 order by tablename;
 ```
 
-Debe aparecer `public | notifications`.
+Debe aparecer `public | notifications` y `public | feed_events`.
 
 ## 7. Configurar variables de entorno del frontend
 

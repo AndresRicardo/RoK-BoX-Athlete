@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase/client';
 import useFollowStore from './followStore';
+import useAuthStore from './authStore';
 
 const PAGE_SIZE = 20;
 
@@ -10,6 +11,7 @@ const useFeedStore = create((set, get) => ({
   loadingMore: false,
   hasMore: false,
   error: null,
+  subscription: null,
 
   fetchFeed: async (userId) => {
     if (!userId) {
@@ -98,8 +100,98 @@ const useFeedStore = create((set, get) => ({
     return rows.map((e) => ({ ...e, athlete: byId.get(e.user_id) || null }));
   },
 
+  // FASE 15: insercion en vivo (Realtime). Solo se preprende si la fila
+  // corresponde al propio usuario o a alguien a quien ya sigo; la RLS del
+  // canal ya descarta lo demas antes de llegar aqui, pero comprobamos el
+  // caso de la red no cargada para evitar prependar eventos de no-seguidos.
+  prependFromRealtime: async (row) => {
+    if (!row || !row.id) return;
+
+    const me = useAuthStore.getState().user;
+    const following = useFollowStore.getState().following;
+    if (row.user_id !== me?.id && !following.includes(row.user_id)) return;
+
+    // Evita prepender un evento que llega tarde si la cabeza del feed es
+    // mas reciente (consistente con orden desc por created_at).
+    const head = get().events[0];
+    if (head && row.created_at && head.created_at && row.created_at <= head.created_at) {
+      return;
+    }
+
+    const [hydrated] = await get()._withAthletes([row]);
+    if (!hydrated) return;
+
+    set((state) => {
+      if (state.events.some((e) => e.id === hydrated.id)) return state;
+      return { events: [hydrated, ...state.events] };
+    });
+  },
+
+  // FASE 15: borrado en vivo (Realtime). Cuando un atleta elimina un
+  // PR/benchmark/logro/skill, el trigger borra su feed_event y este
+  // cliente debe reflejarlo sin recargar.
+  removeFromRealtime: (id) => {
+    if (!id) return;
+    set((state) => {
+      if (!state.events.some((e) => e.id === id)) return state;
+      return { events: state.events.filter((e) => e.id !== id) };
+    });
+  },
+
+  // FASE 15: Supabase Realtime sobre feed_events.
+  // No aplicamos filtro server-side por user_id porque la lista de
+  // seguidos cambia; la RLS del cliente ya garantiza que solo llegan
+  // filas propias o de seguidos (ver 0009_feed_events.sql).
+  subscribeRealtime: () => {
+    get().unsubscribe();
+
+    const channel = supabase
+      .channel('feed_events:all')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'feed_events',
+        },
+        (payload) => {
+          get().prependFromRealtime(payload.new).catch(() => {});
+        },
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'feed_events',
+        },
+        (payload) => {
+          const oldRow = payload.old || {};
+          get().removeFromRealtime(oldRow.id);
+        },
+      )
+      .subscribe();
+
+    set({ subscription: channel });
+  },
+
+  unsubscribe: () => {
+    const { subscription } = get();
+    if (subscription) {
+      supabase.removeChannel(subscription);
+      set({ subscription: null });
+    }
+  },
+
   reset: () => {
-    set({ events: [], loading: false, loadingMore: false, hasMore: false, error: null });
+    get().unsubscribe();
+    set({
+      events: [],
+      loading: false,
+      loadingMore: false,
+      hasMore: false,
+      error: null,
+    });
   },
 }));
 

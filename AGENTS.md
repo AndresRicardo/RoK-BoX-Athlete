@@ -75,6 +75,7 @@ Navigation order: Comunidad, Inicio, PRs, Skills, WODs, Histórico, Logros, Perf
 - `0010_feed_engagement` - `feed_likes` (PK event+user) + `feed_comments` (delete by author or event owner); INSERT allowed only on events you can see (own or followed)
 - `0011_profile_avatars` - `profiles.avatar_url` (synced from Google user_metadata), defensive UPDATE policy on profiles, `athlete_directory` exposes avatar_url
 - `0012_notifications` - `notifications` table denormalized (snapshot of event payload + comment body) + INSERT/DELETE triggers on `feed_likes`, INSERT trigger on `feed_comments` and `follows`. RLS: read/update own only; no client INSERT/DELETE (triggers only)
+- `0013_feed_events_realtime` - adds `feed_events` to the `supabase_realtime` publication (idempotent check, no schema change) so the live feed subscription works
 
 ## Supabase RLS Pattern
 All tables use `auth.uid() = user_id` (or `auth.uid() = id` for profiles) policies. Users only access their own data. UPDATE policies need both `USING` and `WITH CHECK` (see 0006).
@@ -99,11 +100,11 @@ Social exceptions (0008/0009):
 - PRs and benchmarks stores fetch without cache (always fresh) so edits are reflected immediately.
 - Achievements are re-validated after PR/Benchmark create **and** edit (FASE 10).
 - `followStore`: my network (following/followers ids), search, suggestions (same box), explore, public graph lists.
-- `feedStore`: paginated feed (PAGE_SIZE 20, `range` load-more), hydrates events with directory profiles.
+- `feedStore`: paginated feed (PAGE_SIZE 20, `range` load-more), hydrates events with directory profiles, realtime subscription (`postgres_changes` INSERT/DELETE on `feed_events`, no server-side filter — RLS narrows to own + followed) prepends/removes events live.
 - `engagementStore`: likes map (count + likedByMe), comment counts, comments per expanded event, toggleLike optimistic.
 - `notificationStore`: 50 most recent + unread count, mark all read, realtime subscription (`postgres_changes` INSERT/UPDATE on `notifications` filtered by `recipient_id`) updates the bell badge live. Hydrates actors from `athlete_directory`.
 
 ## Current Phase
-FASES 1-14 complete: Auth, Profile, PRs, Benchmarks, Achievements (+ modal), Skills, Navigation, History (evolution charts), Edit PRs/Benchmarks, Achievement re-validation on edit, Social (follows, @handle, search, public profiles), Activity Feed, Feed Engagement (likes, comments, avatars), and Notifications (real-time bell with likes/comments/follows).
+FASES 1-15 complete: Auth, Profile, PRs, Benchmarks, Achievements (+ modal), Skills, Navigation, History (evolution charts), Edit PRs/Benchmarks, Achievement re-validation on edit, Social (follows, @handle, search, public profiles), Activity Feed, Feed Engagement (likes, comments, avatars), Notifications (real-time bell with likes/comments/follows), and Realtime Feed (live prepend/remove of PRs, benchmarks, achievements and skills from followed athletes).
 
-Next ideas (FASE 15+): realtime feed events, feed events on PR/benchmark edits, push notifications, comment edit, @mentions.
+Next ideas (FASE 16+): feed events on PR/benchmark edits, push notifications, comment edit, @mentions.

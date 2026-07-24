@@ -45,6 +45,19 @@ function AppRoot() {
     };
   }, [userId]);
 
+  // FASE 15: feed en vivo. INSERT/DELETE sobre feed_events llegan al feed
+  // sin recargar, siempre que la fila pase la RLS (propia o de seguidos).
+  useEffect(() => {
+    if (userId) {
+      useFeedStore.getState().subscribeRealtime();
+    } else {
+      useFeedStore.getState().unsubscribe();
+    }
+    return () => {
+      // No desuscribir en cada render; el reset() al logout lo gestiona
+    };
+  }, [userId]);
+
   useEffect(() => {
     if (!userId) {
       useProfileStore.getState().reset();

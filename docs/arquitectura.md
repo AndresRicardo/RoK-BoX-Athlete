@@ -107,14 +107,14 @@ Supabase Realtime envía eventos de Postgres por WebSocket. En este proyecto lo 
 
 | Tabla | Suscrito por | Eventos | Filtro | Para qué |
 |---|---|---|---|---|
-| `feed_events` | feedStore (FASE 15, plan futuro) | INSERT | (futuro) user_id en seguidos | Feed en vivo |
+| `feed_events` | feedStore (FASE 15) | INSERT, DELETE | (sin filtro server-side) | Feed en vivo |
 | `notifications` | notificationStore (FASE 14) | INSERT, UPDATE | `recipient_id=eq.${userId}` | Campana 🔔 |
 
 **Pre-requisito DB** (revisar en `docs/supabase.md`): la tabla tiene que estar en la publication `supabase_realtime`:
 
 ```sql
 alter publication supabase_realtime add table public.notifications;
-alter publication supabase_realtime add table public.feed_events;  -- cuando se añada
+alter publication supabase_realtime add table public.feed_events;
 ```
 
 ## PWA

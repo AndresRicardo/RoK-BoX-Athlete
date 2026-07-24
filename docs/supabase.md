@@ -151,7 +151,7 @@ order by schemaname, tablename;
 -- Añadir la tabla de notificaciones (FASE 14)
 alter publication supabase_realtime add table public.notifications;
 
--- Más adelante, cuando se añada realtime al feed (FASE 15):
+-- Feed en vivo (FASE 15): PRs, benchmarks, logros, skills de seguidos
 alter publication supabase_realtime add table public.feed_events;
 ```
 
