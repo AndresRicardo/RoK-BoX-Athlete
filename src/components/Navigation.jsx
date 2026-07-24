@@ -19,7 +19,6 @@ function Navigation() {
   const { user, signOut } = useAuthStore();
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef(null);
-  const triggerRef = useRef(null);
 
   const isActive = (path) => {
     if (path === '/dashboard') return location.pathname === '/dashboard';
@@ -103,6 +102,25 @@ function Navigation() {
         </nav>
 
         <div className="nav-sidebar-profile">
+          <button
+            type="button"
+            className="nav-sidebar-user nav-sidebar-avatar-btn"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="Menú de cuenta"
+            aria-expanded={menuOpen}
+          >
+            <span className="nav-sidebar-avatar">
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={user?.email || ''} />
+              ) : (
+                <span>👤</span>
+              )}
+            </span>
+            <span className="nav-sidebar-user-info">
+              <span className="nav-sidebar-user-name">{displayName}</span>
+              <span className="nav-sidebar-user-email">{user?.email}</span>
+            </span>
+          </button>
           {menuOpen && (
             <div ref={menuRef} className="account-menu nav-sidebar-menu" role="menu">
               <div className="account-menu-header">
@@ -131,26 +149,6 @@ function Navigation() {
               </button>
             </div>
           )}
-          <button
-            ref={triggerRef}
-            type="button"
-            className="nav-sidebar-user nav-sidebar-avatar-btn"
-            onClick={() => setMenuOpen((open) => !open)}
-            aria-label="Menú de cuenta"
-            aria-expanded={menuOpen}
-          >
-            <span className="nav-sidebar-avatar">
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={user?.email || ''} />
-              ) : (
-                <span>👤</span>
-              )}
-            </span>
-            <span className="nav-sidebar-user-info">
-              <span className="nav-sidebar-user-name">{displayName}</span>
-              <span className="nav-sidebar-user-email">{user?.email}</span>
-            </span>
-          </button>
         </div>
       </aside>
     </>
