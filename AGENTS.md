@@ -2,6 +2,13 @@
 
 PWA for CrossFit athletes. Track PRs, benchmarks, achievements, skills, and progress — with a social layer: follow athletes and see their activity in a feed.
 
+## Workflow
+
+- All work happens on the `develop` branch. Commit and push **only to `develop`**.
+- `main` is updated **only when the user explicitly asks** (merge, release, etc.).
+- Never push directly to `main`, never merge to `main` without explicit instruction.
+- This rule overrides any previous default of "merge to main after each phase" and is persistent.
+
 ## Tech Stack
 React 19 + Vite 8 | React Router 7 | Zustand 5 | Supabase (Google OAuth only) | vite-plugin-pwa | recharts | sharp (PWA icons)
 
