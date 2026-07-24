@@ -1,4 +1,5 @@
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import './Navigation.css';
 
@@ -14,7 +15,11 @@ const ITEMS = [
 
 function Navigation() {
   const location = useLocation();
-  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const { user, signOut } = useAuthStore();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
+  const triggerRef = useRef(null);
 
   const isActive = (path) => {
     if (path === '/dashboard') return location.pathname === '/dashboard';
@@ -29,6 +34,34 @@ function Navigation() {
 
   const avatarUrl =
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
+  const displayName =
+    user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Atleta';
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        if (e.target.closest('.nav-sidebar-avatar-btn')) return;
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [menuOpen]);
+
+  const handleLogout = async () => {
+    setMenuOpen(false);
+    try {
+      await signOut();
+    } catch (error) {
+      console.error('Error al cerrar sesión:', error.message);
+    }
+  };
+
+  const handleViewProfile = () => {
+    setMenuOpen(false);
+    navigate('/profile');
+  };
 
   return (
     <>
@@ -70,21 +103,54 @@ function Navigation() {
         </nav>
 
         <div className="nav-sidebar-profile">
-          <Link to="/profile" className="nav-sidebar-user">
-            <div className="nav-sidebar-avatar">
+          {menuOpen && (
+            <div ref={menuRef} className="account-menu nav-sidebar-menu" role="menu">
+              <div className="account-menu-header">
+                <span className="account-menu-name">{displayName}</span>
+                {user?.email && (
+                  <span className="account-menu-email">{user.email}</span>
+                )}
+              </div>
+              <button
+                type="button"
+                className="account-menu-item"
+                onClick={handleViewProfile}
+                role="menuitem"
+              >
+                <span aria-hidden="true">👤</span>
+                <span>Ver perfil</span>
+              </button>
+              <button
+                type="button"
+                className="account-menu-item account-menu-item-danger"
+                onClick={handleLogout}
+                role="menuitem"
+              >
+                <span aria-hidden="true">⎋</span>
+                <span>Cerrar sesión</span>
+              </button>
+            </div>
+          )}
+          <button
+            ref={triggerRef}
+            type="button"
+            className="nav-sidebar-user nav-sidebar-avatar-btn"
+            onClick={() => setMenuOpen((open) => !open)}
+            aria-label="Menú de cuenta"
+            aria-expanded={menuOpen}
+          >
+            <span className="nav-sidebar-avatar">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={user?.email || ''} />
               ) : (
                 <span>👤</span>
               )}
-            </div>
-            <div className="nav-sidebar-user-info">
-              <span className="nav-sidebar-user-name">
-                {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Atleta'}
-              </span>
+            </span>
+            <span className="nav-sidebar-user-info">
+              <span className="nav-sidebar-user-name">{displayName}</span>
               <span className="nav-sidebar-user-email">{user?.email}</span>
-            </div>
-          </Link>
+            </span>
+          </button>
         </div>
       </aside>
     </>

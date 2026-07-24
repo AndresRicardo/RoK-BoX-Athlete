@@ -153,6 +153,12 @@
     color: inherit;
     border-radius: var(--radius-sm);
     transition: background-color 0.15s ease;
+    width: 100%;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-family: inherit;
+    text-align: left;
   }
 
   .nav-sidebar-user:hover {
@@ -204,5 +210,20 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .nav-sidebar-profile {
+    position: relative;
+  }
+
+  .nav-sidebar-menu {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: var(--space-2);
+    right: var(--space-2);
+    top: auto;
+    min-width: 0;
+    max-width: none;
+    animation: account-menu-pop 0.15s ease-out;
   }
 }
