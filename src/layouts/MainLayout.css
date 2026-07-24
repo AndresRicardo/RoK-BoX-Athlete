@@ -70,40 +70,124 @@
   flex-shrink: 0;
 }
 
-.user-email {
-  display: none;
-  color: var(--color-muted);
-  font-size: 0.85rem;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.logout-btn {
-  background-color: transparent;
-  color: var(--color-primary);
+.header-avatar-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-bg);
   border: 2px solid var(--color-primary);
-  padding: 0 var(--space-2);
-  min-height: var(--touch-target);
-  min-width: var(--touch-target);
-  font-size: 0.875rem;
-  font-weight: bold;
+  padding: 0;
   cursor: pointer;
-  border-radius: var(--radius-sm);
-  transition: all 0.3s ease;
-  display: inline-flex;
+  font-family: inherit;
+  overflow: hidden;
+  display: flex;
   align-items: center;
   justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-.logout-btn:hover {
-  background-color: var(--color-primary);
-  color: var(--color-bg);
+.header-avatar-btn:hover {
+  box-shadow: 0 0 0 3px rgba(255, 200, 21, 0.2);
 }
 
-.logout-btn:active {
-  transform: scale(0.97);
+.header-avatar-btn:active {
+  transform: scale(0.96);
+}
+
+.header-avatar-btn img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.header-avatar-btn span {
+  font-size: 0.85rem;
+  font-weight: 800;
+  color: var(--color-primary);
+  letter-spacing: 0.5px;
+}
+
+.account-menu {
+  position: fixed;
+  top: calc(max(0.75rem, env(safe-area-inset-top)) + 0.75rem + 40px + 6px);
+  right: max(var(--space-2), env(safe-area-inset-right));
+  min-width: 220px;
+  max-width: calc(100vw - 2 * var(--space-2));
+  background-color: var(--color-surface);
+  border: 1px solid var(--color-muted);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  padding: 0.4rem;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  animation: account-menu-pop 0.15s ease-out;
+}
+
+@keyframes account-menu-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.account-menu-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  padding: 0.5rem 0.75rem 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--color-muted);
+  margin-bottom: 0.2rem;
+  min-width: 0;
+}
+
+.account-menu-name {
+  color: var(--color-text);
+  font-size: 0.9rem;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-menu-email {
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.account-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  padding: 0.6rem 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.account-menu-item:hover {
+  background-color: rgba(255, 200, 21, 0.1);
+  color: var(--color-primary);
+}
+
+.account-menu-item-danger:hover {
+  background-color: rgba(255, 107, 107, 0.12);
+  color: #ff6b6b;
 }
 
 .main-shell {
@@ -166,14 +250,6 @@
 
   .logo {
     font-size: 1.5rem;
-  }
-
-  .user-email {
-    display: inline;
-  }
-
-  .logout-btn {
-    padding: 0.5rem var(--space-2);
   }
 
   .main-content {

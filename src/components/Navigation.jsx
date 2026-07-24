@@ -1,7 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
-import useProfileStore from '../stores/profileStore';
 import './Navigation.css';
 
 const ITEMS = [
@@ -17,31 +15,7 @@ const ITEMS = [
 
 function Navigation() {
   const location = useLocation();
-  const navigate = useNavigate();
-  const { user, signOut } = useAuthStore();
-  const { profile, fetchProfile } = useProfileStore();
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef(null);
-
-  useEffect(() => {
-    if (user?.id && !profile) {
-      fetchProfile(user.id).catch(() => {});
-    }
-  }, [user, profile, fetchProfile]);
-
-  const handleLogout = async () => {
-    setMenuOpen(false);
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Error al cerrar sesión:', error.message);
-    }
-  };
-
-  const handleViewProfile = () => {
-    setMenuOpen(false);
-    navigate('/profile');
-  };
+  const { user } = useAuthStore();
 
   const isActive = (path) => {
     if (path === '/dashboard') return location.pathname === '/dashboard';
@@ -55,35 +29,7 @@ function Navigation() {
   };
 
   const avatarUrl =
-    profile?.avatar_url ||
-    user?.user_metadata?.avatar_url ||
-    user?.user_metadata?.picture;
-  const initials =
-    `${profile?.first_name?.[0] ?? ''}${profile?.last_name?.[0] ?? ''}`.toUpperCase() ||
-    (user?.user_metadata?.full_name?.[0] ?? '').toUpperCase() ||
-    'RX';
-
-  // Cerrar el menu al hacer click fuera
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        if (
-          e.target.closest('.nav-bottom-avatar-btn') ||
-          e.target.closest('.nav-sidebar-avatar-btn')
-        ) {
-          return;
-        }
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [menuOpen]);
-
-  const toggleMenu = () => {
-    setMenuOpen((open) => !open);
-  };
+    user?.user_metadata?.avatar_url || user?.user_metadata?.picture;
 
   return (
     <>
@@ -99,21 +45,6 @@ function Navigation() {
             <span className="nav-bottom-label">{item.label}</span>
           </Link>
         ))}
-        <button
-          type="button"
-          className="nav-bottom-item nav-bottom-avatar-btn"
-          onClick={toggleMenu}
-          aria-label="Menú de cuenta"
-          aria-expanded={menuOpen}
-        >
-          <span className="nav-bottom-avatar" aria-hidden="true">
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="" />
-            ) : (
-              <span>{initials}</span>
-            )}
-          </span>
-        </button>
       </nav>
 
       <aside className="nav-sidebar" aria-label="Navegación lateral">
@@ -140,52 +71,23 @@ function Navigation() {
         </nav>
 
         <div className="nav-sidebar-profile">
-          <div className="nav-sidebar-user">
-            <button
-              type="button"
-              className="nav-sidebar-avatar nav-sidebar-avatar-btn"
-              onClick={toggleMenu}
-              aria-label="Menú de cuenta"
-              aria-expanded={menuOpen}
-            >
+          <Link to="/profile" className="nav-sidebar-user">
+            <div className="nav-sidebar-avatar">
               {avatarUrl ? (
                 <img src={avatarUrl} alt={user?.email || ''} />
               ) : (
-                <span>{initials}</span>
+                <span>👤</span>
               )}
-            </button>
+            </div>
             <div className="nav-sidebar-user-info">
               <span className="nav-sidebar-user-name">
                 {user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Atleta'}
               </span>
               <span className="nav-sidebar-user-email">{user?.email}</span>
             </div>
-          </div>
+          </Link>
         </div>
       </aside>
-
-      {menuOpen && (
-        <div ref={menuRef} className="nav-account-menu" role="menu">
-          <button
-            type="button"
-            className="nav-account-menu-item"
-            onClick={handleViewProfile}
-            role="menuitem"
-          >
-            <span aria-hidden="true">👤</span>
-            <span>Ver perfil</span>
-          </button>
-          <button
-            type="button"
-            className="nav-account-menu-item nav-account-menu-item-danger"
-            onClick={handleLogout}
-            role="menuitem"
-          >
-            <span aria-hidden="true">⎋</span>
-            <span>Cerrar sesión</span>
-          </button>
-        </div>
-      )}
     </>
   );
 }
