@@ -10,7 +10,6 @@ const ITEMS = [
   { to: '/benchmarks', label: 'WODs', icon: '⏱️' },
   { to: '/history', label: 'Histórico', icon: '📈' },
   { to: '/achievements', label: 'Logros', icon: '🏆' },
-  { to: '/profile', label: 'Perfil', icon: '👤' },
 ];
 
 function Navigation() {
