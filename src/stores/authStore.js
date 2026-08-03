@@ -9,6 +9,7 @@ import useFollowStore from './followStore';
 import useFeedStore from './feedStore';
 import useEngagementStore from './engagementStore';
 import useNotificationStore from './notificationStore';
+import usePushStore from './pushStore';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -68,6 +69,14 @@ const useAuthStore = create((set, get) => ({
   signOut: async () => {
     set({ loading: true });
 
+    // Limpia las subscripciones push del usuario antes de cerrar sesion.
+    // Asi no recibe pushes de una sesion vieja en este device.
+    try {
+      await usePushStore.getState().unsubscribe(get().user?.id);
+    } catch {
+      // ignore: la sesion se cierra igual aunque falle la limpieza
+    }
+
     const { error } = await supabase.auth.signOut();
 
     if (error) {
@@ -84,6 +93,7 @@ const useAuthStore = create((set, get) => ({
     useFeedStore.getState().reset();
     useEngagementStore.getState().reset();
     useNotificationStore.getState().reset();
+    usePushStore.getState().reset();
 
     set({
       user: null,

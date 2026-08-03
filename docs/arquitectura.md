@@ -117,6 +117,20 @@ alter publication supabase_realtime add table public.notifications;
 alter publication supabase_realtime add table public.feed_events;
 ```
 
+## Web Push (FASE 16)
+
+La campana in-app (FASE 14) se complementa con **Web Push** nativo: notificaciones del SO que llegan aunque la app esté cerrada. Piezas:
+
+- **Cliente**: Service Worker custom (`src/sw.js`) con handler `push` y `notificationclick`. Estrategia PWA `injectManifest` en `vite.config.js`. Helpers en `src/utils/push.js` y estado en `src/stores/pushStore.js`. El atleta activa el permiso desde un banner en la campana.
+- **DB**: tabla `push_subscriptions` (RLS propias), trigger `feed_events_new_post` que inserta una `notification` tipo `new_post` por cada seguidor, y trigger `notifications_send_push` que llama a la Edge Function vía `pg_net` (migración 0014).
+- **Servidor**: Edge Function `supabase/functions/send-push/index.ts` que lee la notificación, busca las subscripciones del destinatario y envía con la lib `web-push` firmada por VAPID. Si el push service devuelve 404/410 (subscripción muerta), borra la fila. Auth vía `service_role_key` (la misma que ya usa el trigger). Detalle de despliegue y secretos en `docs/supabase.md`.
+
+### Limitaciones
+
+- iOS 16.4+ con PWA instalada en pantalla de inicio. Otros casos: campana in-app.
+- HTTPS obligatorio. La Edge Function debe poder resolver la URL pública del cluster.
+- TTL configurable (1 día por defecto) para no enviar pushes de notificaciones muy viejas.
+
 ## PWA
 
 - `vite-plugin-pwa` con `registerType: 'autoUpdate'` → el SW se actualiza sin intervención del usuario.

@@ -10,7 +10,7 @@ PWA for CrossFit athletes. Track PRs, benchmarks, achievements, skills, and prog
 - This rule overrides any previous default of "merge to main after each phase" and is persistent.
 
 ## Tech Stack
-React 19 + Vite 8 | React Router 7 | Zustand 5 | Supabase (Google OAuth only) | vite-plugin-pwa | recharts | sharp (PWA icons)
+React 19 + Vite 8 | React Router 7 | Zustand 5 | Supabase (Google OAuth only) | vite-plugin-pwa (injectManifest) | Web Push (VAPID) | Supabase Edge Functions (Deno) | recharts | sharp (PWA icons)
 
 ## Commands
 ```bash
@@ -25,8 +25,9 @@ npm run icons    # Regenerate PWA icons (scripts/generate-pwa-icons.mjs)
 ```env
 VITE_SUPABASE_URL=
 VITE_SUPABASE_ANON_KEY=
+VITE_VAPID_PUBLIC_KEY=
 ```
-Supabase is self-hosted. Auth is Google OAuth only (no email/password). Never commit `.env`.
+Supabase is self-hosted. Auth is Google OAuth only (no email/password). Never commit `.env`. The VAPID private key lives only in Supabase secrets (`VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`).
 
 ## Color Palette
 - Primary: `#FFC815` (gold/yellow)
@@ -83,6 +84,7 @@ Navigation order: Comunidad, Inicio, PRs, Skills, WODs, Histórico, Logros, Perf
 - `0011_profile_avatars` - `profiles.avatar_url` (synced from Google user_metadata), defensive UPDATE policy on profiles, `athlete_directory` exposes avatar_url
 - `0012_notifications` - `notifications` table denormalized (snapshot of event payload + comment body) + INSERT/DELETE triggers on `feed_likes`, INSERT trigger on `feed_comments` and `follows`. RLS: read/update own only; no client INSERT/DELETE (triggers only)
 - `0013_feed_events_realtime` - adds `feed_events` to the `supabase_realtime` publication (idempotent check, no schema change) so the live feed subscription works
+- `0014_push_subscriptions` - `push_subscriptions` (one per device, RLS own) + extends `notifications.type` check to include `new_post` + trigger `feed_events_new_post` (fan-out: one notification per follower on each new post) + trigger `notifications_send_push` (calls Edge Function `send-push` via `pg_net` to deliver a Web Push)
 
 ## Supabase RLS Pattern
 All tables use `auth.uid() = user_id` (or `auth.uid() = id` for profiles) policies. Users only access their own data. UPDATE policies need both `USING` and `WITH CHECK` (see 0006).
@@ -110,8 +112,9 @@ Social exceptions (0008/0009):
 - `feedStore`: paginated feed (PAGE_SIZE 20, `range` load-more), hydrates events with directory profiles, realtime subscription (`postgres_changes` INSERT/DELETE on `feed_events`, no server-side filter — RLS narrows to own + followed) prepends/removes events live.
 - `engagementStore`: likes map (count + likedByMe), comment counts, comments per expanded event, toggleLike optimistic.
 - `notificationStore`: 50 most recent + unread count, mark all read, realtime subscription (`postgres_changes` INSERT/UPDATE on `notifications` filtered by `recipient_id`) updates the bell badge live. Hydrates actors from `athlete_directory`.
+- `pushStore`: Web Push state (permission, subscribed), `init/subscribe/unsubscribe/reset`. Persists the browser's `PushSubscription` to `push_subscriptions` so the Edge Function `send-push` (triggered by `notifications_send_push` after every new `notification`) can deliver native pushes when the app is closed. Cleans up on logout. Banner in `NotificationsBell` for opt-in.
 
 ## Current Phase
-FASES 1-15 complete: Auth, Profile, PRs, Benchmarks, Achievements (+ modal), Skills, Navigation, History (evolution charts), Edit PRs/Benchmarks, Achievement re-validation on edit, Social (follows, @handle, search, public profiles), Activity Feed, Feed Engagement (likes, comments, avatars), Notifications (real-time bell with likes/comments/follows), and Realtime Feed (live prepend/remove of PRs, benchmarks, achievements and skills from followed athletes).
+FASES 1-16 complete: Auth, Profile, PRs, Benchmarks, Achievements (+ modal), Skills, Navigation, History (evolution charts), Edit PRs/Benchmarks, Achievement re-validation on edit, Social (follows, @handle, search, public profiles), Activity Feed, Feed Engagement (likes, comments, avatars), Notifications (real-time bell with likes/comments/follows), Realtime Feed (live prepend/remove of PRs, benchmarks, achievements and skills from followed athletes), and Web Push (native OS notifications on new posts from followed athletes and on like/comment/follow to the user's own content).
 
-Next ideas (FASE 16+): feed events on PR/benchmark edits, push notifications, comment edit, @mentions.
+Next ideas (FASE 17+): feed events on PR/benchmark edits, comment edit, @mentions.

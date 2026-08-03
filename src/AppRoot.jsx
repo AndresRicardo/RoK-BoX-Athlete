@@ -11,6 +11,7 @@ import useFollowStore from './stores/followStore';
 import useFeedStore from './stores/feedStore';
 import useEngagementStore from './stores/engagementStore';
 import useNotificationStore from './stores/notificationStore';
+import usePushStore from './stores/pushStore';
 import AchievementModal from './components/AchievementModal';
 
 function AppRoot() {
@@ -56,6 +57,28 @@ function AppRoot() {
     return () => {
       // No desuscribir en cada render; el reset() al logout lo gestiona
     };
+  }, [userId]);
+
+  // FASE 16: web push. Lee el permiso actual y sincroniza la subscripcion
+  // del SW con la fila en push_subscriptions.
+  useEffect(() => {
+    if (userId) {
+      usePushStore.getState().init(userId);
+    } else {
+      usePushStore.getState().reset();
+    }
+  }, [userId]);
+
+  // FASE 16: si el SW nos avisa que la subscripcion rota, re-suscribimos.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return undefined;
+    const handler = (event) => {
+      if (event?.data?.type === 'pushsubscriptionchange' && userId) {
+        usePushStore.getState().init(userId);
+      }
+    };
+    navigator.serviceWorker.addEventListener('message', handler);
+    return () => navigator.serviceWorker.removeEventListener('message', handler);
   }, [userId]);
 
   useEffect(() => {

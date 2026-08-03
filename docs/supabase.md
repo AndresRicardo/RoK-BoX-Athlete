@@ -118,6 +118,8 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
 | 0010 | `0010_feed_engagement.sql` | `feed_likes` y `feed_comments` + RLS |
 | 0011 | `0011_profile_avatars.sql` | Columna `avatar_url` en `profiles` + vista actualizada + policy UPDATE defensiva |
 | 0012 | `0012_notifications.sql` | Tabla `notifications` + triggers sobre `feed_likes`, `feed_comments`, `follows` |
+| 0013 | `0013_feed_events_realtime.sql` | `feed_events` en la publication `supabase_realtime` (FASE 15) |
+| 0014 | `0014_push_subscriptions.sql` | `push_subscriptions` + trigger `feed_events_new_post` (fan-out a seguidores) + trigger `notifications_send_push` (llama a la Edge Function) |
 
 ### Cómo ejecutarlas
 
@@ -156,6 +158,60 @@ alter publication supabase_realtime add table public.feed_events;
 ```
 
 Si la tabla ya estaba añadida, `alter publication ... add table` lanza un error *"relation is already member of publication"* — es inofensivo.
+
+## Web Push (Edge Function `send-push`)
+
+La tabla `notifications` no solo alimenta la campana in-app: también dispara un **push nativo** del navegador/SO cuando el atleta lo ha activado. El envío lo hace la Edge Function `send-push`, llamada desde el trigger `notifications_send_push` (migración 0014) vía `pg_net`.
+
+### 1. Generar las claves VAPID
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Anota:
+
+- **Public key** → va al cliente como `VITE_VAPID_PUBLIC_KEY` (en `.env`).
+- **Private key** → va a Supabase como secret. **Nunca** al repo.
+
+El `VAPID_SUBJECT` puede ser un `mailto:` o una URL HTTPS (es una identidad de contacto que el push service muestra si te contacta). En este proyecto usamos `https://rokbox-athlete.vercel.app`.
+
+### 2. Desplegar la Edge Function
+
+```bash
+supabase functions deploy send-push
+```
+
+### 3. Setear los secretos
+
+```bash
+supabase secrets set \
+  VAPID_SUBJECT=https://rokbox-athlete.vercel.app \
+  VAPID_PUBLIC_KEY=<public-key> \
+  VAPID_PRIVATE_KEY=<private-key>
+```
+
+> `SUPABASE_URL` y `SUPABASE_SERVICE_ROLE_KEY` ya vienen como secretos automáticos de la Edge Function.
+
+### 4. Setear el `app.settings.*` para el trigger
+
+El trigger `notifications_send_push` (0014) hace POST a la URL base de Supabase. La lee de `current_setting('app.settings.supabase_url', true)`. **Setea esto una vez por cluster** con la SQL Editor (sustituye `<host>` por la URL de tu Supabase, sin trailing slash):
+
+```sql
+alter database postgres set app.settings.supabase_url = 'https://<host>';
+alter database postgres set app.settings.service_role_key = '<service-role-key>';
+```
+
+> La `service_role_key` queda en la configuración de la base de datos, no en el repo. Es sensible — trátala como la anon key pero con permisos de admin.
+
+### 5. Verificar
+
+Tras un deploy, prueba creando un PR/benchmark/logro/skill desde un atleta y un like/comentario/follow desde otro. El destinatario debe recibir el push si activó las notificaciones en la campana.
+
+### Limitaciones
+
+- **iOS**: Web Push solo funciona con iOS 16.4+ y la PWA instalada en pantalla de inicio. En otros casos, la campana in-app sigue funcionando vía Realtime.
+- **HTTPS obligatorio** (en dev se puede usar `localhost`).
 
 ## Backfills opcionales
 

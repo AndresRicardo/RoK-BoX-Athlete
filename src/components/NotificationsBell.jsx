@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
 import useNotificationStore from '../stores/notificationStore';
+import usePushStore from '../stores/pushStore';
 import { timeAgo } from '../utils/time';
 import './NotificationsBell.css';
 
@@ -28,6 +29,14 @@ function NotificationsBell() {
     togglePanel,
     closePanel,
   } = useNotificationStore();
+
+  const {
+    permission,
+    subscribed,
+    loading: pushLoading,
+    error: pushError,
+    subscribe: subscribePush,
+  } = usePushStore();
 
   const panelRef = useRef(null);
 
@@ -70,6 +79,14 @@ function NotificationsBell() {
     }
   };
 
+  const handleEnablePush = () => {
+    subscribePush(userId);
+  };
+
+  // Banner visible cuando el navegador aun no decidio y la campana esta abierta.
+  const showPushBanner =
+    panelOpen && permission === 'default' && !subscribed && userId;
+
   return (
     <div className="notifications-bell" ref={panelRef}>
       <button
@@ -100,6 +117,41 @@ function NotificationsBell() {
               ×
             </button>
           </div>
+
+          {showPushBanner && (
+            <div className="notifications-push-banner">
+              <div className="notifications-push-text">
+                <strong>Activa las notificaciones</strong>
+                <span>Recibe avisos aunque no tengas la app abierta.</span>
+              </div>
+              <button
+                type="button"
+                className="notifications-push-btn"
+                onClick={handleEnablePush}
+                disabled={pushLoading}
+              >
+                {pushLoading ? '...' : 'Activar'}
+              </button>
+            </div>
+          )}
+          {permission === 'granted' && !subscribed && userId && (
+            <div className="notifications-push-banner">
+              <div className="notifications-push-text">
+                <span>Permiso concedido pero la subscripcion no esta activa.</span>
+              </div>
+              <button
+                type="button"
+                className="notifications-push-btn"
+                onClick={handleEnablePush}
+                disabled={pushLoading}
+              >
+                {pushLoading ? '...' : 'Reintentar'}
+              </button>
+            </div>
+          )}
+          {pushError && panelOpen && (
+            <p className="notifications-push-error">{pushError}</p>
+          )}
 
           <div className="notifications-panel-body">
             {loading && items.length === 0 ? (

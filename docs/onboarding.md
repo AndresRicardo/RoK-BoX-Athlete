@@ -154,6 +154,21 @@ order by tablename;
 
 Debe aparecer `public | notifications` y `public | feed_events`.
 
+## 6b. Web Push (FASE 16)
+
+Tras aplicar la migración 0014, generar las claves VAPID, desplegar la Edge Function y setear los secretos. Ver la sección **"Web Push"** en `docs/supabase.md` para detalle paso a paso.
+
+Resumen:
+
+1. `npx web-push generate-vapid-keys` → guardar la pública en `.env` (`VITE_VAPID_PUBLIC_KEY`) y la privada para Supabase.
+2. `supabase functions deploy send-push`.
+3. `supabase secrets set VAPID_SUBJECT=... VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=...`.
+4. En SQL Editor:
+   ```sql
+   alter database postgres set app.settings.supabase_url = 'https://<host>';
+   alter database postgres set app.settings.service_role_key = '<service-role-key>';
+   ```
+
 ## 7. Configurar variables de entorno del frontend
 
 En la raíz del proyecto, crea `.env`:
