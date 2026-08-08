@@ -28,10 +28,12 @@ const usePushStore = create((set) => ({
     try {
       const sub = await getExistingSubscription();
       if (sub) {
-        // Asegura que la fila exista en push_subscriptions (puede haberse
-        // perdido si la app se desinstalo o se limpio el storage local).
+        // Asegura que la fila exista en push_subscriptions. El user_id
+        // lo rellena el trigger push_subscriptions_set_user_trigger
+        // desde auth.uid() (migracion 0018), por lo que ya no lo mandamos
+        // en el payload.
         const { error } = await supabase.from('push_subscriptions').upsert(
-          { user_id: userId, ...subscriptionToRow(sub), last_seen_at: new Date().toISOString() },
+          { ...subscriptionToRow(sub), last_seen_at: new Date().toISOString() },
           { onConflict: 'user_id,endpoint' },
         );
         if (error) throw error;
@@ -50,8 +52,9 @@ const usePushStore = create((set) => ({
     set({ loading: true, error: null });
     try {
       const sub = await requestPermissionAndSubscribe(vapidKey);
+      // user_id lo rellena el trigger desde auth.uid() (migracion 0018).
       const { error } = await supabase.from('push_subscriptions').upsert(
-        { user_id: userId, ...subscriptionToRow(sub), last_seen_at: new Date().toISOString() },
+        { ...subscriptionToRow(sub), last_seen_at: new Date().toISOString() },
         { onConflict: 'user_id,endpoint' },
       );
       if (error) throw error;
@@ -76,7 +79,8 @@ const usePushStore = create((set) => ({
     set({ loading: true, error: null });
     try {
       // Borra la fila primero (para que el SW no se re-registre si la
-      // subscripcion del navegador sigue viva).
+      // subscripcion del navegador sigue viva). El filtro user_id lo
+      // resuelve la RLS a partir del JWT; no hace falta mandarlo.
       if (userId) {
         const { data: rows } = await supabase
           .from('push_subscriptions')
@@ -88,7 +92,6 @@ const usePushStore = create((set) => ({
           await supabase
             .from('push_subscriptions')
             .delete()
-            .eq('user_id', userId)
             .in('endpoint', endpoints);
         }
       } else {
