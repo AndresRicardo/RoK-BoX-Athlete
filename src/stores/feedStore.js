@@ -101,15 +101,28 @@ const useFeedStore = create((set, get) => ({
   },
 
   // FASE 15: insercion en vivo (Realtime). Solo se preprende si la fila
-  // corresponde al propio usuario o a alguien a quien ya sigo; la RLS del
-  // canal ya descarta lo demas antes de llegar aqui, pero comprobamos el
-  // caso de la red no cargada para evitar prependar eventos de no-seguidos.
+  // corresponde al propio usuario o a alguien a quien ya sigo. Si la
+  // red todavia no esta cargada (re-login rapido, primer arranque),
+  // se intenta fetchMyNetwork antes de descartar.
   prependFromRealtime: async (row) => {
     if (!row || !row.id) return;
 
     const me = useAuthStore.getState().user;
-    const following = useFollowStore.getState().following;
-    if (row.user_id !== me?.id && !following.includes(row.user_id)) return;
+    let following = useFollowStore.getState().following;
+
+    if (row.user_id !== me?.id && !following.includes(row.user_id)) {
+      // No lo reconozco. Intento cargar la red (puede estar vacia tras
+      // un re-login) y vuelvo a comprobar.
+      if (me?.id && following.length === 0) {
+        try {
+          await useFollowStore.getState().fetchMyNetwork(me.id);
+        } catch {
+          // ignore: la RLS del canal ya filtra, asi que es seguro descartar
+        }
+        following = useFollowStore.getState().following;
+      }
+      if (row.user_id !== me?.id && !following.includes(row.user_id)) return;
+    }
 
     // Evita prepender un evento que llega tarde si la cabeza del feed es
     // mas reciente (consistente con orden desc por created_at).

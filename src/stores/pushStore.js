@@ -9,13 +9,10 @@ import {
   subscriptionToRow,
 } from '../utils/push';
 
-// Inserta o actualiza una subscripcion sin disparar el path "upsert" de
-// PostgREST, que confunde a RLS cuando la policy de UPDATE no estaba
-// originalmente creada. Ahora que existe (migracion 0019) ya no seria
-// necesario, pero el split explicito es mas robusto y legible.
+// Inserta o actualiza una subscripcion. user_id lo rellena el trigger
+// push_subscriptions_set_user_trigger desde auth.uid() (migracion 0018).
 async function saveSubscription(sub) {
   const payload = { ...subscriptionToRow(sub), last_seen_at: new Date().toISOString() };
-  // Busca si ya existe una fila con este endpoint (RLS la limita al user).
   const { data: existing, error: selErr } = await supabase
     .from('push_subscriptions')
     .select('id')
@@ -32,40 +29,71 @@ async function saveSubscription(sub) {
     return;
   }
 
-  // user_id lo rellena el trigger push_subscriptions_set_user_trigger
-  // desde auth.uid() (migracion 0018).
   const { error } = await supabase.from('push_subscriptions').insert(payload);
   if (error) throw error;
 }
 
-const usePushStore = create((set) => ({
+const usePushStore = create((set, get) => ({
   permission: 'default', // 'default' | 'granted' | 'denied' | 'unsupported'
-  subscribed: false,
+  subscribed: false, // el navegador tiene una PushSubscription activa
+  dbHasSubscription: false, // la DB tiene al menos una fila para este usuario
   loading: false,
   error: null,
 
   init: async (userId) => {
     if (!userId) {
-      set({ permission: 'default', subscribed: false, error: null });
+      set({
+        permission: 'default',
+        subscribed: false,
+        dbHasSubscription: false,
+        error: null,
+      });
       return;
     }
     if (!isPushSupported()) {
-      set({ permission: 'unsupported', subscribed: false });
+      set({ permission: 'unsupported', subscribed: false, dbHasSubscription: false });
       return;
     }
     const permission = getPermissionState();
     try {
-      const sub = await getExistingSubscription();
-      if (sub) {
-        // Asegura que la fila exista en push_subscriptions (puede haberse
-        // perdido si la app se desinstalo o se limpio el storage local).
-        await saveSubscription(sub);
-        set({ permission, subscribed: true, error: null });
-      } else {
-        set({ permission, subscribed: false, error: null });
+      // 1. Preguntar a la DB si hay subscripcion registrada para este usuario
+      const { data: dbSubs, error: dbErr } = await supabase
+        .from('push_subscriptions')
+        .select('id')
+        .order('last_seen_at', { ascending: false })
+        .limit(1);
+      if (dbErr) throw dbErr;
+      const dbHasSubscription = !!(dbSubs && dbSubs.length > 0);
+
+      // 2. Preguntar al SW si tiene una subscripcion viva en este navegador
+      const swSub = await getExistingSubscription();
+
+      // Si la DB tiene la fila pero el SW la perdio (limpiar cache, cerrar
+      // sesion largo tiempo, etc.), re-suscribimos con la clave VAPID.
+      // Si el SW tiene la subscripcion pero la DB no, sincronizamos.
+      let subscribed = !!swSub;
+      if (swSub && !dbHasSubscription) {
+        await saveSubscription(swSub);
+      } else if (!swSub && dbHasSubscription) {
+        const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY;
+        try {
+          await requestPermissionAndSubscribe(vapidKey);
+          subscribed = true;
+        } catch {
+          // El usuario rechazo o el navegador fallo. Dejamos el estado
+          // como dbHas=true y subscribed=false para que la UI muestre
+          // "Reactivar" y el usuario lo intente manualmente.
+        }
       }
+
+      set({ permission, subscribed, dbHasSubscription, error: null });
     } catch (err) {
-      set({ permission, subscribed: false, error: err.message });
+      set({
+        permission,
+        subscribed: false,
+        dbHasSubscription: false,
+        error: err.message,
+      });
     }
   },
 
@@ -79,6 +107,7 @@ const usePushStore = create((set) => ({
       set({
         permission: 'granted',
         subscribed: true,
+        dbHasSubscription: true,
         loading: false,
         error: null,
       });
@@ -87,42 +116,49 @@ const usePushStore = create((set) => ({
       set({
         permission,
         subscribed: false,
+        dbHasSubscription: get().dbHasSubscription,
         loading: false,
         error: err.message || 'No se pudo activar las notificaciones',
       });
     }
   },
 
-  unsubscribe: async (userId) => {
+  unsubscribe: async () => {
     set({ loading: true, error: null });
     try {
       // Borra la fila primero (para que el SW no se re-registre si la
       // subscripcion del navegador sigue viva). El filtro user_id lo
       // resuelve la RLS a partir del JWT; no hace falta mandarlo.
-      if (userId) {
-        const { data: rows } = await supabase
+      const { data: rows } = await supabase
+        .from('push_subscriptions')
+        .select('endpoint');
+      const endpoints = (rows || []).map((r) => r.endpoint);
+      await unsubscribeBrowser();
+      if (endpoints.length > 0) {
+        await supabase
           .from('push_subscriptions')
-          .select('endpoint')
-          .eq('user_id', userId);
-        const endpoints = (rows || []).map((r) => r.endpoint);
-        await unsubscribeBrowser();
-        if (endpoints.length > 0) {
-          await supabase
-            .from('push_subscriptions')
-            .delete()
-            .in('endpoint', endpoints);
-        }
-      } else {
-        await unsubscribeBrowser();
+          .delete()
+          .in('endpoint', endpoints);
       }
-      set({ subscribed: false, loading: false, error: null });
+      set({
+        subscribed: false,
+        dbHasSubscription: false,
+        loading: false,
+        error: null,
+      });
     } catch (err) {
       set({ loading: false, error: err.message || 'No se pudo desactivar' });
     }
   },
 
   reset: () => {
-    set({ permission: 'default', subscribed: false, loading: false, error: null });
+    set({
+      permission: 'default',
+      subscribed: false,
+      dbHasSubscription: false,
+      loading: false,
+      error: null,
+    });
   },
 }));
 

@@ -33,6 +33,7 @@ function NotificationsBell() {
   const {
     permission,
     subscribed,
+    dbHasSubscription,
     loading: pushLoading,
     error: pushError,
     subscribe: subscribePush,
@@ -137,7 +138,14 @@ function NotificationsBell() {
           {permission === 'granted' && !subscribed && userId && (
             <div className="notifications-push-banner">
               <div className="notifications-push-text">
-                <span>Permiso concedido pero la subscripcion no esta activa.</span>
+                {dbHasSubscription ? (
+                  <span>
+                    Tu suscripcion esta guardada pero este navegador la perdio.
+                    Pulsa para reactivarla sin pedir permiso de nuevo.
+                  </span>
+                ) : (
+                  <span>Permiso concedido pero la suscripcion no esta activa.</span>
+                )}
               </div>
               <button
                 type="button"
@@ -145,7 +153,7 @@ function NotificationsBell() {
                 onClick={handleEnablePush}
                 disabled={pushLoading}
               >
-                {pushLoading ? '...' : 'Reintentar'}
+                {pushLoading ? '...' : dbHasSubscription ? 'Reactivar' : 'Reintentar'}
               </button>
             </div>
           )}
