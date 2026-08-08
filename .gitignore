@@ -31,3 +31,6 @@ dist-ssr
 # OS
 Thumbs.db
 
+# Supabase CLI cache
+supabase/.temp/
+
