@@ -9,6 +9,35 @@ import {
   subscriptionToRow,
 } from '../utils/push';
 
+// Inserta o actualiza una subscripcion sin disparar el path "upsert" de
+// PostgREST, que confunde a RLS cuando la policy de UPDATE no estaba
+// originalmente creada. Ahora que existe (migracion 0019) ya no seria
+// necesario, pero el split explicito es mas robusto y legible.
+async function saveSubscription(sub) {
+  const payload = { ...subscriptionToRow(sub), last_seen_at: new Date().toISOString() };
+  // Busca si ya existe una fila con este endpoint (RLS la limita al user).
+  const { data: existing, error: selErr } = await supabase
+    .from('push_subscriptions')
+    .select('id')
+    .eq('endpoint', payload.endpoint)
+    .maybeSingle();
+  if (selErr) throw selErr;
+
+  if (existing) {
+    const { error } = await supabase
+      .from('push_subscriptions')
+      .update({ last_seen_at: payload.last_seen_at })
+      .eq('id', existing.id);
+    if (error) throw error;
+    return;
+  }
+
+  // user_id lo rellena el trigger push_subscriptions_set_user_trigger
+  // desde auth.uid() (migracion 0018).
+  const { error } = await supabase.from('push_subscriptions').insert(payload);
+  if (error) throw error;
+}
+
 const usePushStore = create((set) => ({
   permission: 'default', // 'default' | 'granted' | 'denied' | 'unsupported'
   subscribed: false,
@@ -28,15 +57,9 @@ const usePushStore = create((set) => ({
     try {
       const sub = await getExistingSubscription();
       if (sub) {
-        // Asegura que la fila exista en push_subscriptions. El user_id
-        // lo rellena el trigger push_subscriptions_set_user_trigger
-        // desde auth.uid() (migracion 0018), por lo que ya no lo mandamos
-        // en el payload.
-        const { error } = await supabase.from('push_subscriptions').upsert(
-          { ...subscriptionToRow(sub), last_seen_at: new Date().toISOString() },
-          { onConflict: 'user_id,endpoint' },
-        );
-        if (error) throw error;
+        // Asegura que la fila exista en push_subscriptions (puede haberse
+        // perdido si la app se desinstalo o se limpio el storage local).
+        await saveSubscription(sub);
         set({ permission, subscribed: true, error: null });
       } else {
         set({ permission, subscribed: false, error: null });
@@ -52,12 +75,7 @@ const usePushStore = create((set) => ({
     set({ loading: true, error: null });
     try {
       const sub = await requestPermissionAndSubscribe(vapidKey);
-      // user_id lo rellena el trigger desde auth.uid() (migracion 0018).
-      const { error } = await supabase.from('push_subscriptions').upsert(
-        { ...subscriptionToRow(sub), last_seen_at: new Date().toISOString() },
-        { onConflict: 'user_id,endpoint' },
-      );
-      if (error) throw error;
+      await saveSubscription(sub);
       set({
         permission: 'granted',
         subscribed: true,
