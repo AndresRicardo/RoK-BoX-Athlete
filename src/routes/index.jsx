@@ -31,6 +31,8 @@ const History = lazy(() => import('../pages/History'));
 const Community = lazy(() => import('../pages/Community'));
 // eslint-disable-next-line react-refresh/only-export-components
 const AthleteProfile = lazy(() => import('../pages/AthleteProfile'));
+// eslint-disable-next-line react-refresh/only-export-components
+const Leaderboard = lazy(() => import('../pages/Leaderboard'));
 
 // eslint-disable-next-line react-refresh/only-export-components
 function LazyPage({ component: Component }) {
@@ -186,6 +188,16 @@ const router = createBrowserRouter([
       <ProtectedRoute>
         <MainLayout>
           <LazyPage component={Community} />
+        </MainLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/leaderboard',
+    element: (
+      <ProtectedRoute>
+        <MainLayout>
+          <LazyPage component={Leaderboard} />
         </MainLayout>
       </ProtectedRoute>
     ),

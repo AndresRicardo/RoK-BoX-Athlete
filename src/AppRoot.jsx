@@ -11,6 +11,7 @@ import useFollowStore from './stores/followStore';
 import useFeedStore from './stores/feedStore';
 import useEngagementStore from './stores/engagementStore';
 import useNotificationStore from './stores/notificationStore';
+import useLeaderboardStore from './stores/leaderboardStore';
 import AchievementModal from './components/AchievementModal';
 
 function AppRoot() {
@@ -69,6 +70,7 @@ function AppRoot() {
       useFeedStore.getState().reset();
       useEngagementStore.getState().reset();
       useNotificationStore.getState().reset();
+      useLeaderboardStore.getState().reset();
     }
   }, [userId]);
 

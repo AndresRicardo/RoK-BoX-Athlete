@@ -51,6 +51,18 @@
   display: none;
 }
 
+@media (max-width: 480px) {
+  .nav-bottom-item {
+    padding-left: 0.1rem;
+    padding-right: 0.1rem;
+    font-size: 0.62rem;
+  }
+
+  .nav-bottom-icon {
+    font-size: 1.15rem;
+  }
+}
+
 @media (min-width: 1024px) {
   .nav-bottom {
     display: none;
