@@ -1,24 +1,17 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
+import PageLoader from './PageLoader';
 
-function ProtectedRoute({ children }) {
-  const { user, loading, initialized } = useAuthStore();
-  const location = useLocation();
+export default function ProtectedRoute({ children }) {
+  const { session, loading, initialized } = useAuthStore();
 
   if (!initialized || loading) {
-    return (
-      <div className="loading-screen">
-        <div className="loading-spinner"></div>
-        <p>Cargando...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
-  if (!user) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+  if (!session) {
+    return <Navigate to="/login" replace />;
   }
 
   return children;
 }
-
-export default ProtectedRoute;

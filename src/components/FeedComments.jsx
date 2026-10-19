@@ -1,12 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Send, Trash2 } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
 import useEngagementStore from '../stores/engagementStore';
 import { timeAgo } from '../utils/time';
-import './FeedComments.css';
 
-// Seccion expandible de comentarios de un evento del feed.
-function FeedComments({ eventId, eventOwnerId }) {
+export default function FeedComments({ eventId, eventOwnerId }) {
   const { user } = useAuthStore();
   const {
     commentsByEvent,
@@ -19,7 +18,7 @@ function FeedComments({ eventId, eventOwnerId }) {
   const [draft, setDraft] = useState('');
   const [error, setError] = useState(null);
 
-  const comments = commentsByEvent[eventId]; // undefined = sin cargar
+  const comments = commentsByEvent[eventId];
 
   useEffect(() => {
     fetchComments(eventId).catch((e) => setError(e.message));
@@ -31,7 +30,7 @@ function FeedComments({ eventId, eventOwnerId }) {
     e.preventDefault();
     if (!draft.trim() || saving) return;
     try {
-      await addComment(eventId, user.id, draft);
+      await addComment(eventId, user.id, draft.trim());
       setDraft('');
     } catch (err) {
       setError(err.message);
@@ -47,83 +46,87 @@ function FeedComments({ eventId, eventOwnerId }) {
   };
 
   return (
-    <div className="feed-comments">
-      {error && <div className="form-error">{error}</div>}
+    <div className="mt-3 pt-3 border-t border-white/5 flex flex-col gap-3">
+      {error && (
+        <div className="p-2 rounded-lg bg-red-500/10 text-red-400 text-xs">{error}</div>
+      )}
 
       {comments === undefined ? (
-        <p className="feed-comments-loading">Cargando comentarios...</p>
+        <p className="text-xs text-[#A0A0A5] py-2 text-center">Cargando comentarios...</p>
       ) : comments.length === 0 ? (
-        <p className="feed-comments-empty">Sé el primero en comentar 💬</p>
+        <p className="text-xs text-[#A0A0A5] py-2 text-center">Sé el primero en comentar 💬</p>
       ) : (
-        <ul className="feed-comments-list">
+        <div className="flex flex-col gap-2 max-h-60 overflow-y-auto">
           {comments.map((c) => {
-            const initials =
-              `${c.author?.first_name?.[0] ?? ''}${c.author?.last_name?.[0] ?? ''}`.toUpperCase() ||
-              '@';
+            const author = c.author;
+            const isMe = c.user_id === user?.id;
+
             return (
-              <li key={c.id} className="feed-comment">
-                <Link
-                  to={`/athletes/${c.user_id}`}
-                  className="feed-comment-avatar"
-                  aria-hidden="true"
-                  tabIndex={-1}
-                >
-                  {c.author?.avatar_url ? (
-                    <img src={c.author.avatar_url} alt="" />
+              <div
+                key={c.id}
+                className="p-2.5 rounded-xl bg-[#0A0A0C] border border-white/5 flex items-start gap-2.5 text-xs"
+              >
+                <Link to={isMe ? '/profile' : `/athletes/${c.user_id}`} className="shrink-0 mt-0.5">
+                  {author?.avatar_url ? (
+                    <img
+                      src={author.avatar_url}
+                      alt={author.display_name}
+                      className="w-7 h-7 rounded-lg object-cover"
+                    />
                   ) : (
-                    initials
+                    <div className="w-7 h-7 rounded-lg bg-[#292929] text-[#FFC815] font-black flex items-center justify-center text-[10px]">
+                      {author?.first_name?.[0]?.toUpperCase() || 'A'}
+                    </div>
                   )}
                 </Link>
-                <div className="feed-comment-body">
-                  <p className="feed-comment-text">
+
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between">
                     <Link
-                      to={`/athletes/${c.user_id}`}
-                      className="feed-comment-handle"
+                      to={isMe ? '/profile' : `/athletes/${c.user_id}`}
+                      className="font-bold text-white hover:text-[#FFC815]"
                     >
-                      @{c.author?.display_name || 'atleta'}
-                    </Link>{' '}
-                    {c.body}
-                  </p>
-                  <span className="feed-comment-time">
-                    {timeAgo(c.created_at)}
-                  </span>
+                      @{author?.display_name || 'atleta'}
+                    </Link>
+                    <span className="text-[10px] text-gray-500">{timeAgo(c.created_at)}</span>
+                  </div>
+                  <p className="text-gray-300 mt-0.5 break-words">{c.content}</p>
                 </div>
+
                 {canDelete(c) && (
                   <button
                     type="button"
-                    className="feed-comment-delete"
                     onClick={() => handleDelete(c.id)}
-                    disabled={saving}
-                    aria-label="Eliminar comentario"
+                    className="p-1 text-gray-500 hover:text-red-400 shrink-0"
+                    title="Eliminar comentario"
                   >
-                    ×
+                    <Trash2 className="w-3.5 h-3.5" />
                   </button>
                 )}
-              </li>
+              </div>
             );
           })}
-        </ul>
+        </div>
       )}
 
-      <form className="feed-comments-form" onSubmit={handleSubmit}>
+      {/* Input de nuevo comentario */}
+      <form onSubmit={handleSubmit} className="flex items-center gap-2 mt-1">
         <input
           type="text"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           placeholder="Escribe un comentario..."
           maxLength={500}
-          aria-label="Escribe un comentario"
+          className="flex-1 px-3 py-2 rounded-xl bg-[#0A0A0C] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FFC815]"
         />
         <button
           type="submit"
-          className="feed-comments-send"
-          disabled={saving || !draft.trim()}
+          disabled={!draft.trim() || saving}
+          className="p-2 rounded-xl bg-[#FFC815] text-black font-bold disabled:opacity-40 tap-bounce"
         >
-          Enviar
+          <Send className="w-4 h-4" />
         </button>
       </form>
     </div>
   );
 }
-
-export default FeedComments;

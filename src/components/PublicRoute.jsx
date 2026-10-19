@@ -1,25 +1,17 @@
-import { Navigate, useLocation } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import useAuthStore from '../stores/authStore';
+import PageLoader from './PageLoader';
 
-function PublicRoute({ children }) {
-  const { user, loading, initialized } = useAuthStore();
-  const location = useLocation();
+export default function PublicRoute({ children }) {
+  const { session, loading, initialized } = useAuthStore();
 
   if (!initialized || loading) {
-    return (
-      <div className="loading-screen">
-        <div className="loading-spinner"></div>
-        <p>Cargando...</p>
-      </div>
-    );
+    return <PageLoader />;
   }
 
-  if (user) {
-    const from = location.state?.from?.pathname || '/community';
-    return <Navigate to={from} replace />;
+  if (session) {
+    return <Navigate to="/" replace />;
   }
 
   return children;
 }
-
-export default PublicRoute;

@@ -1,61 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #FFC815;
+  --color-brand-bg: #0A0A0C;
+  --color-brand-surface: #1C1C1E;
+  --color-brand-surface2: #292929;
+  --color-brand-border: #38383A;
+  --color-brand-muted: #585858;
+  --color-brand-text-muted: #A0A0A5;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
 :root {
-  --color-primary: #FFC815;
-  --color-bg: #000000;
-  --color-surface: #292929;
-  --color-muted: #585858;
-  --color-text: #FFFFFF;
-
-  --radius-sm: 6px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-
-  --space-1: 0.5rem;
-  --space-2: 1rem;
-  --space-3: 1.5rem;
-  --space-4: 2rem;
-
-  --touch-target: 44px;
-  --header-h: 60px;
-
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  line-height: 1.6;
-  font-weight: 400;
   color-scheme: dark;
-  color: var(--color-text);
-  background-color: var(--color-bg);
-  font-synthesis: none;
-  text-rendering: optimizeLegibility;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-}
-
-html,
 body {
-  margin: 0;
-  padding: 0;
-  min-height: 100%;
-  height: 100%;
-  font-size: clamp(15px, 0.5vw + 14px, 18px);
+  background-color: #0A0A0C;
+  color: #FFFFFF;
+  font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior-y: none;
 }
 
-body {
-  background-color: var(--color-bg);
+/* Safe areas para notch y barra de navegación en iOS / Android */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 16px);
 }
 
-#root {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
 }
 
-button {
-  font-family: inherit;
+/* Ocultar scrollbar pero permitir scroll fluido */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Microinteracciones táctiles */
+.tap-bounce {
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tap-bounce:active {
+  transform: scale(0.96);
+}
+
+/* Glassmorphism sutil para barras flotantes */
+.glass-nav {
+  background: rgba(28, 28, 30, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-header {
+  background: rgba(10, 10, 12, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
 }

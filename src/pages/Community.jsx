@@ -1,315 +1,302 @@
-import { useEffect, useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { Users, Trophy, Search, Activity, Crown, Medal, RefreshCw } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
-import useProfileStore from '../stores/profileStore';
-import useFollowStore from '../stores/followStore';
 import useFeedStore from '../stores/feedStore';
-import useEngagementStore from '../stores/engagementStore';
-import AthleteRow from '../components/AthleteRow';
+import useLeaderboardStore from '../stores/leaderboardStore';
+import useFollowStore from '../stores/followStore';
 import FeedEventCard from '../components/FeedEventCard';
-import './Community.css';
+import AthleteRow from '../components/AthleteRow';
 
-const TABS = [
-  { value: 'feed', label: 'Feed' },
-  { value: 'search', label: 'Buscar' },
-  { value: 'following', label: 'Siguiendo' },
-  { value: 'followers', label: 'Seguidores' },
-];
-
-function Community() {
+export default function Community() {
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const { profile, fetchProfile } = useProfileStore();
-  const {
-    following,
-    followers,
-    searchResults,
-    suggestions,
-    explore,
-    loading,
-    saving,
-    error,
-    fetchMyNetwork,
-    follow,
-    unfollow,
-    searchAthletes,
-    clearSearch,
-    fetchSuggestions,
-    fetchExplore,
-    fetchFollowingList,
-    fetchFollowersList,
-  } = useFollowStore();
+  const { events, fetchFeed, subscribeFeed, unsubscribeFeed, loading: loadingFeed } = useFeedStore();
+  const { prs: leaderboardPRs, benchmarks: leaderboardBenchmarks, fetchLeaderboards, loading: loadingLeaderboards } = useLeaderboardStore();
+  const { searchAthletes, searchResults, searching, fetchSuggestions, suggestions } = useFollowStore();
 
-  const [tab, setTab] = useState('feed');
-  const [query, setQuery] = useState('');
-  const [followingPeople, setFollowingPeople] = useState(null);
-  const [followersPeople, setFollowersPeople] = useState(null);
-
-  const {
-    events,
-    loading: feedLoading,
-    loadingMore,
-    hasMore,
-    error: feedError,
-    fetchFeed,
-    loadMore,
-  } = useFeedStore();
-
-  const { fetchEngagement } = useEngagementStore();
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'feed');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [leaderboardCategory, setLeaderboardCategory] = useState('prs'); // 'prs' | 'benchmarks'
 
   useEffect(() => {
     if (user?.id) {
-      fetchMyNetwork(user.id);
-      fetchProfile(user.id);
-      fetchExplore(user.id);
+      fetchFeed(user.id);
+      subscribeFeed(user.id);
+      fetchLeaderboards('global').catch(() => {});
+      fetchSuggestions(user.id).catch(() => {});
     }
-  }, [user, fetchMyNetwork, fetchProfile, fetchExplore]);
 
-  // Feed: carga al entrar al tab y se refresca si cambia mi red
-  useEffect(() => {
-    if (tab === 'feed' && user?.id) {
-      fetchFeed(user.id).catch(() => {});
-    }
-  }, [tab, user, fetchFeed, following.length]);
-
-  // Likes y contadores de comentarios de los eventos visibles
-  useEffect(() => {
-    if (tab === 'feed' && user?.id && events.length > 0) {
-      fetchEngagement(
-        events.map((e) => e.id),
-        user.id,
-      ).catch(() => {});
-    }
-  }, [tab, user, events, fetchEngagement]);
+    return () => {
+      unsubscribeFeed();
+    };
+  }, [user?.id]);
 
   useEffect(() => {
-    if (user?.id && profile?.box_name) {
-      fetchSuggestions(profile.box_name, user.id).catch(() => {});
+    const tab = searchParams.get('tab');
+    if (tab && (tab === 'feed' || tab === 'leaderboard' || tab === 'search')) {
+      setActiveTab(tab);
     }
-  }, [user, profile, fetchSuggestions]);
+  }, [searchParams]);
 
-  // Busqueda con debounce
-  useEffect(() => {
-    if (!query.trim()) {
-      clearSearch();
-      return;
-    }
-    const t = setTimeout(() => {
-      searchAthletes(query, user.id).catch(() => {});
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query, user, searchAthletes, clearSearch]);
-
-  // Lista de perfiles que sigo (tab Siguiendo)
-  useEffect(() => {
-    if (tab === 'following' && user?.id) {
-      fetchFollowingList(user.id)
-        .then(setFollowingPeople)
-        .catch(() => setFollowingPeople([]));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, user, following.length]);
-
-  // Lista de perfiles que me siguen (tab Seguidores)
-  useEffect(() => {
-    if (tab === 'followers' && user?.id) {
-      fetchFollowersList(user.id)
-        .then(setFollowersPeople)
-        .catch(() => setFollowersPeople([]));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, user, followers.length]);
-
-  const handleTabChange = (value) => {
-    setTab(value);
-    if (value === 'following') setFollowingPeople(null);
-    if (value === 'followers') setFollowersPeople(null);
-  };
-
-  const handleToggle = async (athlete) => {
-    try {
-      if (following.includes(athlete.id)) {
-        await unfollow(user.id, athlete.id);
-      } else {
-        await follow(user.id, athlete.id);
-      }
-    } catch {
-      // error ya en store
+  const handleSearchChange = (e) => {
+    const q = e.target.value;
+    setSearchQuery(q);
+    if (q.trim().length >= 2) {
+      searchAthletes(q.trim());
     }
   };
-
-  const renderList = (people) => (
-    <div className="community-list">
-      {people.map((a) => (
-        <AthleteRow
-          key={a.id}
-          athlete={a}
-          following={following.includes(a.id)}
-          saving={saving}
-          onToggleFollow={handleToggle}
-        />
-      ))}
-    </div>
-  );
-
-  const searching = query.trim().length > 0;
-  const suggestionsFiltered = suggestions.filter(
-    (a) => !following.includes(a.id),
-  );
-  const exploreFiltered = explore.filter((a) => !following.includes(a.id));
 
   return (
-    <div className="community-page">
-      <div className="community-header">
-        <h1>Comunidad</h1>
-        <p>Encuentra y sigue a otros atletas de RöK BoX</p>
+    <div className="flex flex-col gap-4 pb-8">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider">
+            Comunidad
+          </span>
+          <h2 className="text-2xl font-black text-white tracking-tight">RöK BoX Social</h2>
+        </div>
       </div>
 
-      <div className="community-tabs" role="tablist" aria-label="Secciones de comunidad">
-        {TABS.map((t) => (
-          <button
-            key={t.value}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.value}
-            className={`community-tab ${tab === t.value ? 'community-tab-active' : ''}`}
-            onClick={() => handleTabChange(t.value)}
-          >
-            {t.label}
-            {t.value === 'following' && following.length > 0 && (
-              <span className="community-tab-badge">{following.length}</span>
-            )}
-            {t.value === 'followers' && followers.length > 0 && (
-              <span className="community-tab-badge">{followers.length}</span>
-            )}
-          </button>
-        ))}
+      {/* Pill Tabs */}
+      <div className="grid grid-cols-3 gap-1 p-1 rounded-2xl bg-[#1C1C1E] border border-white/5">
+        <button
+          type="button"
+          onClick={() => setActiveTab('feed')}
+          className={`py-2 rounded-xl text-xs font-bold transition-all tap-bounce flex items-center justify-center gap-1.5 ${
+            activeTab === 'feed'
+              ? 'bg-[#FFC815] text-black shadow-md'
+              : 'text-[#A0A0A5] hover:text-white'
+          }`}
+        >
+          <Activity className="w-3.5 h-3.5" />
+          <span>Feed</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('leaderboard')}
+          className={`py-2 rounded-xl text-xs font-bold transition-all tap-bounce flex items-center justify-center gap-1.5 ${
+            activeTab === 'leaderboard'
+              ? 'bg-[#FFC815] text-black shadow-md'
+              : 'text-[#A0A0A5] hover:text-white'
+          }`}
+        >
+          <Trophy className="w-3.5 h-3.5" />
+          <span>Líderes</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('search')}
+          className={`py-2 rounded-xl text-xs font-bold transition-all tap-bounce flex items-center justify-center gap-1.5 ${
+            activeTab === 'search'
+              ? 'bg-[#FFC815] text-black shadow-md'
+              : 'text-[#A0A0A5] hover:text-white'
+          }`}
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span>Atletas</span>
+        </button>
       </div>
 
-      {error && <div className="form-error">{error}</div>}
-
-      {tab === 'feed' && (
-        <>
-          {feedError && <div className="form-error">{feedError}</div>}
-          {feedLoading ? (
-            <p className="community-loading">Cargando actividad...</p>
+      {/* ======================================================== */}
+      {/* TAB 1: FEED SOCIAL */}
+      {/* ======================================================== */}
+      {activeTab === 'feed' && (
+        <div className="flex flex-col gap-3">
+          {loadingFeed && events.length === 0 ? (
+            <div className="p-8 text-center text-xs text-[#A0A0A5]">Cargando actividad...</div>
           ) : events.length === 0 ? (
-            <div className="community-empty-state">
-              <h2>Tu feed está vacío</h2>
-              <p>
-                Sigue atletas para ver aquí sus PRs, benchmarks, logros y
-                skills.
+            <div className="p-8 rounded-2xl bg-[#1C1C1E] border border-white/5 text-center">
+              <Users className="w-8 h-8 text-[#FFC815] mx-auto mb-2 opacity-50" />
+              <p className="text-sm font-bold text-white">Tu feed está vacío</p>
+              <p className="text-xs text-[#A0A0A5] mt-1">
+                Sigue a otros atletas del box en la pestaña "Atletas" para ver sus récords y actividad.
               </p>
-              <button
-                type="button"
-                className="btn-primary"
-                onClick={() => handleTabChange('search')}
-              >
-                Buscar atletas
-              </button>
             </div>
           ) : (
-            <>
-              <div className="community-list feed-list">
-                {events.map((e) => (
-                  <FeedEventCard key={e.id} event={e} />
-                ))}
-              </div>
-              {hasMore && (
-                <button
-                  type="button"
-                  className="feed-load-more"
-                  onClick={() => loadMore().catch(() => {})}
-                  disabled={loadingMore}
-                >
-                  {loadingMore ? 'Cargando...' : 'Cargar más'}
-                </button>
-              )}
-            </>
+            events.map((evt) => <FeedEventCard key={evt.id} event={evt} />)
           )}
-        </>
+        </div>
       )}
 
-      {tab === 'search' && (
-        <>
-          <div className="community-search">
+      {/* ======================================================== */}
+      {/* TAB 2: TABLERO DE LÍDERES */}
+      {/* ======================================================== */}
+      {activeTab === 'leaderboard' && (
+        <div className="flex flex-col gap-4">
+          {/* Subselector: PRs vs Benchmarks */}
+          <div className="flex items-center justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => setLeaderboardCategory('prs')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-black transition-colors ${
+                leaderboardCategory === 'prs'
+                  ? 'bg-white text-black'
+                  : 'bg-[#1C1C1E] text-gray-400'
+              }`}
+            >
+              Fuerza / PRs
+            </button>
+            <button
+              type="button"
+              onClick={() => setLeaderboardCategory('benchmarks')}
+              className={`px-4 py-1.5 rounded-xl text-xs font-black transition-colors ${
+                leaderboardCategory === 'benchmarks'
+                  ? 'bg-white text-black'
+                  : 'bg-[#1C1C1E] text-gray-400'
+              }`}
+            >
+              WODs / Benchmarks
+            </button>
+          </div>
+
+          {loadingLeaderboards ? (
+            <div className="p-8 text-center text-xs text-[#A0A0A5]">
+              Cargando tabla de líderes...
+            </div>
+          ) : leaderboardCategory === 'prs' ? (
+            leaderboardPRs.length === 0 ? (
+              <div className="p-8 rounded-2xl bg-[#1C1C1E] border border-white/5 text-center text-xs text-[#A0A0A5]">
+                No hay marcas de PRs registradas para el ranking aún.
+              </div>
+            ) : (
+              leaderboardPRs.map((item, idx) => (
+                <div
+                  key={`${item.movement || idx}-${idx}`}
+                  className="p-4 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col gap-2.5"
+                >
+                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                    <h4 className="text-sm font-black text-[#FFC815]">
+                      {item.movement || 'Movimiento'}
+                    </h4>
+                    <span className="text-[10px] uppercase font-bold text-gray-400">
+                      Récord del Box
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-xl bg-[#FFC815]/20 text-[#FFC815] font-black text-sm flex items-center justify-center">
+                        {idx === 0 ? <Crown className="w-4 h-4" /> : `#${idx + 1}`}
+                      </div>
+                      <div>
+                        <span className="text-sm font-bold text-white block">
+                          {item.athlete_name || item.full_name || 'Atleta'}
+                        </span>
+                        <span className="text-xs text-[#A0A0A5]">
+                          @{item.display_name || 'atleta'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="text-right">
+                      <span className="text-base font-black text-white block">
+                        {item.value} {item.unit || 'kg'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              ))
+            )
+          ) : leaderboardBenchmarks.length === 0 ? (
+            <div className="p-8 rounded-2xl bg-[#1C1C1E] border border-white/5 text-center text-xs text-[#A0A0A5]">
+              No hay resultados de benchmarks registrados para el ranking aún.
+            </div>
+          ) : (
+            leaderboardBenchmarks.map((item, idx) => (
+              <div
+                key={`${item.name || idx}-${idx}`}
+                className="p-4 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col gap-2.5"
+              >
+                <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-black text-white">{item.name}</h4>
+                    <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-[#292929] text-[#FFC815]">
+                      {item.scaling || 'RX'}
+                    </span>
+                  </div>
+                  <span className="text-[10px] uppercase font-bold text-gray-400">
+                    Mejor Tiempo
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 font-black text-sm flex items-center justify-center">
+                      {idx === 0 ? <Medal className="w-4 h-4" /> : `#${idx + 1}`}
+                    </div>
+                    <div>
+                      <span className="text-sm font-bold text-white block">
+                        {item.athlete_name || item.full_name || 'Atleta'}
+                      </span>
+                      <span className="text-xs text-[#A0A0A5]">
+                        @{item.display_name || 'atleta'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <span className="text-base font-black text-white">{item.result}</span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ======================================================== */}
+      {/* TAB 3: BUSCAR ATLETAS */}
+      {/* ======================================================== */}
+      {activeTab === 'search' && (
+        <div className="flex flex-col gap-4">
+          <div className="relative">
+            <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
             <input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Buscar por nombre o @usuario..."
-              aria-label="Buscar atletas"
-              autoComplete="off"
-              autoCapitalize="none"
+              type="text"
+              value={searchQuery}
+              onChange={handleSearchChange}
+              placeholder="Buscar por nombre o @handle..."
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-[#1C1C1E] border border-white/5 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FFC815]"
             />
           </div>
 
-          {searching ? (
-            loading ? (
-              <p className="community-loading">Buscando...</p>
-            ) : searchResults.length === 0 ? (
-              <p className="community-empty">
-                No hay atletas que coincidan con «{query.trim()}».
-              </p>
-            ) : (
-              renderList(searchResults)
-            )
-          ) : (
-            <>
-              {suggestionsFiltered.length > 0 && (
-                <section className="community-section">
-                  <h2>🏠 De tu box</h2>
-                  {renderList(suggestionsFiltered)}
-                </section>
+          {searchQuery.trim().length >= 2 ? (
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider">
+                Resultados de Búsqueda
+              </span>
+              {searching ? (
+                <div className="p-6 text-center text-xs text-[#A0A0A5]">Buscando...</div>
+              ) : searchResults.length === 0 ? (
+                <div className="p-6 rounded-2xl bg-[#1C1C1E] border border-white/5 text-center text-xs text-[#A0A0A5]">
+                  No se encontraron atletas con "{searchQuery}".
+                </div>
+              ) : (
+                searchResults.map((athlete) => (
+                  <AthleteRow key={athlete.id} athlete={athlete} />
+                ))
               )}
-              <section className="community-section">
-                <h2>✨ Explorar</h2>
-                {exploreFiltered.length === 0 ? (
-                  <p className="community-empty">
-                    Aún no hay más atletas registrados.
-                  </p>
-                ) : (
-                  renderList(exploreFiltered)
-                )}
-              </section>
-            </>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <span className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider">
+                Atletas Sugeridos en RöK BoX
+              </span>
+              {suggestions.length === 0 ? (
+                <div className="p-6 text-center text-xs text-[#A0A0A5]">
+                  Escribe en el buscador para encontrar atletas de tu comunidad.
+                </div>
+              ) : (
+                suggestions.map((athlete) => (
+                  <AthleteRow key={athlete.id} athlete={athlete} />
+                ))
+              )}
+            </div>
           )}
-        </>
+        </div>
       )}
-
-      {tab === 'following' &&
-        (followingPeople === null ? (
-          <p className="community-loading">Cargando...</p>
-        ) : followingPeople.length === 0 ? (
-          <div className="community-empty-state">
-            <h2>Aún no sigues a nadie</h2>
-            <p>Busca atletas de tu box y síguelos para ver su actividad.</p>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => setTab('search')}
-            >
-              Buscar atletas
-            </button>
-          </div>
-        ) : (
-          renderList(followingPeople)
-        ))}
-
-      {tab === 'followers' &&
-        (followersPeople === null ? (
-          <p className="community-loading">Cargando...</p>
-        ) : followersPeople.length === 0 ? (
-          <div className="community-empty-state">
-            <h2>Aún no tienes seguidores</h2>
-            <p>
-              Cuando otros atletas te sigan, aparecerán aquí. Comparte tu
-              @usuario con tu box.
-            </p>
-          </div>
-        ) : (
-          renderList(followersPeople)
-        ))}
     </div>
   );
 }
-
-export default Community;

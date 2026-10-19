@@ -1,25 +1,24 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      injectRegister: 'auto',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'pwa-192x192.png', 'pwa-512x512.png'],
       manifest: {
         name: 'RöK BoX Athlete',
         short_name: 'RöK BoX',
-        description: 'Perfil deportivo digital para atletas de CrossFit',
-        theme_color: '#FFC815',
-        background_color: '#000000',
+        description: 'PWA de entrenamiento, récords, membresías y comunidad para atletas de RöK BoX',
+        theme_color: '#0A0A0C',
+        background_color: '#0A0A0C',
         display: 'standalone',
         orientation: 'portrait',
-        scope: '/',
         start_url: '/',
-        lang: 'es',
         icons: [
           {
             src: 'pwa-192x192.png',
@@ -40,14 +39,40 @@ export default defineConfig({
         ],
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,ico,webp}'],
-        cleanupOutdatedCaches: true,
-        navigateFallback: '/index.html',
-        runtimeCaching: [],
-      },
-      devOptions: {
-        enabled: false,
+        globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        runtimeCaching: [
+          {
+            urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: {
+                maxEntries: 10,
+                maxAgeSeconds: 60 * 60 * 24 * 365,
+              },
+              cacheableResponse: {
+                statuses: [0, 200],
+              },
+            },
+          },
+        ],
       },
     }),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+          'vendor-charts': ['recharts'],
+          'vendor-icons': ['lucide-react'],
+          'vendor-supabase': ['@supabase/supabase-js'],
+        },
+      },
+    },
+  },
+  server: {
+    host: true,
+    port: 5173,
+  },
 });
