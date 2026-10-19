@@ -15,13 +15,16 @@ function findMovementCategory(name) {
 
 const useMovementStore = create((set, get) => ({
   unlocked: [],
+  movements: [],
   loading: false,
   error: null,
   saving: false,
 
+  fetchUnlocked: async (userId) => get().fetchMovements(userId),
+
   fetchMovements: async (userId) => {
     if (!userId) {
-      set({ unlocked: [], loading: false, error: null });
+      set({ unlocked: [], movements: [], loading: false, error: null });
       return [];
     }
 
@@ -43,8 +46,9 @@ const useMovementStore = create((set, get) => ({
       throw error;
     }
 
-    set({ unlocked: data || [], loading: false });
-    return data || [];
+    const list = data || [];
+    set({ unlocked: list, movements: list, loading: false });
+    return list;
   },
 
   unlockMovement: async (userId, movement) => {
@@ -71,8 +75,10 @@ const useMovementStore = create((set, get) => ({
       const filtered = state.unlocked.filter(
         (u) => u.movement.toLowerCase() !== data.movement.toLowerCase(),
       );
+      const next = [data, ...filtered];
       return {
-        unlocked: [data, ...filtered],
+        unlocked: next,
+        movements: next,
         saving: false,
       };
     });
@@ -108,12 +114,16 @@ const useMovementStore = create((set, get) => ({
       throw error;
     }
 
-    set((state) => ({
-      unlocked: state.unlocked.filter(
+    set((state) => {
+      const next = state.unlocked.filter(
         (u) => u.movement.toLowerCase() !== movement.toLowerCase(),
-      ),
-      saving: false,
-    }));
+      );
+      return {
+        unlocked: next,
+        movements: next,
+        saving: false,
+      };
+    });
   },
 
   isUnlocked: (movement) => {
@@ -123,7 +133,7 @@ const useMovementStore = create((set, get) => ({
   },
 
   reset: () => {
-    set({ unlocked: [], loading: false, error: null, saving: false });
+    set({ unlocked: [], movements: [], loading: false, error: null, saving: false });
   },
 }));
 

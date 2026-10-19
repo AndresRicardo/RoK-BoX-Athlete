@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 import { supabase } from '../supabase/client';
 import { ACHIEVEMENTS, getAllAchievementsStatus } from '../data/achievements';
+import useProfileStore from './profileStore';
+import usePRStore from './prStore';
+import useBenchmarkStore from './benchmarkStore';
+import useMovementStore from './movementStore';
 
 const useAchievementStore = create((set, get) => ({
   unlocked: [],
@@ -33,6 +37,21 @@ const useAchievementStore = create((set, get) => ({
 
     set({ unlocked: data || [], loading: false });
     return data || [];
+  },
+
+  checkAchievements: async (userId) => {
+    if (!userId) return [];
+    try {
+      const prs = usePRStore.getState().prs || [];
+      const benchmarks = useBenchmarkStore.getState().benchmarks || [];
+      const profile = useProfileStore.getState().profile || null;
+      const movements = useMovementStore.getState().unlocked || [];
+
+      return await get().checkAndUnlock(userId, { prs, benchmarks, profile, movements });
+    } catch (err) {
+      console.warn('checkAchievements error:', err);
+      return [];
+    }
   },
 
   checkAndUnlock: async (userId, { prs, benchmarks, profile }) => {

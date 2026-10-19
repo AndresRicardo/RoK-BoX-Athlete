@@ -13,9 +13,9 @@ import { MOVEMENT_CATALOG, CATEGORY_LABELS } from '../data/movements';
 export default function Training() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const { prs, fetchPRs, deletePR, loading: loadingPRs } = usePRStore();
-  const { benchmarks, fetchBenchmarks, deleteBenchmark, loading: loadingBenchmarks } = useBenchmarkStore();
-  const { unlocked, fetchUnlocked, unlockMovement, lockMovement } = useMovementStore();
+  const { prs = [], fetchPRs, deletePR, loading: loadingPRs } = usePRStore();
+  const { benchmarks = [], fetchBenchmarks, deleteBenchmark, loading: loadingBenchmarks } = useBenchmarkStore();
+  const { unlocked = [], fetchUnlocked, unlockMovement, lockMovement } = useMovementStore();
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'prs');
   const [search, setSearch] = useState('');
@@ -28,11 +28,11 @@ export default function Training() {
 
   useEffect(() => {
     if (user?.id) {
-      fetchPRs(user.id);
-      fetchBenchmarks(user.id);
-      fetchUnlocked(user.id);
+      if (typeof fetchPRs === 'function') fetchPRs(user.id);
+      if (typeof fetchBenchmarks === 'function') fetchBenchmarks(user.id);
+      if (typeof fetchUnlocked === 'function') fetchUnlocked(user.id);
     }
-  }, [user?.id]);
+  }, [user?.id, fetchPRs, fetchBenchmarks, fetchUnlocked]);
 
   useEffect(() => {
     const action = searchParams.get('action');
@@ -48,13 +48,13 @@ export default function Training() {
   }, [searchParams]);
 
   // Filtrado de PRs
-  const filteredPRs = prs.filter((p) =>
-    p.movement.toLowerCase().includes(search.toLowerCase())
+  const filteredPRs = (prs || []).filter((p) =>
+    (p.movement || '').toLowerCase().includes(search.toLowerCase())
   );
 
   // Filtrado de Benchmarks
-  const filteredBenchmarks = benchmarks.filter((b) =>
-    b.name.toLowerCase().includes(search.toLowerCase())
+  const filteredBenchmarks = (benchmarks || []).filter((b) =>
+    (b.name || '').toLowerCase().includes(search.toLowerCase())
   );
 
   // Filtrado de Skills

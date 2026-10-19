@@ -5,6 +5,21 @@ import useBenchmarkStore from './benchmarkStore';
 import useMovementStore from './movementStore';
 import useAchievementStore from './achievementStore';
 
+function normalizePR(p) {
+  if (!p) return p;
+  const val = p.value_numeric ?? p.value;
+  const dt = p.achieved_at || (p.date ? p.date.split('T')[0] : new Date().toISOString().split('T')[0]);
+  return {
+    ...p,
+    value: val,
+    value_numeric: val,
+    date: dt,
+    achieved_at: dt,
+    type: p.type || 'strength',
+    unit: p.unit || (p.type === 'reps' ? 'reps' : 'kg'),
+  };
+}
+
 const usePRStore = create((set, get) => ({
   prs: [],
   loading: false,
@@ -30,19 +45,23 @@ const usePRStore = create((set, get) => ({
       throw error;
     }
 
-    set({ prs: data || [], loading: false });
-    return data || [];
+    const list = (data || []).map(normalizePR);
+    set({ prs: list, loading: false });
+    return list;
   },
 
   createPR: async (userId, prData) => {
     set({ saving: true, error: null });
 
+    const val = prData.value_numeric ?? prData.value;
+    const dt = prData.achieved_at || (prData.date ? prData.date.split('T')[0] : new Date().toISOString().split('T')[0]);
+
     const payload = {
       user_id: userId,
       movement: prData.movement.trim(),
-      type: prData.type,
-      value_numeric: prData.value_numeric,
-      achieved_at: prData.achieved_at,
+      type: prData.type || 'strength',
+      value_numeric: parseFloat(val),
+      achieved_at: dt,
       notes: prData.notes?.trim() || null,
     };
 
@@ -57,20 +76,21 @@ const usePRStore = create((set, get) => ({
       throw error;
     }
 
+    const normalized = normalizePR(data);
     set((state) => ({
-      prs: [data, ...state.prs],
+      prs: [normalized, ...state.prs],
       saving: false,
     }));
 
     const { profile } = useProfileStore.getState();
     const { benchmarks } = useBenchmarkStore.getState();
-    const prsNow = [data, ...get().prs];
+    const prsNow = [normalized, ...get().prs];
     useAchievementStore
       .getState()
       .checkAndUnlock(userId, { prs: prsNow, benchmarks, profile })
       .catch(() => {});
 
-    return data;
+    return normalized;
   },
 
   deletePR: async (id) => {
@@ -111,41 +131,52 @@ const usePRStore = create((set, get) => ({
     return data;
   },
 
-  updatePR: async (id, userId, fields) => {
+  updatePR: async (id, arg2, arg3) => {
     set({ saving: true, error: null });
+
+    const fields = arg3 || arg2;
+    const userId = arg3 ? arg2 : undefined;
+
+    const val = fields.value_numeric ?? fields.value;
+    const dt = fields.achieved_at || (fields.date ? fields.date.split('T')[0] : new Date().toISOString().split('T')[0]);
 
     const payload = {
       movement: fields.movement.trim(),
-      type: fields.type,
-      value_numeric: fields.value_numeric,
-      achieved_at: fields.achieved_at,
+      type: fields.type || 'strength',
+      value_numeric: parseFloat(val),
+      achieved_at: dt,
       notes: fields.notes?.trim() || null,
     };
 
-    const { error } = await supabase
-      .from('prs')
-      .update(payload)
-      .eq('id', id)
-      .eq('user_id', userId);
+    let query = supabase.from('prs').update(payload).eq('id', id);
+    if (userId) query = query.eq('user_id', userId);
+
+    const { data, error } = await query.select().single();
 
     if (error) {
       set({ saving: false, error: error.message });
       throw error;
     }
 
-    await get().fetchPRs(userId);
+    const normalized = normalizePR(data);
+    set((state) => ({
+      prs: state.prs.map((p) => (p.id === id ? normalized : p)),
+      saving: false,
+    }));
 
-    const { profile } = useProfileStore.getState();
-    const { benchmarks } = useBenchmarkStore.getState();
-    const { movements } = useMovementStore.getState();
-    const { prs: prsNow } = get();
-    useAchievementStore
-      .getState()
-      .checkAndUnlock(userId, { prs: prsNow, benchmarks, profile, movements })
-      .catch(() => {});
+    const targetUser = userId || normalized.user_id;
+    if (targetUser) {
+      const { profile } = useProfileStore.getState();
+      const { benchmarks } = useBenchmarkStore.getState();
+      const { movements } = useMovementStore.getState();
+      const { prs: prsNow } = get();
+      useAchievementStore
+        .getState()
+        .checkAndUnlock(targetUser, { prs: prsNow, benchmarks, profile, movements })
+        .catch(() => {});
+    }
 
-    set({ saving: false });
-    return get().prs.find((p) => p.id === id) || null;
+    return normalized;
   },
 
   getBestByMovement: () => {

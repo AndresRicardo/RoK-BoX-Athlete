@@ -35,12 +35,18 @@ export default function AthleteProfile() {
             .from('prs')
             .select('*')
             .eq('user_id', id)
-            .order('value', { ascending: false }),
+            .order('value_numeric', { ascending: false }),
         ]);
 
         if (active) {
           setAthlete(dirRes.data || null);
-          setPrs(prsRes.data || []);
+          const normalizedPRs = (prsRes.data || []).map((p) => ({
+            ...p,
+            value: p.value ?? p.value_numeric,
+            unit: p.unit || 'kg',
+            date: p.date || p.achieved_at,
+          }));
+          setPrs(normalizedPRs);
           setLoading(false);
         }
       } catch (err) {
