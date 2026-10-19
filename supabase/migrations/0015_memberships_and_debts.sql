@@ -27,6 +27,8 @@ as $$
 $$;
 
 -- 2) Recrear athlete_directory para exponer role, document_id y avatar_url
+-- NOTA: Las nuevas columnas se agregan al final para preservar el orden original
+-- de columnas (1..9) y evitar el error Postgres 42P16 al usar CREATE OR REPLACE VIEW.
 create or replace view public.athlete_directory as
 select
   p.id,
@@ -37,10 +39,12 @@ select
   p.box_name,
   p.discipline,
   p.avatar_url,
+  p.created_at,
   p.role,
-  p.document_id,
-  p.created_at
+  p.document_id
 from public.profiles p;
+
+grant select on public.athlete_directory to authenticated;
 
 -- 3) TABLA DE MEMBRESÍAS (Sincronizada con HikCentral Access Control)
 create table if not exists public.memberships (
