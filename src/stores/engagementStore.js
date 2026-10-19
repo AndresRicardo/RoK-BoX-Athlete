@@ -2,9 +2,8 @@ import { create } from 'zustand';
 import { supabase } from '../supabase/client';
 
 const useEngagementStore = create((set, get) => ({
-  // { [eventId]: { count: number, likedByMe: boolean } }
   likes: {},
-  // { [eventId]: number }
+  likesMap: {},
   commentCounts: {},
   // { [eventId]: [comment+author] } solo de tarjetas expandidas
   commentsByEvent: {},
@@ -39,10 +38,14 @@ const useEngagementStore = create((set, get) => ({
       countsMap[c.event_id] = (countsMap[c.event_id] || 0) + 1;
     }
 
-    set((state) => ({
-      likes: { ...state.likes, ...likesMap },
-      commentCounts: { ...state.commentCounts, ...countsMap },
-    }));
+    set((state) => {
+      const merged = { ...state.likes, ...likesMap };
+      return {
+        likes: merged,
+        likesMap: merged,
+        commentCounts: { ...state.commentCounts, ...countsMap },
+      };
+    });
   },
 
   // Optimista: actualiza UI primero, revierte si falla.
@@ -52,7 +55,8 @@ const useEngagementStore = create((set, get) => ({
       count: prev.likedByMe ? Math.max(0, prev.count - 1) : prev.count + 1,
       likedByMe: !prev.likedByMe,
     };
-    set((state) => ({ likes: { ...state.likes, [eventId]: next }, error: null }));
+    const nextLikes = { ...get().likes, [eventId]: next };
+    set({ likes: nextLikes, likesMap: nextLikes, error: null });
 
     const query = prev.likedByMe
       ? supabase.from('feed_likes').delete().eq('event_id', eventId).eq('user_id', userId)
@@ -60,10 +64,12 @@ const useEngagementStore = create((set, get) => ({
 
     const { error } = await query;
     if (error) {
-      set((state) => ({
-        likes: { ...state.likes, [eventId]: prev },
+      const rollbackLikes = { ...get().likes, [eventId]: prev };
+      set({
+        likes: rollbackLikes,
+        likesMap: rollbackLikes,
         error: error.message,
-      }));
+      });
       throw error;
     }
   },
@@ -165,6 +171,7 @@ const useEngagementStore = create((set, get) => ({
   reset: () => {
     set({
       likes: {},
+      likesMap: {},
       commentCounts: {},
       commentsByEvent: {},
       saving: false,

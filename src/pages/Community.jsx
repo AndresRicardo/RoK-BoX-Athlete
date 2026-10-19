@@ -5,6 +5,7 @@ import useAuthStore from '../stores/authStore';
 import useFeedStore from '../stores/feedStore';
 import useLeaderboardStore from '../stores/leaderboardStore';
 import useFollowStore from '../stores/followStore';
+import useEngagementStore from '../stores/engagementStore';
 import FeedEventCard from '../components/FeedEventCard';
 import AthleteRow from '../components/AthleteRow';
 
@@ -14,6 +15,7 @@ export default function Community() {
   const { events, fetchFeed, subscribeFeed, unsubscribeFeed, loading: loadingFeed } = useFeedStore();
   const { prs: leaderboardPRs, benchmarks: leaderboardBenchmarks, fetchLeaderboards, loading: loadingLeaderboards } = useLeaderboardStore();
   const { searchAthletes, searchResults, searching, fetchSuggestions, suggestions } = useFollowStore();
+  const { fetchEngagement } = useEngagementStore();
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'feed');
   const [searchQuery, setSearchQuery] = useState('');
@@ -31,6 +33,13 @@ export default function Community() {
       unsubscribeFeed();
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id && events?.length > 0) {
+      const ids = events.map((e) => e.id);
+      fetchEngagement(ids, user.id).catch(() => {});
+    }
+  }, [user?.id, events, fetchEngagement]);
 
   useEffect(() => {
     const tab = searchParams.get('tab');

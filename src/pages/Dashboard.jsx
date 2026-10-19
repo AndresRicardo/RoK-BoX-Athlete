@@ -7,6 +7,7 @@ import useMembershipStore from '../stores/membershipStore';
 import useDebtStore from '../stores/debtStore';
 import useFeedStore from '../stores/feedStore';
 import usePRStore from '../stores/prStore';
+import useEngagementStore from '../stores/engagementStore';
 import MembershipCard from '../components/MembershipCard';
 import DebtCard from '../components/DebtCard';
 import FeedEventCard from '../components/FeedEventCard';
@@ -18,6 +19,7 @@ export default function Dashboard() {
   const { fetchMyDebts, subscribeDebts } = useDebtStore();
   const { events, fetchFeed } = useFeedStore();
   const { prs, fetchPRs } = usePRStore();
+  const { fetchEngagement } = useEngagementStore();
 
   useEffect(() => {
     if (user?.id) {
@@ -34,6 +36,13 @@ export default function Dashboard() {
       subscribeDebts(user.id);
     }
   }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id && events?.length > 0) {
+      const ids = events.slice(0, 3).map((e) => e.id);
+      fetchEngagement(ids, user.id).catch(() => {});
+    }
+  }, [user?.id, events, fetchEngagement]);
 
   const recentPR = prs?.[0];
   const recentEvents = (events || []).slice(0, 3);

@@ -9,19 +9,23 @@ import { timeAgo } from '../utils/time';
 export default function FeedEventCard({ event }) {
   const { user } = useAuthStore();
   const {
+    likes = {},
     likesMap,
-    commentCounts,
+    commentCounts = {},
     toggleLike,
   } = useEngagementStore();
 
   const [commentsOpen, setCommentsOpen] = useState(false);
 
-  const actor = event.actor;
-  const isMe = event.user_id === user?.id;
-  const payload = event.payload || {};
+  const actor = event?.actor;
+  const isMe = event?.user_id === user?.id;
+  const payload = event?.payload || {};
 
-  const likeState = likesMap[event.id] || { count: 0, likedByMe: false };
-  const commentCount = commentCounts[event.id] ?? 0;
+  const map = likesMap || likes || {};
+  const counts = commentCounts || {};
+
+  const likeState = (event?.id && map[event.id]) || { count: 0, likedByMe: false };
+  const commentCount = (event?.id && counts[event.id]) ?? 0;
 
   const handleLike = async () => {
     if (!user?.id) return;
