@@ -1,0 +1,106 @@
+import { create } from 'zustand';
+import { supabase } from '../supabase/client';
+import useProfileStore from './profileStore';
+import usePRStore from './prStore';
+import useBenchmarkStore from './benchmarkStore';
+import useAchievementStore from './achievementStore';
+import useMovementStore from './movementStore';
+import useFollowStore from './followStore';
+import useFeedStore from './feedStore';
+import useEngagementStore from './engagementStore';
+import useNotificationStore from './notificationStore';
+import useMembershipStore from './membershipStore';
+import useDebtStore from './debtStore';
+import useStaffStore from './staffStore';
+
+const useAuthStore = create((set, get) => ({
+  user: null,
+  session: null,
+  loading: true,
+  initialized: false,
+
+  initialize: async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    set({
+      session: session,
+      user: session?.user
+        ? {
+            id: session.user.id,
+            email: session.user.email,
+            user_metadata: session.user.user_metadata || {},
+          }
+        : null,
+      loading: false,
+      initialized: true,
+    });
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      set({
+        session: session,
+        user: session?.user
+          ? {
+              id: session.user.id,
+              email: session.user.email,
+              user_metadata: session.user.user_metadata || {},
+            }
+          : null,
+      });
+    });
+  },
+
+  signInWithGoogle: async () => {
+    set({ loading: true });
+
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin,
+      },
+    });
+
+    if (error) {
+      set({ loading: false });
+      throw error;
+    }
+
+    set({ loading: false });
+    return data;
+  },
+
+  signOut: async () => {
+    set({ loading: true });
+
+    const { error } = await supabase.auth.signOut();
+
+    if (error) {
+      set({ loading: false });
+      throw error;
+    }
+
+    useProfileStore.getState().reset();
+    usePRStore.getState().reset();
+    useBenchmarkStore.getState().reset();
+    useAchievementStore.getState().reset();
+    useMovementStore.getState().reset();
+    useFollowStore.getState().reset();
+    useFeedStore.getState().reset();
+    useEngagementStore.getState().reset();
+    useNotificationStore.getState().reset();
+    useMembershipStore.getState().reset();
+    useDebtStore.getState().reset();
+    useStaffStore.getState().reset();
+
+    set({
+      user: null,
+      session: null,
+      loading: false,
+    });
+  },
+
+  isAuthenticated: () => {
+    return !!get().session;
+  },
+}));
+
+export default useAuthStore;

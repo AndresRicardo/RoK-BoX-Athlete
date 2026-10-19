@@ -1,0 +1,65 @@
+@import "tailwindcss";
+
+@theme {
+  --color-brand-primary: #FFC815;
+  --color-brand-bg: #0A0A0C;
+  --color-brand-surface: #1C1C1E;
+  --color-brand-surface2: #292929;
+  --color-brand-border: #38383A;
+  --color-brand-muted: #585858;
+  --color-brand-text-muted: #A0A0A5;
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  background-color: #0A0A0C;
+  color: #FFFFFF;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* Safe areas para notch y barra de navegación en iOS / Android */
+.safe-top {
+  padding-top: max(env(safe-area-inset-top), 16px);
+}
+
+.safe-bottom {
+  padding-bottom: max(env(safe-area-inset-bottom), 16px);
+}
+
+/* Ocultar scrollbar pero permitir scroll fluido */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Microinteracciones táctiles */
+.tap-bounce {
+  transition: transform 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tap-bounce:active {
+  transform: scale(0.96);
+}
+
+/* Glassmorphism sutil para barras flotantes */
+.glass-nav {
+  background: rgba(28, 28, 30, 0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-header {
+  background: rgba(10, 10, 12, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
