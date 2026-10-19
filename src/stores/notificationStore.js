@@ -34,12 +34,20 @@ function notificationText(n) {
 
 const useNotificationStore = create((set, get) => ({
   items: [],
+  get notifications() {
+    return this.items;
+  },
   unreadCount: 0,
   panelOpen: false,
   loading: false,
   saving: false,
   error: null,
   subscription: null,
+
+  // Alias para suscripción realtime
+  subscribe: (userId) => get().subscribeRealtime(userId),
+  markAsRead: (id, userId) => get().markRead(id, userId),
+  markAllAsRead: (userId) => get().markAllRead(userId),
 
   fetchNotifications: async (userId) => {
     if (!userId) {

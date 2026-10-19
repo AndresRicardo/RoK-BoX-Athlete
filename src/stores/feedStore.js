@@ -13,6 +13,10 @@ const useFeedStore = create((set, get) => ({
   error: null,
   subscription: null,
 
+  subscribeFeed: () => get().subscribeRealtime(),
+  unsubscribeFeed: () => get().unsubscribe(),
+  subscribe: () => get().subscribeRealtime(),
+
   fetchFeed: async (userId) => {
     if (!userId) {
       set({ events: [], loading: false, hasMore: false, error: null });

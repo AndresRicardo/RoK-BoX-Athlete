@@ -8,29 +8,41 @@ export default function NotificationsBell() {
   const [isOpen, setIsOpen] = useState(false);
   const { user } = useAuthStore();
   const {
-    notifications,
+    items = [],
     unreadCount,
     loading,
     fetchNotifications,
-    markAsRead,
-    markAllAsRead,
-    subscribe,
+    markRead,
+    markAllRead,
+    subscribeRealtime,
     unsubscribe,
   } = useNotificationStore();
 
   useEffect(() => {
     if (user?.id) {
-      fetchNotifications(user.id);
-      subscribe(user.id);
+      if (typeof fetchNotifications === 'function') {
+        fetchNotifications(user.id);
+      }
+      if (typeof subscribeRealtime === 'function') {
+        subscribeRealtime(user.id);
+      }
     }
     return () => {
-      unsubscribe();
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
+      }
     };
-  }, [user?.id]);
+  }, [user?.id, fetchNotifications, subscribeRealtime, unsubscribe]);
 
   const handleNotificationClick = async (notif) => {
-    if (!notif.read) {
-      await markAsRead(notif.id);
+    if (!notif.read_at && user?.id && typeof markRead === 'function') {
+      await markRead(notif.id, user.id);
+    }
+  };
+
+  const handleMarkAllRead = async () => {
+    if (user?.id && typeof markAllRead === 'function') {
+      await markAllRead(user.id);
     }
   };
 
@@ -69,7 +81,7 @@ export default function NotificationsBell() {
       {isOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm animate-fade-in">
           <div
-            className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl sm:rounded-2xl border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[85vh] animate-slide-up"
+            className="w-full max-w-md bg-[#1C1C1E] rounded-t-3xl sm:rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[85vh] animate-slide-up overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header */}
@@ -87,7 +99,7 @@ export default function NotificationsBell() {
                 {unreadCount > 0 && (
                   <button
                     type="button"
-                    onClick={() => markAllAsRead(user?.id)}
+                    onClick={handleMarkAllRead}
                     className="p-1.5 rounded-lg text-xs font-semibold text-[#FFC815] hover:bg-white/5 active:scale-95"
                     title="Marcar todas como leídas"
                   >
@@ -106,9 +118,9 @@ export default function NotificationsBell() {
 
             {/* List */}
             <div className="flex-1 overflow-y-auto divide-y divide-white/5 p-2">
-              {loading && notifications.length === 0 ? (
+              {loading && items.length === 0 ? (
                 <div className="p-8 text-center text-sm text-[#A0A0A5]">Cargando...</div>
-              ) : notifications.length === 0 ? (
+              ) : items.length === 0 ? (
                 <div className="p-12 text-center flex flex-col items-center">
                   <div className="w-12 h-12 rounded-full bg-[#292929] flex items-center justify-center mb-3">
                     <Bell className="w-6 h-6 text-gray-500" />
@@ -119,38 +131,43 @@ export default function NotificationsBell() {
                   </p>
                 </div>
               ) : (
-                notifications.map((notif) => (
-                  <div
-                    key={notif.id}
-                    onClick={() => handleNotificationClick(notif)}
-                    className={`p-3.5 rounded-xl flex items-start gap-3 transition-colors cursor-pointer ${
-                      notif.read ? 'bg-transparent hover:bg-white/5' : 'bg-[#292929]/50 hover:bg-[#292929]'
-                    }`}
-                  >
-                    <div className="mt-0.5 p-2 rounded-xl bg-[#0A0A0C] border border-white/5 shrink-0">
-                      {getIcon(notif.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs text-gray-200 leading-snug">
-                        <span className="font-bold text-white">
-                          {notif.actor?.display_name ? `@${notif.actor.display_name}` : 'Un atleta'}
-                        </span>{' '}
-                        {notif.title || notif.message}
-                      </p>
-                      {notif.body && (
-                        <p className="text-xs text-[#A0A0A5] mt-1 line-clamp-2 italic">
-                          "{notif.body}"
+                items.map((notif) => {
+                  const isRead = Boolean(notif.read_at);
+                  const actor = notif.actor;
+
+                  return (
+                    <div
+                      key={notif.id}
+                      onClick={() => handleNotificationClick(notif)}
+                      className={`p-3.5 rounded-xl flex items-start gap-3 transition-colors cursor-pointer ${
+                        isRead ? 'bg-transparent hover:bg-white/5' : 'bg-[#292929]/50 hover:bg-[#292929]'
+                      }`}
+                    >
+                      <div className="mt-0.5 p-2 rounded-xl bg-[#0A0A0C] border border-white/5 shrink-0">
+                        {getIcon(notif.type)}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs text-gray-200 leading-snug">
+                          <span className="font-bold text-white">
+                            {actor?.display_name ? `@${actor.display_name}` : 'Un atleta'}
+                          </span>{' '}
+                          {notif.text || notif.message || 'interactuó contigo'}
                         </p>
+                        {notif.comment_body && (
+                          <p className="text-xs text-[#A0A0A5] mt-1 line-clamp-2 italic">
+                            "{notif.comment_body}"
+                          </p>
+                        )}
+                        <span className="text-[10px] text-gray-500 mt-1 block">
+                          {timeAgo(notif.created_at)}
+                        </span>
+                      </div>
+                      {!isRead && (
+                        <span className="w-2 h-2 rounded-full bg-[#FFC815] shrink-0 mt-2" />
                       )}
-                      <span className="text-[10px] text-gray-500 mt-1 block">
-                        {timeAgo(notif.created_at)}
-                      </span>
                     </div>
-                    {!notif.read && (
-                      <span className="w-2 h-2 rounded-full bg-[#FFC815] shrink-0 mt-2" />
-                    )}
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
           </div>

@@ -8,12 +8,27 @@ const sanitizeQuery = (q) => q.replace(/[%_,()"]/g, ' ').trim();
 const useFollowStore = create((set, get) => ({
   following: [], // ids que yo sigo
   followers: [], // ids que me siguen
+  get network() {
+    return {
+      following: this.following,
+      followers: this.followers,
+    };
+  },
   searchResults: [],
   suggestions: [],
   explore: [],
   loading: false,
   saving: false,
   error: null,
+
+  fetchNetwork: (userId) => get().fetchMyNetwork(userId),
+
+  fetchGraphList: async (athleteId, type) => {
+    if (type === 'followers') {
+      return get().fetchFollowersList(athleteId);
+    }
+    return get().fetchFollowingList(athleteId);
+  },
 
   // Carga mi red (ids). Sirve para botones follow y contadores propios.
   fetchMyNetwork: async (userId) => {
