@@ -14,12 +14,25 @@ export default function PRModal({ initialData, onClose, onSuccess }) {
 
   const [movement, setMovement] = useState(initialData?.movement || 'Back Squat');
   const [value, setValue] = useState(initialData?.value ? String(initialData.value) : '');
-  const [unit, setUnit] = useState(initialData?.unit || 'kg');
+  const [unit, setUnit] = useState('lb');
   const [date, setDate] = useState(
     initialData?.date ? initialData.date.split('T')[0] : new Date().toISOString().split('T')[0]
   );
   const [notes, setNotes] = useState(initialData?.notes || '');
   const [error, setError] = useState(null);
+
+  const handleUnitChange = (newUnit) => {
+    if (newUnit === unit) return;
+    if (value && !isNaN(parseFloat(value))) {
+      const num = parseFloat(value);
+      if (newUnit === 'kg') {
+        setValue(String(Math.round((num / 2.20462) * 10) / 10));
+      } else {
+        setValue(String(Math.round(num * 2.20462 * 10) / 10));
+      }
+    }
+    setUnit(newUnit);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -34,12 +47,16 @@ export default function PRModal({ initialData, onClose, onSuccess }) {
       return;
     }
 
+    // Siempre almacenar y registrar en Libras (lb)
+    const valueInLb = unit === 'kg' ? Math.round(numericValue * 2.20462 * 10) / 10 : numericValue;
+
     try {
       setError(null);
       const payload = {
         movement: movement.trim(),
-        value: numericValue,
-        unit,
+        value: valueInLb,
+        value_numeric: valueInLb,
+        unit: 'lb',
         date: new Date(date).toISOString(),
         notes: notes.trim() || null,
       };
@@ -129,7 +146,7 @@ export default function PRModal({ initialData, onClose, onSuccess }) {
                 step="any"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
-                placeholder="Ej. 105"
+                placeholder={unit === 'kg' ? 'Ej. 100' : 'Ej. 225'}
                 required
                 className="w-full px-3.5 py-3 rounded-xl bg-[#0A0A0C] border border-white/10 text-base font-black text-white focus:outline-none focus:border-[#FFC815]"
               />
@@ -137,30 +154,40 @@ export default function PRModal({ initialData, onClose, onSuccess }) {
 
             <div>
               <label className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider block mb-1.5">
-                Unidad
+                Unidad entrada
               </label>
               <div className="grid grid-cols-2 gap-1 bg-[#0A0A0C] p-1 rounded-xl border border-white/10">
                 <button
                   type="button"
-                  onClick={() => setUnit('kg')}
-                  className={`py-2 rounded-lg text-xs font-black transition-colors ${
-                    unit === 'kg' ? 'bg-[#FFC815] text-black shadow-md' : 'text-gray-400'
-                  }`}
-                >
-                  KG
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setUnit('lb')}
+                  onClick={() => handleUnitChange('lb')}
                   className={`py-2 rounded-lg text-xs font-black transition-colors ${
                     unit === 'lb' ? 'bg-[#FFC815] text-black shadow-md' : 'text-gray-400'
                   }`}
                 >
                   LB
                 </button>
+                <button
+                  type="button"
+                  onClick={() => handleUnitChange('kg')}
+                  className={`py-2 rounded-lg text-xs font-black transition-colors ${
+                    unit === 'kg' ? 'bg-[#FFC815] text-black shadow-md' : 'text-gray-400'
+                  }`}
+                >
+                  KG
+                </button>
               </div>
             </div>
           </div>
+
+          {/* Indicador de conversión si ingresa en KG */}
+          {unit === 'kg' && value && !isNaN(parseFloat(value)) && (
+            <div className="p-2.5 rounded-xl bg-[#FFC815]/10 border border-[#FFC815]/20 flex items-center justify-between text-xs">
+              <span className="text-[#A0A0A5]">Equivalente a almacenar:</span>
+              <span className="font-black text-[#FFC815]">
+                {Math.round(parseFloat(value) * 2.20462 * 10) / 10} lb
+              </span>
+            </div>
+          )}
 
           {/* Fecha */}
           <div>

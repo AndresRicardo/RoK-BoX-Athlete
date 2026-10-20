@@ -31,7 +31,8 @@ export default function Profile() {
   const [documentId, setDocumentId] = useState('');
   const [handle, setHandle] = useState('');
   const [discipline, setDiscipline] = useState('rx');
-  const [weightKg, setWeightKg] = useState('');
+  const [weightVal, setWeightVal] = useState('');
+  const [weightUnit, setWeightUnit] = useState('lb');
   const [isEditing, setIsEditing] = useState(false);
   const [feedback, setFeedback] = useState({ type: null, message: null });
   const [followModal, setFollowModal] = useState({ open: false, type: 'followers' });
@@ -43,7 +44,12 @@ export default function Profile() {
           setDocumentId(p.document_id || '');
           setHandle(p.display_name || '');
           setDiscipline(p.discipline || 'rx');
-          setWeightKg(p.weight_kg ? String(p.weight_kg) : '');
+          if (p.weight_kg) {
+            setWeightVal(String(Math.round(p.weight_kg * 2.20462 * 10) / 10));
+            setWeightUnit('lb');
+          } else {
+            setWeightVal('');
+          }
           fetchMembership(user.id, p.document_id);
         }
       });
@@ -51,6 +57,28 @@ export default function Profile() {
       fetchNetwork(user.id);
     }
   }, [user?.id]);
+
+  // Mantener sincronizado si cambia el perfil externamente
+  useEffect(() => {
+    if (profile) {
+      if (profile.document_id !== undefined) setDocumentId(profile.document_id || '');
+      if (profile.display_name) setHandle(profile.display_name);
+      if (profile.discipline) setDiscipline(profile.discipline);
+    }
+  }, [profile]);
+
+  const handleWeightUnitChange = (newUnit) => {
+    if (newUnit === weightUnit) return;
+    if (weightVal && !isNaN(parseFloat(weightVal))) {
+      const num = parseFloat(weightVal);
+      if (newUnit === 'kg') {
+        setWeightVal(String(Math.round((num / 2.20462) * 10) / 10));
+      } else {
+        setWeightVal(String(Math.round(num * 2.20462 * 10) / 10));
+      }
+    }
+    setWeightUnit(newUnit);
+  };
 
   const isStaff = profile?.role === 'coach' || profile?.role === 'admin';
 
@@ -66,13 +94,19 @@ export default function Profile() {
       const cleanDoc = documentId.trim() || null;
       const cleanHandle = handle.trim().toLowerCase().replace(/[^a-z0-9._]/g, '');
 
+      let finalWeightKg = null;
+      if (weightVal && !isNaN(parseFloat(weightVal))) {
+        const num = parseFloat(weightVal);
+        finalWeightKg = weightUnit === 'lb' ? Math.round((num / 2.20462) * 10) / 10 : num;
+      }
+
       await upsertProfile(user.id, {
         first_name: profile?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Atleta',
         last_name: profile?.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
         display_name: cleanHandle,
         document_id: cleanDoc,
         discipline,
-        weight_kg: weightKg ? parseFloat(weightKg) : null,
+        weight_kg: finalWeightKg,
       });
 
       if (cleanDoc) {
@@ -200,7 +234,14 @@ export default function Profile() {
         <span className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider">
           Membresía & Control de Acceso
         </span>
-        <MembershipCard />
+        <MembershipCard
+          onEnterDocument={() => {
+            setIsEditing(true);
+            setTimeout(() => {
+              document.getElementById('documentIdInput')?.focus();
+            }, 150);
+          }}
+        />
       </div>
 
       {/* Formulario de Edición de Cédula y Datos */}
@@ -227,6 +268,7 @@ export default function Profile() {
                 Número de Cédula / DNI (Para huellero y puerta)
               </label>
               <input
+                id="documentIdInput"
                 type="text"
                 value={documentId}
                 onChange={(e) => setDocumentId(e.target.value)}
@@ -269,16 +311,38 @@ export default function Profile() {
               </div>
 
               <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5] block mb-1">
-                  Peso corporal (kg)
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5]">
+                    Peso corporal
+                  </label>
+                  <div className="inline-flex bg-[#0A0A0C] rounded-lg p-0.5 border border-white/10 text-[9px]">
+                    <button
+                      type="button"
+                      onClick={() => handleWeightUnitChange('lb')}
+                      className={`px-1.5 py-0.5 rounded font-black ${
+                        weightUnit === 'lb' ? 'bg-[#FFC815] text-black' : 'text-gray-400'
+                      }`}
+                    >
+                      LB
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleWeightUnitChange('kg')}
+                      className={`px-1.5 py-0.5 rounded font-black ${
+                        weightUnit === 'kg' ? 'bg-[#FFC815] text-black' : 'text-gray-400'
+                      }`}
+                    >
+                      KG
+                    </button>
+                  </div>
+                </div>
                 <input
                   type="number"
                   step="0.1"
-                  value={weightKg}
-                  onChange={(e) => setWeightKg(e.target.value)}
-                  placeholder="Ej. 75"
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-[#FFC815]"
+                  value={weightVal}
+                  onChange={(e) => setWeightVal(e.target.value)}
+                  placeholder={weightUnit === 'lb' ? 'Ej. 165' : 'Ej. 75'}
+                  className="w-full px-3.5 py-2 rounded-xl bg-[#0A0A0C] border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-[#FFC815]"
                 />
               </div>
             </div>
@@ -294,11 +358,22 @@ export default function Profile() {
           </form>
         ) : (
           <div className="flex flex-col gap-2 pt-1 text-xs">
-            <div className="flex justify-between py-1.5 border-b border-white/5">
+            <div className="flex justify-between py-1.5 border-b border-white/5 items-center">
               <span className="text-[#A0A0A5]">Cédula vinculada:</span>
-              <span className="font-bold text-white">
-                {profile?.document_id || 'Sin vincular (toca Editar)'}
-              </span>
+              {profile?.document_id ? (
+                <span className="font-bold text-white font-mono">{profile.document_id}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(true);
+                    setTimeout(() => document.getElementById('documentIdInput')?.focus(), 150);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-[#FFC815] text-black font-extrabold text-[11px] tap-bounce shadow-sm"
+                >
+                  + Vincular Cédula
+                </button>
+              )}
             </div>
             <div className="flex justify-between py-1.5 border-b border-white/5">
               <span className="text-[#A0A0A5]">Categoría de entreno:</span>
@@ -307,7 +382,9 @@ export default function Profile() {
             <div className="flex justify-between py-1.5">
               <span className="text-[#A0A0A5]">Peso registrado:</span>
               <span className="font-bold text-white">
-                {profile?.weight_kg ? `${profile.weight_kg} kg` : 'No registrado'}
+                {profile?.weight_kg
+                  ? `${Math.round(profile.weight_kg * 2.20462 * 10) / 10} lb`
+                  : 'No registrado'}
               </span>
             </div>
           </div>

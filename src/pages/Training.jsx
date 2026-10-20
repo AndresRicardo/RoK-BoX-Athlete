@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Zap, Timer, TrendingUp, CheckCircle2, Plus, Search, Edit3, Trash2 } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
@@ -7,6 +7,8 @@ import useBenchmarkStore from '../stores/benchmarkStore';
 import useMovementStore from '../stores/movementStore';
 import PRModal from '../components/PRModal';
 import BenchmarkModal from '../components/BenchmarkModal';
+import PRMovementWidget from '../components/PRMovementWidget';
+import BenchmarkWidget from '../components/BenchmarkWidget';
 import HistoryChart from '../components/HistoryChart';
 import { MOVEMENT_CATALOG, CATEGORY_LABELS } from '../data/movements';
 
@@ -47,15 +49,81 @@ export default function Training() {
     }
   }, [searchParams]);
 
-  // Filtrado de PRs
-  const filteredPRs = (prs || []).filter((p) =>
-    (p.movement || '').toLowerCase().includes(search.toLowerCase())
-  );
+  // Agrupación de PRs por movimiento
+  const groupedPRs = useMemo(() => {
+    const map = new Map();
+    for (const pr of prs || []) {
+      const mov = (pr.movement || '').trim();
+      if (!mov) continue;
+      if (!map.has(mov)) map.set(mov, []);
+      map.get(mov).push(pr);
+    }
 
-  // Filtrado de Benchmarks
-  const filteredBenchmarks = (benchmarks || []).filter((b) =>
-    (b.name || '').toLowerCase().includes(search.toLowerCase())
-  );
+    const groups = [];
+    for (const [movement, records] of map.entries()) {
+      const sorted = [...records].sort(
+        (a, b) => new Date(b.date || b.achieved_at) - new Date(a.date || a.achieved_at)
+      );
+      const best = sorted.reduce(
+        (max, cur) => (Number(cur.value) > Number(max.value) ? cur : max),
+        sorted[0]
+      );
+      groups.push({
+        movement,
+        records: sorted,
+        best,
+        count: records.length,
+      });
+    }
+
+    // Ordenar grupos por fecha más reciente de actividad
+    groups.sort((a, b) => new Date(b.records[0].date) - new Date(a.records[0].date));
+
+    if (!search.trim()) return groups;
+    return groups.filter((g) => g.movement.toLowerCase().includes(search.toLowerCase()));
+  }, [prs, search]);
+
+  // Agrupación de Benchmarks por nombre de WOD
+  const groupedBenchmarks = useMemo(() => {
+    const map = new Map();
+    for (const bench of benchmarks || []) {
+      const name = (bench.name || '').trim();
+      if (!name) continue;
+      if (!map.has(name)) map.set(name, []);
+      map.get(name).push(bench);
+    }
+
+    const groups = [];
+    for (const [name, records] of map.entries()) {
+      const sorted = [...records].sort(
+        (a, b) => new Date(b.date || b.performed_at) - new Date(a.date || a.performed_at)
+      );
+
+      // Determinar mejor marca según tipo
+      const best = sorted.reduce((bestSoFar, cur) => {
+        if (!bestSoFar) return cur;
+        const curType = cur.type || 'for_time';
+        if (curType === 'for_time') {
+          const valCur = cur.result_value ?? 999999;
+          const valBest = bestSoFar.result_value ?? 999999;
+          return valCur < valBest ? cur : bestSoFar;
+        }
+        return (cur.result_value || 0) > (bestSoFar.result_value || 0) ? cur : bestSoFar;
+      }, sorted[0]);
+
+      groups.push({
+        name,
+        records: sorted,
+        best,
+        count: records.length,
+      });
+    }
+
+    groups.sort((a, b) => new Date(b.records[0].date) - new Date(a.records[0].date));
+
+    if (!search.trim()) return groups;
+    return groups.filter((g) => g.name.toLowerCase().includes(search.toLowerCase()));
+  }, [benchmarks, search]);
 
   // Filtrado de Skills
   const gymnasticMovements = MOVEMENT_CATALOG.filter(
@@ -179,13 +247,13 @@ export default function Training() {
       )}
 
       {/* ======================================================== */}
-      {/* TAB 1: PRs */}
+      {/* TAB 1: PRs AGRUPADOS POR MOVIMIENTO */}
       {/* ======================================================== */}
       {activeTab === 'prs' && (
         <div className="flex flex-col gap-2.5">
           {loadingPRs && prs.length === 0 ? (
             <div className="p-8 text-center text-xs text-[#A0A0A5]">Cargando récords...</div>
-          ) : filteredPRs.length === 0 ? (
+          ) : groupedPRs.length === 0 ? (
             <div className="p-8 rounded-2xl bg-[#1C1C1E] border border-white/5 text-center">
               <Zap className="w-8 h-8 text-[#FFC815] mx-auto mb-2 opacity-50" />
               <p className="text-sm font-bold text-white">No hay PRs registrados</p>
@@ -194,72 +262,33 @@ export default function Training() {
               </p>
             </div>
           ) : (
-            filteredPRs.map((pr) => (
-              <div
-                key={pr.id}
-                className="p-3.5 rounded-2xl bg-[#1C1C1E] border border-white/5 flex items-center justify-between gap-3 shadow-md tap-bounce"
-              >
-                <div className="min-w-0">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A5] block">
-                    {new Date(pr.date).toLocaleDateString('es-CO', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </span>
-                  <h4 className="text-sm font-black text-white truncate">{pr.movement}</h4>
-                  {pr.notes && (
-                    <p className="text-[11px] text-[#A0A0A5] truncate mt-0.5">{pr.notes}</p>
-                  )}
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  <div className="text-right">
-                    <span className="text-base font-black text-[#FFC815]">
-                      {pr.value} {pr.unit || 'kg'}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center gap-1 border-l border-white/10 pl-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedPr(pr);
-                        setPrModalOpen(true);
-                      }}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-white"
-                      title="Editar"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm(`¿Eliminar PR de ${pr.movement}?`)) {
-                          deletePR(pr.id);
-                        }
-                      }}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-400"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+            groupedPRs.map((group) => (
+              <PRMovementWidget
+                key={group.movement}
+                group={group}
+                onEdit={(pr) => {
+                  setSelectedPr(pr);
+                  setPrModalOpen(true);
+                }}
+                onDelete={(id) => deletePR(id)}
+                onAdd={(movementName) => {
+                  setSelectedPr({ movement: movementName });
+                  setPrModalOpen(true);
+                }}
+              />
             ))
           )}
         </div>
       )}
 
       {/* ======================================================== */}
-      {/* TAB 2: BENCHMARKS (WODs) */}
+      {/* TAB 2: BENCHMARKS (WODs AGRUPADOS) */}
       {/* ======================================================== */}
       {activeTab === 'benchmarks' && (
         <div className="flex flex-col gap-2.5">
           {loadingBenchmarks && benchmarks.length === 0 ? (
             <div className="p-8 text-center text-xs text-[#A0A0A5]">Cargando benchmarks...</div>
-          ) : filteredBenchmarks.length === 0 ? (
+          ) : groupedBenchmarks.length === 0 ? (
             <div className="p-8 rounded-2xl bg-[#1C1C1E] border border-white/5 text-center">
               <Timer className="w-8 h-8 text-blue-400 mx-auto mb-2 opacity-50" />
               <p className="text-sm font-bold text-white">No hay benchmarks registrados</p>
@@ -268,59 +297,20 @@ export default function Training() {
               </p>
             </div>
           ) : (
-            filteredBenchmarks.map((bench) => (
-              <div
-                key={bench.id}
-                className="p-3.5 rounded-2xl bg-[#1C1C1E] border border-white/5 flex items-center justify-between gap-3 shadow-md tap-bounce"
-              >
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-black text-white">{bench.name}</h4>
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold uppercase bg-[#292929] text-[#FFC815]">
-                      {bench.discipline?.toUpperCase() || 'RX'}
-                    </span>
-                  </div>
-                  <span className="text-[10px] text-[#A0A0A5] mt-0.5 block">
-                    {new Date(bench.date).toLocaleDateString('es-CO', {
-                      day: 'numeric',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
-                  </span>
-                </div>
-
-                <div className="flex items-center gap-3 shrink-0">
-                  <span className="text-base font-black text-white tracking-tight">
-                    {bench.result}
-                  </span>
-
-                  <div className="flex items-center gap-1 border-l border-white/10 pl-2">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedBenchmark(bench);
-                        setBenchmarkModalOpen(true);
-                      }}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-white"
-                      title="Editar"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (confirm(`¿Eliminar benchmark de ${bench.name}?`)) {
-                          deleteBenchmark(bench.id);
-                        }
-                      }}
-                      className="p-1.5 rounded-lg text-gray-400 hover:text-red-400"
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+            groupedBenchmarks.map((group) => (
+              <BenchmarkWidget
+                key={group.name}
+                group={group}
+                onEdit={(bench) => {
+                  setSelectedBenchmark(bench);
+                  setBenchmarkModalOpen(true);
+                }}
+                onDelete={(id) => deleteBenchmark(id)}
+                onAdd={(wodName) => {
+                  setSelectedBenchmark({ name: wodName });
+                  setBenchmarkModalOpen(true);
+                }}
+              />
             ))
           )}
         </div>

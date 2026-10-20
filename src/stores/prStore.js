@@ -16,7 +16,7 @@ function normalizePR(p) {
     date: dt,
     achieved_at: dt,
     type: p.type || 'strength',
-    unit: p.unit || (p.type === 'reps' ? 'reps' : 'kg'),
+    unit: p.type === 'reps' ? 'reps' : 'lb',
   };
 }
 

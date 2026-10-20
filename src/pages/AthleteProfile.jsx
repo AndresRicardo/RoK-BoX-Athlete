@@ -194,7 +194,7 @@ export default function AthleteProfile() {
               >
                 <span className="text-xs font-bold text-white truncate">{pr.movement}</span>
                 <span className="text-base font-black text-[#FFC815] mt-1">
-                  {pr.value} {pr.unit || 'kg'}
+                  {pr.value} lb
                 </span>
               </div>
             ))}

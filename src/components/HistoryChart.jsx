@@ -32,7 +32,7 @@ export default function HistoryChart({ prs = [] }) {
           month: 'short',
         }),
         value: Number(p.value),
-        unit: p.unit || 'kg',
+        unit: p.unit || 'lb',
       }));
   }, [prs, selectedMovement]);
 
@@ -44,7 +44,7 @@ export default function HistoryChart({ prs = [] }) {
     const initial = values[0];
     const diff = max - initial;
     const percent = initial > 0 ? ((diff / initial) * 100).toFixed(1) : 0;
-    const unit = chartData[0]?.unit || 'kg';
+    const unit = chartData[0]?.unit || 'lb';
 
     return { max, initial, diff, percent, unit };
   }, [chartData]);

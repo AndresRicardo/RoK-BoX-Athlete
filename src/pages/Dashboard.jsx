@@ -121,7 +121,7 @@ export default function Dashboard() {
               </span>
               <h4 className="text-sm font-black text-white">{recentPR.movement}</h4>
               <p className="text-xs font-bold text-[#FFC815]">
-                {recentPR.value} {recentPR.unit || 'kg'}
+                {recentPR.value} lb
               </p>
             </div>
           </div>
