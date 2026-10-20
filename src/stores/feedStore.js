@@ -2,11 +2,12 @@ import { create } from 'zustand';
 import { supabase } from '../supabase/client';
 import useFollowStore from './followStore';
 import useAuthStore from './authStore';
+import useProfileStore from './profileStore';
 
 const PAGE_SIZE = 20;
 
 const useFeedStore = create((set, get) => ({
-  events: [], // [{...feed_event, athlete}] ordenados reciente primero
+  events: [], // [{...feed_event, athlete, actor}] ordenados reciente primero
   loading: false,
   loadingMore: false,
   hasMore: false,
@@ -25,22 +26,20 @@ const useFeedStore = create((set, get) => ({
 
     // Asegura los ids de seguidos (la red puede no estar cargada aun)
     let { following } = useFollowStore.getState();
-    if (following.length === 0) {
+    if (!following || following.length === 0) {
       await useFollowStore.getState().fetchMyNetwork(userId);
       following = useFollowStore.getState().following;
     }
 
-    if (following.length === 0) {
-      set({ events: [], loading: false, hasMore: false });
-      return [];
-    }
+    // Incluir mis propios eventos + los eventos de los atletas a quienes sigo
+    const targetIds = [...new Set([userId, ...(following || [])])].filter(Boolean);
 
     set({ loading: true, error: null });
 
     const { data, error } = await supabase
       .from('feed_events')
       .select('*')
-      .in('user_id', following)
+      .in('user_id', targetIds)
       .order('created_at', { ascending: false })
       .limit(PAGE_SIZE);
 
@@ -62,15 +61,17 @@ const useFeedStore = create((set, get) => ({
     const { events, loadingMore, hasMore } = get();
     if (loadingMore || !hasMore || events.length === 0) return [];
 
+    const me = useAuthStore.getState().user;
     const following = useFollowStore.getState().following;
-    if (following.length === 0) return [];
+    const targetIds = [...new Set([me?.id, ...(following || [])])].filter(Boolean);
+    if (targetIds.length === 0) return [];
 
     set({ loadingMore: true, error: null });
 
     const { data, error } = await supabase
       .from('feed_events')
       .select('*')
-      .in('user_id', following)
+      .in('user_id', targetIds)
       .order('created_at', { ascending: false })
       .range(events.length, events.length + PAGE_SIZE - 1);
 
@@ -88,7 +89,7 @@ const useFeedStore = create((set, get) => ({
     return more;
   },
 
-  // Adjunta el perfil publico (handle, nombre, iniciales) a cada evento.
+  // Adjunta el perfil público (handle, nombre, iniciales, avatar) a cada evento.
   _withAthletes: async (rows) => {
     if (rows.length === 0) return [];
 
@@ -98,16 +99,28 @@ const useFeedStore = create((set, get) => ({
       .select('*')
       .in('id', ids);
 
-    if (error) throw error;
+    if (error) {
+      console.warn('Error fetching athlete_directory for feed:', error);
+    }
 
     const byId = new Map((people || []).map((p) => [p.id, p]));
-    return rows.map((e) => ({ ...e, athlete: byId.get(e.user_id) || null }));
+    const me = useAuthStore.getState().user;
+    const { profile } = useProfileStore.getState();
+
+    return rows.map((e) => {
+      let athlete = byId.get(e.user_id) || null;
+      if (!athlete && e.user_id === me?.id && profile) {
+        athlete = profile;
+      }
+      return {
+        ...e,
+        athlete,
+        actor: athlete, // Compatible con actor y athlete
+      };
+    });
   },
 
-  // FASE 15: insercion en vivo (Realtime). Solo se preprende si la fila
-  // corresponde al propio usuario o a alguien a quien ya sigo; la RLS del
-  // canal ya descarta lo demas antes de llegar aqui, pero comprobamos el
-  // caso de la red no cargada para evitar prependar eventos de no-seguidos.
+  // Inserción en vivo (Realtime).
   prependFromRealtime: async (row) => {
     if (!row || !row.id) return;
 
@@ -115,74 +128,51 @@ const useFeedStore = create((set, get) => ({
     const following = useFollowStore.getState().following;
     if (row.user_id !== me?.id && !following.includes(row.user_id)) return;
 
-    // Evita prepender un evento que llega tarde si la cabeza del feed es
-    // mas reciente (consistente con orden desc por created_at).
-    const head = get().events[0];
-    if (head && row.created_at && head.created_at && row.created_at <= head.created_at) {
-      return;
-    }
-
-    const [hydrated] = await get()._withAthletes([row]);
-    if (!hydrated) return;
-
-    set((state) => {
-      if (state.events.some((e) => e.id === hydrated.id)) return state;
-      return { events: [hydrated, ...state.events] };
-    });
+    const [withAthlete] = await get()._withAthletes([row]);
+    set((state) => ({
+      events: [withAthlete, ...state.events.filter((e) => e.id !== row.id)],
+    }));
   },
 
-  // FASE 15: borrado en vivo (Realtime). Cuando un atleta elimina un
-  // PR/benchmark/logro/skill, el trigger borra su feed_event y este
-  // cliente debe reflejarlo sin recargar.
-  removeFromRealtime: (id) => {
-    if (!id) return;
-    set((state) => {
-      if (!state.events.some((e) => e.id === id)) return state;
-      return { events: state.events.filter((e) => e.id !== id) };
-    });
+  removeFromRealtime: (refId) => {
+    if (!refId) return;
+    set((state) => ({
+      events: state.events.filter((e) => e.ref_id !== refId),
+    }));
   },
 
-  // FASE 15: Supabase Realtime sobre feed_events.
-  // No aplicamos filtro server-side por user_id porque la lista de
-  // seguidos cambia; la RLS del cliente ya garantiza que solo llegan
-  // filas propias o de seguidos (ver 0009_feed_events.sql).
   subscribeRealtime: () => {
-    get().unsubscribe();
+    const current = get().subscription;
+    if (current) return current;
 
     const channel = supabase
-      .channel('feed_events:all')
+      .channel('feed:events')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'feed_events',
-        },
+        { event: 'INSERT', schema: 'public', table: 'feed_events' },
         (payload) => {
-          get().prependFromRealtime(payload.new).catch(() => {});
+          get().prependFromRealtime(payload.new);
         },
       )
       .on(
         'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'feed_events',
-        },
+        { event: 'DELETE', schema: 'public', table: 'feed_events' },
         (payload) => {
-          const oldRow = payload.old || {};
-          get().removeFromRealtime(oldRow.id);
+          if (payload.old?.ref_id) {
+            get().removeFromRealtime(payload.old.ref_id);
+          }
         },
       )
       .subscribe();
 
     set({ subscription: channel });
+    return channel;
   },
 
   unsubscribe: () => {
-    const { subscription } = get();
-    if (subscription) {
-      supabase.removeChannel(subscription);
+    const sub = get().subscription;
+    if (sub) {
+      supabase.removeChannel(sub);
       set({ subscription: null });
     }
   },
@@ -195,6 +185,7 @@ const useFeedStore = create((set, get) => ({
       loadingMore: false,
       hasMore: false,
       error: null,
+      subscription: null,
     });
   },
 }));

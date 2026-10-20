@@ -26,7 +26,16 @@ export default function Profile() {
   const { profile, fetchProfile, upsertProfile, saving } = useProfileStore();
   const { fetchMembership } = useMembershipStore();
   const { fetchMyDebts } = useDebtStore();
-  const { network, fetchNetwork } = useFollowStore();
+  const {
+    following = [],
+    followers = [],
+    network,
+    fetchNetwork,
+    fetchMyNetwork,
+  } = useFollowStore();
+
+  const followersCount = followers?.length ?? network?.followers?.length ?? 0;
+  const followingCount = following?.length ?? network?.following?.length ?? 0;
 
   const [documentId, setDocumentId] = useState('');
   const [handle, setHandle] = useState('');
@@ -164,7 +173,7 @@ export default function Profile() {
             className="p-2.5 rounded-xl bg-[#0A0A0C]/50 border border-white/5 flex flex-col items-center justify-center tap-bounce"
           >
             <span className="text-base font-black text-white">
-              {network?.followers?.length || 0}
+              {followersCount}
             </span>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A5]">
               Seguidores
@@ -177,7 +186,7 @@ export default function Profile() {
             className="p-2.5 rounded-xl bg-[#0A0A0C]/50 border border-white/5 flex flex-col items-center justify-center tap-bounce"
           >
             <span className="text-base font-black text-white">
-              {network?.following?.length || 0}
+              {followingCount}
             </span>
             <span className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A5]">
               Siguiendo

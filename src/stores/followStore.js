@@ -8,12 +8,7 @@ const sanitizeQuery = (q) => q.replace(/[%_,()"]/g, ' ').trim();
 const useFollowStore = create((set, get) => ({
   following: [], // ids que yo sigo
   followers: [], // ids que me siguen
-  get network() {
-    return {
-      following: this.following,
-      followers: this.followers,
-    };
-  },
+  network: { following: [], followers: [] },
   searchResults: [],
   suggestions: [],
   explore: [],
@@ -33,25 +28,44 @@ const useFollowStore = create((set, get) => ({
   // Carga mi red (ids). Sirve para botones follow y contadores propios.
   fetchMyNetwork: async (userId) => {
     if (!userId) {
-      set({ following: [], followers: [] });
-      return;
+      set({
+        following: [],
+        followers: [],
+        network: { following: [], followers: [] },
+      });
+      return { following: [], followers: [] };
     }
 
-    const [{ data: fwing, error: e1 }, { data: fwers, error: e2 }] =
-      await Promise.all([
-        supabase.from('follows').select('followed_id').eq('follower_id', userId),
-        supabase.from('follows').select('follower_id').eq('followed_id', userId),
-      ]);
+    try {
+      const [{ data: fwing, error: e1 }, { data: fwers, error: e2 }] =
+        await Promise.all([
+          supabase.from('follows').select('followed_id').eq('follower_id', userId),
+          supabase.from('follows').select('follower_id').eq('followed_id', userId),
+        ]);
 
-    if (e1 || e2) {
-      set({ error: (e1 || e2).message });
-      throw e1 || e2;
+      if (e1 || e2) {
+        console.error('Error fetching follows network:', e1 || e2);
+        set({ error: (e1 || e2).message });
+        return { following: [], followers: [] };
+      }
+
+      const followingIds = (fwing || []).map((r) => r.followed_id);
+      const followersIds = (fwers || []).map((r) => r.follower_id);
+
+      set({
+        following: followingIds,
+        followers: followersIds,
+        network: {
+          following: followingIds,
+          followers: followersIds,
+        },
+      });
+
+      return { following: followingIds, followers: followersIds };
+    } catch (err) {
+      console.error('fetchMyNetwork error:', err);
+      return { following: [], followers: [] };
     }
-
-    set({
-      following: (fwing || []).map((r) => r.followed_id),
-      followers: (fwers || []).map((r) => r.follower_id),
-    });
   },
 
   follow: async (userId, targetId) => {
@@ -67,12 +81,19 @@ const useFollowStore = create((set, get) => ({
       throw error;
     }
 
-    set((state) => ({
-      following: state.following.includes(targetId)
+    set((state) => {
+      const nextFollowing = state.following.includes(targetId)
         ? state.following
-        : [...state.following, targetId],
-      saving: false,
-    }));
+        : [...state.following, targetId];
+      return {
+        following: nextFollowing,
+        network: {
+          ...state.network,
+          following: nextFollowing,
+        },
+        saving: false,
+      };
+    });
   },
 
   unfollow: async (userId, targetId) => {
@@ -90,13 +111,20 @@ const useFollowStore = create((set, get) => ({
       throw error;
     }
 
-    set((state) => ({
-      following: state.following.filter((id) => id !== targetId),
-      saving: false,
-    }));
+    set((state) => {
+      const nextFollowing = state.following.filter((id) => id !== targetId);
+      return {
+        following: nextFollowing,
+        network: {
+          ...state.network,
+          following: nextFollowing,
+        },
+        saving: false,
+      };
+    });
   },
 
-  isFollowing: (targetId) => get().following.includes(targetId),
+  isFollowing: (targetId) => (get().following || []).includes(targetId),
 
   searchAthletes: async (query, excludeId) => {
     const q = sanitizeQuery(query);
@@ -107,13 +135,18 @@ const useFollowStore = create((set, get) => ({
 
     set({ loading: true, error: null });
 
-    const { data, error } = await supabase
+    let req = supabase
       .from('athlete_directory')
       .select('*')
       .or(`full_name.ilike.%${q}%,display_name.ilike.%${q}%`)
-      .neq('id', excludeId)
       .order('display_name', { ascending: true })
       .limit(20);
+
+    if (excludeId) {
+      req = req.neq('id', excludeId);
+    }
+
+    const { data, error } = await req;
 
     if (error) {
       set({ loading: false, error: error.message });
@@ -134,13 +167,18 @@ const useFollowStore = create((set, get) => ({
       return [];
     }
 
-    const { data, error } = await supabase
+    let req = supabase
       .from('athlete_directory')
       .select('*')
       .ilike('box_name', box)
-      .neq('id', excludeId)
       .order('display_name', { ascending: true })
       .limit(10);
+
+    if (excludeId) {
+      req = req.neq('id', excludeId);
+    }
+
+    const { data, error } = await req;
 
     if (error) {
       set({ error: error.message });
@@ -151,14 +189,19 @@ const useFollowStore = create((set, get) => ({
     return data || [];
   },
 
-  // Ultimos atletas en unirse.
+  // Últimos atletas en unirse.
   fetchExplore: async (excludeId) => {
-    const { data, error } = await supabase
+    let req = supabase
       .from('athlete_directory')
       .select('*')
-      .neq('id', excludeId)
       .order('created_at', { ascending: false })
       .limit(20);
+
+    if (excludeId) {
+      req = req.neq('id', excludeId);
+    }
+
+    const { data, error } = await req;
 
     if (error) {
       set({ error: error.message });
@@ -169,7 +212,7 @@ const useFollowStore = create((set, get) => ({
     return data || [];
   },
 
-  // Lista de seguidos de CUALQUIER usuario (grafo publico) con perfiles.
+  // Lista de seguidos de CUALQUIER usuario (grafo público) con perfiles.
   fetchFollowingList: async (userId) => {
     const { data: rows, error } = await supabase
       .from('follows')
@@ -180,7 +223,7 @@ const useFollowStore = create((set, get) => ({
     return get()._hydrateProfiles(rows?.map((r) => r.followed_id) || []);
   },
 
-  // Lista de seguidores de CUALQUIER usuario (grafo publico) con perfiles.
+  // Lista de seguidores de CUALQUIER usuario (grafo público) con perfiles.
   fetchFollowersList: async (userId) => {
     const { data: rows, error } = await supabase
       .from('follows')
@@ -199,16 +242,19 @@ const useFollowStore = create((set, get) => ({
       .select('*')
       .in('id', ids);
 
-    if (error) throw error;
+    if (error) {
+      console.warn('Error hydrating profiles:', error);
+    }
 
     const byId = new Map((data || []).map((p) => [p.id, p]));
-    return ids.map((id) => byId.get(id)).filter(Boolean);
+    return ids.map((id) => byId.get(id) || { id, display_name: 'atleta', first_name: 'Atleta' });
   },
 
   reset: () => {
     set({
       following: [],
       followers: [],
+      network: { following: [], followers: [] },
       searchResults: [],
       suggestions: [],
       explore: [],

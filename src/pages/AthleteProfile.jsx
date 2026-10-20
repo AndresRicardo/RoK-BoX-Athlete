@@ -13,6 +13,7 @@ export default function AthleteProfile() {
 
   const [athlete, setAthlete] = useState(null);
   const [prs, setPrs] = useState([]);
+  const [counts, setCounts] = useState({ followers: 0, following: 0 });
   const [loading, setLoading] = useState(true);
   const [followModal, setFollowModal] = useState({ open: false, type: 'followers' });
 
@@ -25,7 +26,7 @@ export default function AthleteProfile() {
 
     async function loadData() {
       try {
-        const [dirRes, prsRes] = await Promise.all([
+        const [dirRes, prsRes, fwersRes, fwingRes] = await Promise.all([
           supabase
             .from('athlete_directory')
             .select('*')
@@ -36,10 +37,22 @@ export default function AthleteProfile() {
             .select('*')
             .eq('user_id', id)
             .order('value_numeric', { ascending: false }),
+          supabase
+            .from('follows')
+            .select('follower_id', { count: 'exact', head: true })
+            .eq('followed_id', id),
+          supabase
+            .from('follows')
+            .select('followed_id', { count: 'exact', head: true })
+            .eq('follower_id', id),
         ]);
 
         if (active) {
           setAthlete(dirRes.data || null);
+          setCounts({
+            followers: fwersRes.count || 0,
+            following: fwingRes.count || 0,
+          });
           const normalizedPRs = (prsRes.data || []).map((p) => ({
             ...p,
             value: p.value ?? p.value_numeric,
@@ -69,8 +82,10 @@ export default function AthleteProfile() {
     if (!user?.id || isMe) return;
     if (following) {
       await unfollow(user.id, id);
+      setCounts((prev) => ({ ...prev, followers: Math.max(0, prev.followers - 1) }));
     } else {
       await follow(user.id, id);
+      setCounts((prev) => ({ ...prev, followers: prev.followers + 1 }));
     }
   };
 
@@ -137,6 +152,35 @@ export default function AthleteProfile() {
               <span className="text-[11px] text-gray-400 block mt-0.5">{athlete.box_name}</span>
             )}
           </div>
+        </div>
+
+        {/* Followers / Following Counter */}
+        <div className="grid grid-cols-2 gap-2 pt-2 border-t border-white/5">
+          <button
+            type="button"
+            onClick={() => setFollowModal({ open: true, type: 'followers' })}
+            className="p-2.5 rounded-xl bg-[#0A0A0C]/50 border border-white/5 flex flex-col items-center justify-center tap-bounce"
+          >
+            <span className="text-base font-black text-white">
+              {counts.followers}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A5]">
+              Seguidores
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFollowModal({ open: true, type: 'following' })}
+            className="p-2.5 rounded-xl bg-[#0A0A0C]/50 border border-white/5 flex flex-col items-center justify-center tap-bounce"
+          >
+            <span className="text-base font-black text-white">
+              {counts.following}
+            </span>
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A5]">
+              Siguiendo
+            </span>
+          </button>
         </div>
 
         {/* Action Button: Follow / Edit */}
