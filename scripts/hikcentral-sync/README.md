@@ -1,4 +1,7 @@
-# Agente de Sincronización HikCentral Access Control -> RöK BoX Supabase
+> ⚠️ **OBSOLETO / DEPRECADO:** Este script legado ha sido reemplazado por el **Bridge Agent v2** ubicado en el repositorio central de plataforma: `d:\rokbox-platform\bridge`.
+> El nuevo agente opera con la API nativa de HikCentral Access Control (ISAPI Bumblebee), autenticación de mínimo privilegio en Supabase (sin `service_role`) y procesamiento de comandos bidireccionales en tiempo real.
+
+# Agente de Sincronización HikCentral Access Control -> RöK BoX Supabase (LEGADO)
 
 Este servicio ligero se ejecuta en segundo plano en el PC con Windows del box donde está instalado **HikCentral Access Control**. Lee periódicamente los atletas registrados en el huellero / reconocimiento facial y sincroniza sus fechas de vencimiento de mensualidad con la base de datos de Supabase.
 
