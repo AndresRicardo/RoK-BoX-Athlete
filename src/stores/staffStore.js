@@ -121,7 +121,7 @@ export const useStaffStore = create((set, get) => ({
         .from('debt_items')
         .insert({
           debt_id: debt.id,
-          item_name: concept,
+          name: concept,
           quantity: 1,
           unit_price: numericAmount,
           delivered_by: 'Coach',

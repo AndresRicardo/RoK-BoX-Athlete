@@ -443,12 +443,12 @@ export default function StaffPanel() {
                   </span>
                   <span
                     className={`text-[10px] font-bold ${
-                      selectedAthleteMembership.turnstile_status === 'granted'
+                      selectedAthleteMembership.access_enabled
                         ? 'text-emerald-400'
                         : 'text-red-400'
                     }`}
                   >
-                    Huellero: {selectedAthleteMembership.turnstile_status === 'granted' ? 'Habilitado' : 'Bloqueado'}
+                    Huellero: {selectedAthleteMembership.access_enabled ? 'Habilitado' : 'Bloqueado'}
                   </span>
                 </div>
               </div>
@@ -629,8 +629,8 @@ export default function StaffPanel() {
                     <option value="">-- Elige un ítem pendiente --</option>
                     {pendingDebts.map((d) => {
                       const label =
-                        d.debt_items?.[0]?.item_name ||
-                        d.notes ||
+                        d.concept ||
+                        d.debt_items?.[0]?.name ||
                         `Deuda del ${new Date(d.created_at).toLocaleDateString('es-CO')}`;
                       return (
                         <option key={d.id} value={d.id}>
