@@ -107,7 +107,7 @@ export const useStaffStore = create((set, get) => ({
         .from('debts')
         .insert({
           member_id: memberId,
-          notes: notes || concept,
+          concept: concept || notes || 'Implementos',
           delivery_status: 'ENTREGADO',
           created_by: createdBy,
         })
