@@ -17,21 +17,77 @@ export const useDebtStore = create((set, get) => ({
     set({ loading: true, error: null });
 
     try {
-      const { data, error } = await supabase
-        .from('debts')
+      // 1. Consultar vista resumen de deudas v2 (RLS filtra automáticamente a las deudas del member propio)
+      const { data: debtsData, error: debtsErr } = await supabase
+        .from('debt_summary')
         .select('*')
-        .eq('user_id', userId)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (debtsErr) throw debtsErr;
 
-      const debtsList = data || [];
-      const totalPending = debtsList
+      const debtList = debtsData || [];
+      const debtIds = debtList.map((d) => d.id);
+
+      // 2. Consultar ítems y abonos de estas deudas
+      const itemsByDebt = {};
+      const paymentsByDebt = {};
+
+      if (debtIds.length > 0) {
+        const [itemsRes, paymentsRes] = await Promise.all([
+          supabase
+            .from('debt_items')
+            .select('*')
+            .in('debt_id', debtIds)
+            .is('deleted_at', null)
+            .order('created_at', { ascending: true }),
+          supabase
+            .from('debt_payments')
+            .select('*')
+            .in('debt_id', debtIds)
+            .is('deleted_at', null)
+            .order('paid_at', { ascending: false }),
+        ]);
+
+        if (itemsRes.data) {
+          itemsRes.data.forEach((item) => {
+            if (!itemsByDebt[item.debt_id]) itemsByDebt[item.debt_id] = [];
+            itemsByDebt[item.debt_id].push(item);
+          });
+        }
+
+        if (paymentsRes.data) {
+          paymentsRes.data.forEach((pmt) => {
+            if (!paymentsByDebt[pmt.debt_id]) paymentsByDebt[pmt.debt_id] = [];
+            paymentsByDebt[pmt.debt_id].push(pmt);
+          });
+        }
+      }
+
+      // 3. Ensamblar deudas con sus ítems y pagos
+      const enrichedDebts = debtList.map((d) => {
+        const items = itemsByDebt[d.id] || [];
+        const payments = paymentsByDebt[d.id] || [];
+        const concept = items.length > 0
+          ? items.map((it) => `${it.item_name}${it.quantity > 1 ? ` (x${it.quantity})` : ''}`).join(', ')
+          : (d.notes || 'Implementos del box');
+
+        return {
+          ...d,
+          amount: Number(d.total_amount || 0),
+          balance: Number(d.balance || 0),
+          paid_amount: Number(d.paid_amount || 0),
+          items,
+          payments,
+          concept,
+        };
+      });
+
+      const totalPending = enrichedDebts
         .filter((d) => d.status === 'pending' || d.status === 'partial')
         .reduce((sum, d) => sum + Number(d.balance || 0), 0);
 
-      set({ debts: debtsList, totalPending, loading: false });
-      return debtsList;
+      set({ debts: enrichedDebts, totalPending, loading: false });
+      return enrichedDebts;
     } catch (err) {
       console.error('Error fetching debts:', err);
       set({ error: err.message, loading: false });
@@ -47,7 +103,8 @@ export const useDebtStore = create((set, get) => ({
         .from('debt_payments')
         .select('*')
         .eq('debt_id', debtId)
-        .order('created_at', { ascending: false });
+        .is('deleted_at', null)
+        .order('paid_at', { ascending: false });
 
       if (error) throw error;
       return data || [];
@@ -66,14 +123,35 @@ export const useDebtStore = create((set, get) => ({
     }
 
     const channel = supabase
-      .channel(`debts_user_${userId}`)
+      .channel(`debts_realtime_${userId}`)
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'debts',
-          filter: `user_id=eq.${userId}`,
+        },
+        () => {
+          get().fetchMyDebts(userId);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'debt_items',
+        },
+        () => {
+          get().fetchMyDebts(userId);
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'debt_payments',
         },
         () => {
           get().fetchMyDebts(userId);

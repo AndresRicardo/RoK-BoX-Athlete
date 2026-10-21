@@ -13,6 +13,10 @@ import {
   Users,
   DollarSign,
   Fingerprint,
+  UserCheck,
+  UserX,
+  Clock,
+  RefreshCw,
 } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
@@ -32,7 +36,11 @@ export default function StaffPanel() {
     selectAthlete,
     addDebt,
     addPayment,
-    updateMembership,
+    renewMembership,
+    pendingLinkRequests,
+    loadingRequests,
+    fetchPendingLinkRequests,
+    reviewLinkRequest,
     overview,
     fetchGymOverview,
   } = useStaffStore();
@@ -57,16 +65,24 @@ export default function StaffPanel() {
   const [endDate, setEndDate] = useState(
     new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
-  const [accessGranted, setAccessGranted] = useState(true);
+  const [renewalAmount, setRenewalAmount] = useState('150000');
+  const [renewalPaymentMethod, setRenewalPaymentMethod] = useState('cash');
 
   const [statusMessage, setStatusMessage] = useState(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     fetchGymOverview();
+    fetchPendingLinkRequests();
   }, []);
 
-  const isStaff = profile?.role === 'admin' || profile?.role === 'coach';
+  const isStaff =
+    profile?.isStaff ||
+    profile?.roles?.includes('admin') ||
+    profile?.roles?.includes('coach') ||
+    profile?.roles?.includes('head_coach') ||
+    profile?.role === 'admin' ||
+    profile?.role === 'coach';
 
   if (!isStaff) {
     return (
@@ -97,6 +113,8 @@ export default function StaffPanel() {
   const handleSelectAthlete = async (athlete) => {
     await selectAthlete(athlete);
     setStatusMessage(null);
+    setSelectedDebtId('');
+    setPaymentAmount('');
   };
 
   const handleCreateDebt = async (e) => {
@@ -107,15 +125,14 @@ export default function StaffPanel() {
       setSubmitting(true);
       setStatusMessage(null);
       await addDebt({
-        userId: selectedAthlete.id,
+        memberId: selectedAthlete.id,
         concept: concept.trim(),
-        category,
         amount: parseFloat(amount),
         notes: debtNotes.trim() || null,
-        createdBy: user.id,
+        createdBy: user?.id,
       });
 
-      setStatusMessage({ type: 'success', text: 'Cargo registrado correctamente.' });
+      setStatusMessage({ type: 'success', text: 'Cargo registrado correctamente en la cuenta del atleta.' });
       setAmount('6000');
       setDebtNotes('');
       fetchGymOverview();
@@ -138,14 +155,14 @@ export default function StaffPanel() {
       setStatusMessage(null);
       await addPayment({
         debtId: selectedDebtId,
-        userId: selectedAthlete.id,
+        memberId: selectedAthlete.id,
         amount: parseFloat(paymentAmount),
         paymentMethod,
         notes: paymentNotes.trim() || null,
-        recordedBy: user.id,
+        recordedBy: user?.id,
       });
 
-      setStatusMessage({ type: 'success', text: 'Abono registrado y saldo actualizado.' });
+      setStatusMessage({ type: 'success', text: 'Abono registrado y saldo recalculado automáticamente.' });
       setPaymentAmount('');
       setPaymentNotes('');
       fetchGymOverview();
@@ -163,16 +180,15 @@ export default function StaffPanel() {
     try {
       setSubmitting(true);
       setStatusMessage(null);
-      await updateMembership({
-        userId: selectedAthlete.id,
-        documentId: selectedAthlete.document_id || 'SIN_DOC',
+      await renewMembership({
+        memberId: selectedAthlete.id,
         planName,
-        endDate: new Date(endDate).toISOString(),
-        status: 'active',
-        accessGranted,
+        periodEnd: new Date(endDate + 'T23:59:59-05:00').toISOString(),
+        amount: parseFloat(renewalAmount || '0'),
+        paymentMethod: renewalPaymentMethod,
       });
 
-      setStatusMessage({ type: 'success', text: 'Membresía renovada exitosamente.' });
+      setStatusMessage({ type: 'success', text: 'Membresía renovada y acceso sincronizado exitosamente.' });
       fetchGymOverview();
     } catch (err) {
       setStatusMessage({ type: 'error', text: err.message || 'Error al actualizar membresía' });
@@ -181,7 +197,25 @@ export default function StaffPanel() {
     }
   };
 
-  const pendingDebts = selectedAthleteDebts.filter((d) => d.status !== 'paid');
+  const handleReviewLink = async (requestId, approve) => {
+    try {
+      setSubmitting(true);
+      setStatusMessage(null);
+      await reviewLinkRequest(requestId, approve);
+      setStatusMessage({
+        type: 'success',
+        text: approve
+          ? 'Solicitud de vínculo aprobada. Cédula y perfil vinculados exitosamente.'
+          : 'Solicitud de vínculo rechazada.',
+      });
+    } catch (err) {
+      setStatusMessage({ type: 'error', text: err.message || 'Error al procesar solicitud' });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const pendingDebts = selectedAthleteDebts.filter((d) => d.balance > 0);
 
   return (
     <div className="flex flex-col gap-5 pb-12">
@@ -201,36 +235,110 @@ export default function StaffPanel() {
       </div>
 
       {/* Box Overview Counters */}
-      <div className="grid grid-cols-2 gap-2.5">
-        <div className="p-3.5 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A5]">
-            Total en Deudas
+      <div className="grid grid-cols-3 gap-2">
+        <div className="p-3 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col justify-between">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-[#A0A0A5]">
+            Total Deudas
           </span>
-          <span className="text-xl font-black text-amber-400 mt-1">
+          <span className="text-base sm:text-lg font-black text-amber-400 mt-1">
             {formatCOP(overview.totalPendingAmount)}
           </span>
-          <span className="text-[10px] text-gray-400 mt-1">
-            {overview.debtorsCount} atletas con saldo
+          <span className="text-[9px] text-gray-400 mt-0.5">
+            {overview.debtorsCount} con saldo
           </span>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A5]">
-            Membresías en Mora
+        <div className="p-3 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col justify-between">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-[#A0A0A5]">
+            Membresías
           </span>
-          <span className="text-xl font-black text-red-400 mt-1">
-            {overview.overdueCount} atletas
+          <span className="text-base sm:text-lg font-black text-red-400 mt-1">
+            {overview.overdueCount} vencidas
           </span>
-          <span className="text-[10px] text-gray-400 mt-1">
-            {overview.expiringSoonCount} por vencer esta semana
+          <span className="text-[9px] text-gray-400 mt-0.5">
+            {overview.expiringSoonCount} por vencer
+          </span>
+        </div>
+
+        <div className="p-3 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col justify-between">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-[#A0A0A5]">
+            Vínculos Cédula
+          </span>
+          <span className="text-base sm:text-lg font-black text-[#FFC815] mt-1">
+            {overview.pendingRequestsCount} pend.
+          </span>
+          <span className="text-[9px] text-gray-400 mt-0.5">
+            por verificar
           </span>
         </div>
       </div>
 
-      {/* Buscador de Atletas */}
+      {/* Sección Solicitudes de Vínculo de Cédula (Si hay pendientes) */}
+      {pendingLinkRequests.length > 0 && (
+        <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h4 className="text-xs font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+              <Clock className="w-4 h-4" />
+              <span>Solicitudes de Vínculo Pendientes ({pendingLinkRequests.length})</span>
+            </h4>
+            <button
+              onClick={() => fetchPendingLinkRequests()}
+              className="text-[10px] text-gray-400 hover:text-white flex items-center gap-1"
+            >
+              <RefreshCw className="w-3 h-3" />
+              <span>Refrescar</span>
+            </button>
+          </div>
+          <p className="text-[11px] text-gray-300">
+            Atletas que han ingresado su cédula desde la app para vincular su cuenta con el huellero:
+          </p>
+
+          <div className="flex flex-col gap-2">
+            {pendingLinkRequests.map((req) => (
+              <div
+                key={req.id}
+                className="p-3 rounded-xl bg-[#0A0A0C] border border-white/10 flex items-center justify-between gap-3"
+              >
+                <div>
+                  <h5 className="text-xs font-black text-white">
+                    {req.profiles?.first_name && req.profiles?.last_name
+                      ? `${req.profiles.first_name} ${req.profiles.last_name}`
+                      : req.profiles?.display_name || 'Atleta'}
+                  </h5>
+                  <div className="flex items-center gap-2 mt-0.5 text-[10px] text-[#A0A0A5]">
+                    <span>Cédula: <strong className="text-white">{req.document_id}</strong></span>
+                    {req.profiles?.display_name && <span>(@{req.profiles.display_name})</span>}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <button
+                    disabled={submitting}
+                    onClick={() => handleReviewLink(req.id, true)}
+                    className="px-2.5 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500 hover:text-black font-extrabold text-[11px] flex items-center gap-1 tap-bounce transition-all disabled:opacity-50"
+                  >
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Aprobar</span>
+                  </button>
+                  <button
+                    disabled={submitting}
+                    onClick={() => handleReviewLink(req.id, false)}
+                    className="px-2.5 py-1.5 rounded-lg bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500 hover:text-white font-extrabold text-[11px] flex items-center gap-1 tap-bounce transition-all disabled:opacity-50"
+                  >
+                    <UserX className="w-3.5 h-3.5" />
+                    <span>Rechazar</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Buscador de Atletas / Miembros */}
       <div className="p-4 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col gap-3">
         <span className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider">
-          1. Seleccionar Atleta
+          1. Seleccionar Atleta / Miembro
         </span>
 
         <div className="relative">
@@ -239,7 +347,7 @@ export default function StaffPanel() {
             type="text"
             value={searchQuery}
             onChange={handleSearch}
-            placeholder="Buscar por nombre, cédula o @handle..."
+            placeholder="Buscar por nombre o cédula..."
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-[#FFC815]"
           />
         </div>
@@ -248,9 +356,9 @@ export default function StaffPanel() {
         {searchQuery.trim().length > 0 && (
           <div className="max-h-48 overflow-y-auto divide-y divide-white/5 border border-white/5 rounded-xl bg-[#0A0A0C]">
             {searching ? (
-              <div className="p-4 text-center text-xs text-[#A0A0A5]">Buscando...</div>
+              <div className="p-4 text-center text-xs text-[#A0A0A5]">Buscando miembros...</div>
             ) : athletes.length === 0 ? (
-              <div className="p-4 text-center text-xs text-[#A0A0A5]">No hay coincidencias.</div>
+              <div className="p-4 text-center text-xs text-[#A0A0A5]">No hay atletas coincidentes.</div>
             ) : (
               athletes.map((a) => (
                 <div
@@ -261,9 +369,10 @@ export default function StaffPanel() {
                   }`}
                 >
                   <div>
-                    <h5 className="text-xs font-bold text-white">{a.full_name || a.display_name}</h5>
+                    <h5 className="text-xs font-bold text-white">{a.full_name}</h5>
                     <span className="text-[10px] text-[#A0A0A5]">
-                      Cédula: {a.document_id || 'Sin cédula'} · @{a.display_name}
+                      Cédula: {a.document_id || 'Sin cédula'}
+                      {a.profiles?.display_name ? ` · @${a.profiles.display_name}` : ''}
                     </span>
                   </div>
                   <span className="text-xs font-black text-[#FFC815]">Seleccionar</span>
@@ -278,29 +387,72 @@ export default function StaffPanel() {
       {selectedAthlete && (
         <div className="flex flex-col gap-4">
           {/* Card Atleta Activo */}
-          <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C1C1E] to-[#292929] border border-[#FFC815]/30 flex items-center justify-between shadow-lg">
-            <div>
-              <span className="text-[10px] font-black uppercase tracking-wider text-[#FFC815]">
-                Atleta Activo en POS
-              </span>
-              <h3 className="text-base font-black text-white">
-                {selectedAthlete.full_name || selectedAthlete.display_name}
-              </h3>
-              <span className="text-xs text-[#A0A0A5]">
-                Cédula: {selectedAthlete.document_id || 'No vinculada'}
-              </span>
+          <div className="p-4 rounded-2xl bg-gradient-to-br from-[#1C1C1E] to-[#292929] border border-[#FFC815]/30 flex flex-col gap-3 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider text-[#FFC815]">
+                  Atleta Seleccionado
+                </span>
+                <h3 className="text-base font-black text-white">
+                  {selectedAthlete.full_name}
+                </h3>
+                <span className="text-xs text-[#A0A0A5]">
+                  Cédula: {selectedAthlete.document_id || 'No vinculada'}
+                  {selectedAthlete.phone ? ` · Tel: ${selectedAthlete.phone}` : ''}
+                </span>
+              </div>
+
+              <div className="text-right">
+                <span className="text-[10px] uppercase font-bold text-gray-400 block">
+                  Deuda Pendiente
+                </span>
+                <span className="text-lg font-black text-amber-400">
+                  {formatCOP(
+                    pendingDebts.reduce((sum, d) => sum + Number(d.balance || 0), 0)
+                  )}
+                </span>
+              </div>
             </div>
 
-            <div className="text-right">
-              <span className="text-[10px] uppercase font-bold text-gray-400 block">
-                Deuda Total
-              </span>
-              <span className="text-lg font-black text-amber-400">
-                {formatCOP(
-                  pendingDebts.reduce((sum, d) => sum + Number(d.balance || 0), 0)
-                )}
-              </span>
-            </div>
+            {/* Resumen Membresía del Atleta Seleccionado */}
+            {selectedAthleteMembership && (
+              <div className="pt-2.5 border-t border-white/5 flex items-center justify-between text-[11px]">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[#A0A0A5]">Plan:</span>
+                  <span className="font-bold text-white">
+                    {selectedAthleteMembership.plan_name || 'Sin plan'}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      selectedAthleteMembership.status === 'active'
+                        ? 'bg-emerald-500/10 text-emerald-400'
+                        : selectedAthleteMembership.status === 'expiring_soon'
+                        ? 'bg-amber-500/10 text-amber-400'
+                        : 'bg-red-500/10 text-red-400'
+                    }`}
+                  >
+                    {selectedAthleteMembership.status === 'active'
+                      ? 'Activo'
+                      : selectedAthleteMembership.status === 'expiring_soon'
+                      ? `Vence pronto (${selectedAthleteMembership.days_left}d)`
+                      : selectedAthleteMembership.status === 'overdue'
+                      ? 'Vencido'
+                      : 'Inactivo'}
+                  </span>
+                  <span
+                    className={`text-[10px] font-bold ${
+                      selectedAthleteMembership.turnstile_status === 'granted'
+                        ? 'text-emerald-400'
+                        : 'text-red-400'
+                    }`}
+                  >
+                    Huellero: {selectedAthleteMembership.turnstile_status === 'granted' ? 'Habilitado' : 'Bloqueado'}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Action Tabs: Deuda / Pago / Membresía */}
@@ -363,7 +515,7 @@ export default function StaffPanel() {
             <form onSubmit={handleCreateDebt} className="p-4 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col gap-3">
               <h4 className="text-xs font-black uppercase tracking-wider text-white flex items-center gap-2">
                 <ShoppingBag className="w-4 h-4 text-[#FFC815]" />
-                <span>Cargar Implemento o Suplemento</span>
+                <span>Cargar Implemento o Consumo</span>
               </h4>
 
               <div>
@@ -409,7 +561,6 @@ export default function StaffPanel() {
                   required
                   className="w-full px-3 py-2 rounded-xl bg-[#0A0A0C] border border-white/10 text-sm font-black text-white focus:outline-none focus:border-[#FFC815]"
                 />
-                {/* Botones de montos sugeridos rápidos */}
                 <div className="flex gap-1.5 mt-2 overflow-x-auto no-scrollbar">
                   {[5000, 6000, 10000, 30000, 85000, 150000].map((s) => (
                     <button
@@ -432,7 +583,7 @@ export default function StaffPanel() {
                   type="text"
                   value={debtNotes}
                   onChange={(e) => setDebtNotes(e.target.value)}
-                  placeholder="Ej. Pendiente de pago para el viernes"
+                  placeholder="Ej. Entregado en recepción"
                   className="w-full px-3 py-2 rounded-xl bg-[#0A0A0C] border border-white/10 text-xs text-white"
                 />
               </div>
@@ -462,7 +613,7 @@ export default function StaffPanel() {
                 </label>
                 {pendingDebts.length === 0 ? (
                   <p className="text-xs text-emerald-400 bg-emerald-500/10 p-2.5 rounded-xl">
-                    Este atleta no tiene deudas pendientes.
+                    Este atleta no tiene deudas pendientes con saldo.
                   </p>
                 ) : (
                   <select
@@ -475,12 +626,18 @@ export default function StaffPanel() {
                     required
                     className="w-full px-3 py-2 rounded-xl bg-[#0A0A0C] border border-white/10 text-xs font-bold text-white"
                   >
-                    <option value="">-- Elige un ítem --</option>
-                    {pendingDebts.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.concept} (Resta {formatCOP(d.balance)})
-                      </option>
-                    ))}
+                    <option value="">-- Elige un ítem pendiente --</option>
+                    {pendingDebts.map((d) => {
+                      const label =
+                        d.debt_items?.[0]?.item_name ||
+                        d.notes ||
+                        `Deuda del ${new Date(d.created_at).toLocaleDateString('es-CO')}`;
+                      return (
+                        <option key={d.id} value={d.id}>
+                          {label} (Resta {formatCOP(d.balance)})
+                        </option>
+                      );
+                    })}
                   </select>
                 )}
               </div>
@@ -560,16 +717,35 @@ export default function StaffPanel() {
                 />
               </div>
 
-              <div className="flex items-center justify-between p-3 rounded-xl bg-[#0A0A0C] border border-white/5">
-                <span className="text-xs font-bold text-gray-300">
-                  Permitir Acceso Puerta / Huellero
-                </span>
-                <input
-                  type="checkbox"
-                  checked={accessGranted}
-                  onChange={(e) => setAccessGranted(e.target.checked)}
-                  className="w-5 h-5 accent-[#FFC815] rounded cursor-pointer"
-                />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold text-[#A0A0A5] uppercase tracking-wider block mb-1">
+                    Valor Cobrado (COP)
+                  </label>
+                  <input
+                    type="number"
+                    value={renewalAmount}
+                    onChange={(e) => setRenewalAmount(e.target.value)}
+                    placeholder="150000"
+                    className="w-full px-3 py-2 rounded-xl bg-[#0A0A0C] border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-[#FFC815]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold text-[#A0A0A5] uppercase tracking-wider block mb-1">
+                    Método de Pago
+                  </label>
+                  <select
+                    value={renewalPaymentMethod}
+                    onChange={(e) => setRenewalPaymentMethod(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#0A0A0C] border border-white/10 text-xs font-bold text-white"
+                  >
+                    <option value="cash">Efectivo</option>
+                    <option value="nequi">Nequi</option>
+                    <option value="daviplata">Daviplata</option>
+                    <option value="card">Datáfono</option>
+                    <option value="transfer">Transferencia</option>
+                  </select>
+                </div>
               </div>
 
               <button
@@ -578,7 +754,7 @@ export default function StaffPanel() {
                 className="mt-2 py-3 rounded-xl bg-[#FFC815] text-black font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 tap-bounce disabled:opacity-50"
               >
                 <CheckCircle className="w-4 h-4 stroke-[3]" />
-                <span>{submitting ? 'Actualizando...' : 'Guardar y Sincronizar'}</span>
+                <span>{submitting ? 'Renovando...' : 'Renovar y Habilitar Huellero'}</span>
               </button>
             </form>
           )}

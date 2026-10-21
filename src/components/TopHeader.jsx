@@ -4,8 +4,8 @@ import useProfileStore from '../stores/profileStore';
 import NotificationsBell from './NotificationsBell';
 
 export default function TopHeader({ title }) {
-  const { profile } = useProfileStore();
-  const isStaff = profile?.role === 'admin' || profile?.role === 'coach';
+  const { profile, isStaff: storeIsStaff } = useProfileStore();
+  const isStaff = storeIsStaff || profile?.isStaff || profile?.role === 'admin' || profile?.role === 'coach';
 
   return (
     <header className="sticky top-0 z-30 w-full glass-header safe-top px-4 pb-3 flex items-center justify-between">

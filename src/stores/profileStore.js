@@ -3,18 +3,21 @@ import { supabase } from '../supabase/client';
 
 const useProfileStore = create((set) => ({
   profile: null,
+  roles: [],
+  isStaff: false,
+  isPartner: false,
   loading: false,
   error: null,
   saving: false,
 
   fetchProfile: async (userId) => {
     if (!userId) {
-      set({ profile: null, loading: false, error: null });
+      set({ profile: null, roles: [], isStaff: false, isPartner: false, loading: false, error: null });
       return null;
     }
 
     const existing = useProfileStore.getState().profile;
-    if (existing?.id === userId) {
+    if (existing?.id === userId && existing?.roles) {
       return existing;
     }
 
@@ -31,8 +34,33 @@ const useProfileStore = create((set) => ({
       throw error;
     }
 
-    set({ profile: data, loading: false });
-    return data;
+    // Cargar roles desde la tabla central user_roles
+    let roles = [];
+    try {
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('role')
+        .eq('user_id', userId);
+      roles = rolesData ? rolesData.map((r) => r.role) : [];
+    } catch (rErr) {
+      console.warn('Could not load user_roles:', rErr);
+    }
+
+    const isStaff = roles.includes('coach') || roles.includes('partner') || roles.includes('admin');
+    const isPartner = roles.includes('partner') || roles.includes('admin');
+
+    const combined = data
+      ? {
+          ...data,
+          roles,
+          isStaff,
+          isPartner,
+          role: isPartner ? 'admin' : (isStaff ? 'coach' : 'athlete'),
+        }
+      : null;
+
+    set({ profile: combined, roles, isStaff, isPartner, loading: false });
+    return combined;
   },
 
   upsertProfile: async (userId, profileData) => {
@@ -51,8 +79,17 @@ const useProfileStore = create((set) => ({
       throw error;
     }
 
-    set({ profile: data, saving: false });
-    return data;
+    const existing = useProfileStore.getState().profile;
+    const combined = {
+      ...data,
+      roles: existing?.roles || [],
+      isStaff: existing?.isStaff || false,
+      isPartner: existing?.isPartner || false,
+      role: existing?.role || 'athlete',
+    };
+
+    set({ profile: combined, saving: false });
+    return combined;
   },
 
   deleteProfile: async (userId) => {
@@ -68,7 +105,7 @@ const useProfileStore = create((set) => ({
       throw error;
     }
 
-    set({ profile: null, saving: false });
+    set({ profile: null, roles: [], isStaff: false, isPartner: false, saving: false });
   },
 
   // Sincroniza la foto de Google (user_metadata) a profiles.avatar_url
@@ -98,7 +135,7 @@ const useProfileStore = create((set) => ({
   },
 
   reset: () => {
-    set({ profile: null, loading: false, error: null, saving: false });
+    set({ profile: null, roles: [], isStaff: false, isPartner: false, loading: false, error: null, saving: false });
   },
 }));
 

@@ -11,6 +11,7 @@ import {
   AlertCircle,
   Edit2,
   Save,
+  Clock3,
 } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
@@ -24,14 +25,13 @@ import DebtCard from '../components/DebtCard';
 export default function Profile() {
   const { user, signOut } = useAuthStore();
   const { profile, fetchProfile, upsertProfile, saving } = useProfileStore();
-  const { fetchMembership } = useMembershipStore();
+  const { member, linkRequest, fetchMembership, requestLink } = useMembershipStore();
   const { fetchMyDebts } = useDebtStore();
   const {
     following = [],
     followers = [],
     network,
     fetchNetwork,
-    fetchMyNetwork,
   } = useFollowStore();
 
   const followersCount = followers?.length ?? network?.followers?.length ?? 0;
@@ -50,7 +50,6 @@ export default function Profile() {
     if (user?.id) {
       fetchProfile(user.id).then((p) => {
         if (p) {
-          setDocumentId(p.document_id || '');
           setHandle(p.display_name || '');
           setDiscipline(p.discipline || 'rx');
           if (p.weight_kg) {
@@ -59,18 +58,23 @@ export default function Profile() {
           } else {
             setWeightVal('');
           }
-          fetchMembership(user.id, p.document_id);
         }
       });
+      fetchMembership(user.id);
       fetchMyDebts(user.id);
       fetchNetwork(user.id);
     }
   }, [user?.id]);
 
+  // Mantener sincronizada la cédula con member o linkRequest
+  useEffect(() => {
+    const activeDoc = member?.document_id || linkRequest?.document_id || '';
+    setDocumentId(activeDoc);
+  }, [member?.document_id, linkRequest?.document_id]);
+
   // Mantener sincronizado si cambia el perfil externamente
   useEffect(() => {
     if (profile) {
-      if (profile.document_id !== undefined) setDocumentId(profile.document_id || '');
       if (profile.display_name) setHandle(profile.display_name);
       if (profile.discipline) setDiscipline(profile.discipline);
     }
@@ -89,7 +93,7 @@ export default function Profile() {
     setWeightUnit(newUnit);
   };
 
-  const isStaff = profile?.role === 'coach' || profile?.role === 'admin';
+  const isStaff = profile?.isStaff || profile?.role === 'coach' || profile?.role === 'admin';
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
@@ -100,7 +104,7 @@ export default function Profile() {
 
     try {
       setFeedback({ type: null, message: null });
-      const cleanDoc = documentId.trim() || null;
+      const cleanDoc = documentId.trim();
       const cleanHandle = handle.trim().toLowerCase().replace(/[^a-z0-9._]/g, '');
 
       let finalWeightKg = null;
@@ -109,21 +113,27 @@ export default function Profile() {
         finalWeightKg = weightUnit === 'lb' ? Math.round((num / 2.20462) * 10) / 10 : num;
       }
 
+      // Guardar datos de perfil sin document_id (vive en members/link_requests)
       await upsertProfile(user.id, {
         first_name: profile?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Atleta',
         last_name: profile?.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
         display_name: cleanHandle,
-        document_id: cleanDoc,
         discipline,
         weight_kg: finalWeightKg,
       });
 
-      if (cleanDoc) {
-        await fetchMembership(user.id, cleanDoc);
+      // Si ingresó o cambió la cédula respecto al miembro actual, solicitar vínculo seguro
+      if (cleanDoc && cleanDoc !== member?.document_id && cleanDoc !== linkRequest?.document_id) {
+        await requestLink(cleanDoc);
+        setFeedback({
+          type: 'success',
+          message: 'Perfil guardado. Se envió la solicitud de vínculo para la cédula ' + cleanDoc + '.',
+        });
+      } else {
+        setFeedback({ type: 'success', message: 'Perfil actualizado exitosamente.' });
       }
 
       setIsEditing(false);
-      setFeedback({ type: 'success', message: 'Perfil y cédula actualizados exitosamente.' });
     } catch (err) {
       console.error('Error saving profile:', err);
       setFeedback({ type: 'error', message: err.message || 'Error al guardar cambios' });
@@ -179,7 +189,6 @@ export default function Profile() {
               Seguidores
             </span>
           </button>
-
           <button
             type="button"
             onClick={() => setFollowModal({ open: true, type: 'following' })}
@@ -195,7 +204,7 @@ export default function Profile() {
         </div>
       </div>
 
-      {/* Staff Mode Access Banner (if Coach or Admin) */}
+      {/* Staff Panel Link if authorized */}
       {isStaff && (
         <Link
           to="/staff"
@@ -207,7 +216,7 @@ export default function Profile() {
             </div>
             <div>
               <span className="text-xs font-black uppercase tracking-wider text-[#FFC815] block">
-                Modo Staff Habilitado ({profile.role.toUpperCase()})
+                Modo Staff Habilitado ({(profile?.roles?.[0] || 'staff').toUpperCase()})
               </span>
               <p className="text-xs text-gray-300">
                 Gestionar deudas, cobros y atletas del box
@@ -274,7 +283,7 @@ export default function Profile() {
           <form onSubmit={handleSaveProfile} className="flex flex-col gap-3.5 pt-2">
             <div>
               <label className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5] block mb-1">
-                Número de Cédula / DNI (Para huellero y puerta)
+                Número de Cédula / DNI (Solicitud de Vínculo de Acceso)
               </label>
               <input
                 id="documentIdInput"
@@ -284,8 +293,8 @@ export default function Profile() {
                 placeholder="Ej. 1020304050"
                 className="w-full px-3.5 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-[#FFC815]"
               />
-              <p className="text-[10px] text-gray-500 mt-1">
-                Debe coincidir con el documento registrado en el PC de HikCentral del box.
+              <p className="text-[10px] text-gray-400 mt-1">
+                Al guardar, se enviará una solicitud al staff del box para vincular tu acceso biométrico y mensualidad.
               </p>
             </div>
 
@@ -368,9 +377,17 @@ export default function Profile() {
         ) : (
           <div className="flex flex-col gap-2 pt-1 text-xs">
             <div className="flex justify-between py-1.5 border-b border-white/5 items-center">
-              <span className="text-[#A0A0A5]">Cédula vinculada:</span>
-              {profile?.document_id ? (
-                <span className="font-bold text-white font-mono">{profile.document_id}</span>
+              <span className="text-[#A0A0A5]">Estado del Vínculo:</span>
+              {member?.document_id ? (
+                <span className="font-bold text-emerald-400 font-mono flex items-center gap-1">
+                  <Check className="w-3.5 h-3.5" />
+                  <span>CC: {member.document_id}</span>
+                </span>
+              ) : linkRequest?.status === 'pending' ? (
+                <span className="font-bold text-amber-400 font-mono flex items-center gap-1">
+                  <Clock3 className="w-3.5 h-3.5" />
+                  <span>CC: {linkRequest.document_id} (En revisión)</span>
+                </span>
               ) : (
                 <button
                   type="button"
@@ -380,7 +397,7 @@ export default function Profile() {
                   }}
                   className="px-2.5 py-1 rounded-lg bg-[#FFC815] text-black font-extrabold text-[11px] tap-bounce shadow-sm"
                 >
-                  + Vincular Cédula
+                  + Solicitar Vínculo
                 </button>
               )}
             </div>

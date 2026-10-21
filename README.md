@@ -2,15 +2,18 @@
 
 PWA de alto rendimiento para atletas y staff de RöK BoX CrossFit. Diseñada 100% Mobile-First para pantallas de teléfonos inteligentes.
 
+Este repositorio forma parte del ecosistema unificado **RöK BoX Platform**. Para lineamientos de arquitectura, migraciones globales y diseño de base de datos, consultar el repositorio central: [`d:\rokbox-platform`](https://github.com/AndresRicardo/rokbox-platform).
+
 ## Características Principales
 
-1. **Dashboard Atlético & Membresías (HikCentral)**:
-   - Visualización de vigencia de membresía (Al día, Por vencer, En mora).
+1. **Dashboard Atlético & Membresías (HikCentral v2)**:
+   - Visualización de vigencia de membresía (Al día, Por vencer, En mora) mediante la vista reactiva `membership_status`.
    - Conteo regresivo de días restantes.
    - Estado del torniquete/huellero (Acceso biométrico habilitado o bloqueado).
-2. **Control Financiero & Deudas de Tienda (COP $)**:
-   - Desglose de implementos, suplementos, bebidas y cuotas pendientes.
-   - Historial de abonos y liquidaciones en efectivo, Nequi, Daviplata y tarjeta.
+   - Solicitud de verificación y vinculación de cédula (`member_link_requests`).
+2. **Control Financiero & Deudas v2 (COP $)**:
+   - Desglose de implementos, suplementos, bebidas y cuotas mediante `debt_summary`, `debts`, `debt_items` y `debt_payments`.
+   - Historial de abonos en tiempo real y recálculo automático de saldos vía triggers.
 3. **Módulo de Entrenamiento**:
    - Registro y edición de PRs (fuerza, halterofilia, gimnásticos, cardio).
    - WODs y Benchmarks oficiales (Girls, Heroes, Clásicos con modalidades RX / Scaled).
@@ -23,11 +26,13 @@ PWA de alto rendimiento para atletas y staff de RöK BoX CrossFit. Diseñada 100
 5. **Logros & Medallas**:
    - Sistema de insignias por hitos deportivos (Bronce, Plata, Oro).
 6. **Panel POS para Staff / Coaches**:
-   - Búsqueda instantánea de atletas.
-   - Carga rápida de suplementos e implementos.
-   - Registro de abonos y actualización de vigencias.
-7. **Agente de Sincronización HikCentral**:
-   - Servicio ligero para el PC del box en `scripts/hikcentral-sync/` que sincroniza las vigencias de acceso con Supabase.
+   - Búsqueda instantánea de miembros por nombre o cédula.
+   - Carga rápida de suplementos e implementos a miembros.
+   - Registro de abonos sobre ítems de deuda.
+   - Renovación de membresías vía RPC `renew_membership`.
+   - Aprobación / rechazo de solicitudes de vinculación de cédula vía RPC `review_member_link`.
+7. **Sincronización con Torniquete HikCentral**:
+   - Agente desacoplado en `d:\rokbox-platform\bridge` que sincroniza periódicamente hacia la API OpenAPI de HikCentral Access Control.
 
 ---
 
@@ -38,7 +43,6 @@ PWA de alto rendimiento para atletas y staff de RöK BoX CrossFit. Diseñada 100
 - **Gráficas**: Recharts 2.15 (optimizado para pantallas táctiles)
 - **Base de Datos & Auth**: Supabase (Google OAuth + PostgreSQL con RLS + Realtime)
 - **PWA**: vite-plugin-pwa + Workbox (Standalone, offline caching, soporte para notch)
-- **Agente PC**: Python 3 (OpenAPI HikCentral / Direct DB connector)
 
 ---
 

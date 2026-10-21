@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ShoppingBag, AlertTriangle, CheckCircle, ChevronRight, X, Receipt } from 'lucide-react';
+import { ShoppingBag, AlertTriangle, CheckCircle, ChevronRight, X, Receipt, Package, ArrowDownLeft } from 'lucide-react';
 import useDebtStore from '../stores/debtStore';
 import { formatCOP } from '../utils/currency';
 
@@ -8,21 +8,6 @@ export default function DebtCard() {
   const [showDetail, setShowDetail] = useState(false);
 
   const pendingDebts = debts.filter((d) => d.status === 'pending' || d.status === 'partial');
-
-  const getCategoryLabel = (cat) => {
-    switch (cat) {
-      case 'supplement':
-        return 'Suplemento';
-      case 'equipment':
-        return 'Implemento';
-      case 'beverage':
-        return 'Bebida';
-      case 'membership_balance':
-        return 'Mensualidad';
-      default:
-        return 'Tienda';
-    }
-  };
 
   if (loading && debts.length === 0) {
     return (
@@ -56,11 +41,11 @@ export default function DebtCard() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5]">
-                  Deudas de Tienda / Box
+                  Deudas de Tienda / Implementos
                 </span>
                 {hasDebt && (
                   <span className="px-1.5 py-0.5 rounded-md text-[10px] font-extrabold bg-amber-500/20 text-amber-400">
-                    {pendingDebts.length} {pendingDebts.length === 1 ? 'ítem' : 'ítems'}
+                    {pendingDebts.length} {pendingDebts.length === 1 ? 'cuenta' : 'cuentas'}
                   </span>
                 )}
               </div>
@@ -92,7 +77,7 @@ export default function DebtCard() {
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-white">Detalle de Cobros</h3>
-                  <p className="text-xs text-[#A0A0A5]">Suplementos, implementos y cuotas</p>
+                  <p className="text-xs text-[#A0A0A5]">Implementos y compras registradas</p>
                 </div>
               </div>
               <button
@@ -128,47 +113,87 @@ export default function DebtCard() {
                 </div>
               ) : (
                 debts.map((item) => {
+                  const isVoided = item.status === 'voided';
                   const isPaid = item.status === 'paid';
                   const isPartial = item.status === 'partial';
 
                   return (
                     <div
                       key={item.id}
-                      className="p-3.5 rounded-xl bg-[#0A0A0C] border border-white/5 flex flex-col gap-2"
+                      className="p-3.5 rounded-xl bg-[#0A0A0C] border border-white/5 flex flex-col gap-2.5"
                     >
                       <div className="flex items-start justify-between">
-                        <div>
+                        <div className="flex-1 pr-2">
                           <div className="flex items-center gap-2">
                             <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-[#292929] text-[#A0A0A5]">
-                              {getCategoryLabel(item.category)}
+                              {item.delivery_status || 'Implementos'}
                             </span>
                             <span className="text-[11px] text-gray-400">
                               {new Date(item.created_at).toLocaleDateString('es-CO', {
                                 day: 'numeric',
                                 month: 'short',
+                                year: 'numeric',
                               })}
                             </span>
                           </div>
                           <h4 className="text-sm font-bold text-white mt-1">{item.concept}</h4>
                         </div>
 
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <span className="text-sm font-black text-white block">
                             {formatCOP(item.amount)}
                           </span>
                           <span
                             className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full inline-block mt-0.5 ${
-                              isPaid
+                              isVoided
+                                ? 'bg-zinc-700/40 text-zinc-400'
+                                : isPaid
                                 ? 'bg-emerald-500/20 text-emerald-400'
                                 : isPartial
                                 ? 'bg-amber-500/20 text-amber-400'
                                 : 'bg-red-500/20 text-red-400'
                             }`}
                           >
-                            {isPaid ? 'Pagado' : isPartial ? `Resta ${formatCOP(item.balance)}` : 'Pendiente'}
+                            {isVoided ? 'Anulado' : isPaid ? 'Pagado' : isPartial ? `Resta ${formatCOP(item.balance)}` : 'Pendiente'}
                           </span>
                         </div>
                       </div>
+
+                      {/* Items desglosados */}
+                      {item.items && item.items.length > 0 && (
+                        <div className="bg-[#1C1C1E] p-2.5 rounded-lg border border-white/5 flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A5] flex items-center gap-1">
+                            <Package className="w-3 h-3 text-[#FFC815]" />
+                            <span>Productos incluidos:</span>
+                          </span>
+                          {item.items.map((it) => (
+                            <div key={it.id} className="flex items-center justify-between text-xs text-gray-300">
+                              <span>
+                                {it.item_name} {it.quantity > 1 ? `× ${it.quantity}` : ''}
+                              </span>
+                              <span className="font-semibold text-white">{formatCOP(it.subtotal)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Abonos registrados */}
+                      {item.payments && item.payments.length > 0 && (
+                        <div className="bg-[#1C1C1E]/60 p-2.5 rounded-lg border border-emerald-500/20 flex flex-col gap-1.5">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1">
+                            <ArrowDownLeft className="w-3 h-3" />
+                            <span>Abonos realizados:</span>
+                          </span>
+                          {item.payments.map((pmt) => (
+                            <div key={pmt.id} className="flex items-center justify-between text-xs text-emerald-300">
+                              <span>
+                                {new Date(pmt.paid_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} • {pmt.payment_method?.toUpperCase()}
+                              </span>
+                              <span className="font-bold">+ {formatCOP(pmt.amount)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                       {item.notes && (
                         <p className="text-xs text-[#A0A0A5] bg-[#1C1C1E] p-2 rounded-lg italic">
