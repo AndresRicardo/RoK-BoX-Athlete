@@ -184,8 +184,8 @@ begin
   insert into zz_tests.results (name, ok, detail)
   values ('tiquetera llega a 0 → estado no_classes', v_s.status = 'no_classes' and v_s.classes_left = 0, v_s.status);
   insert into zz_tests.results (name, ok, detail)
-  select 'tiquetera en 0 pide bloqueo a HCAC (EndDate = ahora)', hik_target_until <= now(), hik_target_until::text
-  from public.memberships where member_id = 'a0000000-0000-0000-0000-000000000002';
+  select 'sin persona en HCAC no se encolan comandos (D36)', count(*) = 0, count(*)::text
+  from public.access_commands where member_id = 'a0000000-0000-0000-0000-000000000002';
   begin
     perform public.use_class('a0000000-0000-0000-0000-000000000002');
     insert into zz_tests.results (name, ok, detail) values ('tiquetera sin clases no descuenta', false, 'no falló');
@@ -249,9 +249,8 @@ do $$ begin
   select 'venta de contado genera ingreso', count(*) = 1 and min(amount) = 18000, min(amount)::text
   from public.incomes where source = 'sale';
   insert into zz_tests.results (name, ok, detail)
-  select 'miembro sin persona HCAC → comando upsert_person', count(*) >= 1, count(*)::text
-  from public.access_commands
-  where member_id = 'a0000000-0000-0000-0000-000000000003' and command = 'upsert_person' and status = 'pending';
+  select 'renovar sin persona en HCAC no encola comandos (D36)', count(*) = 0, count(*)::text
+  from public.access_commands where member_id = 'a0000000-0000-0000-0000-000000000003';
   insert into zz_tests.results (name, ok, detail)
   select 'atleta recibe avisos de cargo, abono y renovación', count(distinct type) = 3, string_agg(distinct type, ',')
   from public.notifications
@@ -396,12 +395,27 @@ declare
   v_ms   public.memberships;
   v_until timestamptz;
 begin
+  -- Las personas aparecen en HCAC (registradas allá) con vigencias viejas: se vinculan por
+  -- cédula y la app empuja su vigencia (renovación) y el bloqueo de la tiquetera agotada.
+  v_res := public.bridge_sync_persons(jsonb_build_array(
+    jsonb_build_object('hik_person_id', 'HIK-003', 'person_code', '999000003', 'full_name', 'ZZTEST Vencido',
+                       'valid_from', now() - interval '40 days', 'valid_until', now() - interval '10 days'),
+    jsonb_build_object('hik_person_id', 'HIK-002', 'person_code', '999000002', 'full_name', 'ZZTEST Tiquetera',
+                       'valid_from', now() - interval '5 days', 'valid_until', now() + interval '50 days')), false);
+  insert into zz_tests.results (name, ok, detail)
+  values ('personas de HCAC se vinculan por cédula', (v_res->>'adopted')::int = 2, v_res::text);
+  insert into zz_tests.results (name, ok, detail)
+  select 'al vincular: renovación de la app y bloqueo de tiquetera se envían a HCAC',
+         count(*) filter (where member_id = 'a0000000-0000-0000-0000-000000000003' and (payload->>'valid_until')::timestamptz > now()) = 1
+         and count(*) filter (where member_id = 'a0000000-0000-0000-0000-000000000002' and (payload->>'valid_until')::timestamptz <= now()) = 1,
+         count(*)::text
+  from public.access_commands where status = 'pending';
+
   -- Procesar todos los comandos pendientes como si HCAC los aplicara.
   loop
     v_cmd := public.claim_next_access_command();
     exit when v_cmd.id is null;
-    perform public.complete_access_command(v_cmd.id, true, null,
-      case when v_cmd.command = 'upsert_person' then 'HIK-' || right(v_cmd.member_id::text, 3) end);
+    perform public.complete_access_command(v_cmd.id, true);
   end loop;
 
   select * into v_ms from public.memberships where member_id = 'a0000000-0000-0000-0000-000000000003';

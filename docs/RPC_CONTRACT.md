@@ -103,7 +103,7 @@ Detalle de `calculate_settlement`:
 | RPC | Notas |
 |---|---|
 | `claim_next_access_command()` | Toma el comando pendiente más antiguo (`skip locked`). Devuelve una fila con `id` nulo si no hay. |
-| `complete_access_command(p_command_id, p_ok, p_error?, p_hik_person_id?)` | Con `p_ok`, registra el estado confirmado en HCAC (`hik_*`). Si falla, reintenta hasta 5 veces y luego queda `failed`, con aviso a los socios. |
+| `complete_access_command(p_command_id, p_ok, p_error?)` | Con `p_ok`, registra el estado confirmado en HCAC (`hik_*`). Si falla, reintenta hasta 5 veces y luego queda `failed`, con aviso a los socios. |
 | `bridge_heartbeat(p_agent_version?, p_hik_version?, p_persons_count?, p_error?)` | Señal de vida. |
 | `bridge_sync_persons(p_persons jsonb, p_full_snapshot=true)` | Recibe un arreglo de `{hik_person_id, person_code, full_name, phone, valid_from, valid_until}`. Devuelve `{created, adopted, extended, changed, skipped, deactivated}`. |
 
@@ -111,7 +111,6 @@ Payloads de los comandos que entrega `claim_next_access_command`:
 
 | `command` | `payload` |
 |---|---|
-| `upsert_person` | `{person_code, full_name, phone, valid_from, valid_until}` |
 | `set_validity` | `{valid_from, valid_until}` |
 
-Solo existen esos dos comandos: el bloqueo también se aplica como `set_validity`, con `valid_until` igual al momento del bloqueo (D35).
+Es el único comando. El bloqueo también se aplica como `set_validity`, con `valid_until` igual al momento del bloqueo (D35). La app no crea personas en HikCentral (D36): un miembro sin `hik_person_id` no genera comandos hasta que el pull lo vincule por cédula, y entonces se le envía la vigencia que tiene en la app.

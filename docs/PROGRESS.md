@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F2 — Bridge v3 |
-| **Próximo paso** | F2.1: spike de lectura de personas en Bumblebee (HCAC del PC de desarrollo) |
+| **Fase actual** | F2 — Bridge v3 (falta la prueba de escritura en vivo) · F3 siguiente |
+| **Próximo paso** | El usuario crea en el HCAC de desarrollo una persona `ZZTEST Bridge Vivo` con cédula `999000901` (F2.6) y autoriza importar las 48 personas reales a DEV. Mientras tanto: F3. |
 | **Bloqueos** | Acceso de la CLI al proyecto de producción (necesario recién en F7) |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -36,12 +36,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - [x] F1.5 `docs/RPC_CONTRACT.md` y `supabase/README.md`
 
 ## F2 — Bridge v3
-- [ ] F2.1 Spike de lectura en Bumblebee
-- [ ] F2.2 Pull → `bridge_sync_persons` (ciclos y conflictos)
-- [ ] F2.3 Comandos adaptados y `hik_valid_until`
-- [ ] F2.4 Importación inicial con dry-run
-- [ ] F2.5 Servicio de Windows e instalador
-- [ ] F2.6 Tests y prueba en vivo (ZZTEST)
+- [x] F2.1 Spike: `PersonCode` = cédula (48/48 numéricas, sin duplicados) y `EndDate`/`BeginDate` con zona horaria. El nivel de acceso no lista personas y `DisableStatus` está en 0 para todos → bloqueo por vigencia (D35). La creación de personas por API falla en todas las variantes probadas → D36
+- [x] F2.2 Lectura paginada completa → `bridge_sync_persons` (sin ciclos, probado en SQL)
+- [x] F2.3 Solo `set_validity`; fechas en hora Bogotá; tras un fallo espera al siguiente ciclo
+- [x] F2.4 `--import` / `--import --dry-run`. Dry-run en vivo: 48 personas, 0 sin cédula, 0 sin vigencia
+- [~] F2.5 `install_service.ps1` heredado (NSSM / tarea programada); revisar en el PC del box (F8)
+- [~] F2.6 12 tests unitarios en verde. En vivo: login, lectura completa y reporte de importación OK. **Pendiente:** escritura de vigencia sobre una persona ZZTEST (la del spike anterior, ID 50, ahora tiene datos que parecen reales y no se toca)
 
 ## F3 — Experiencia del atleta
 - [ ] F3.1 Stores de membresía, tiquetera y deudas
@@ -79,6 +79,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-10-22 (4) — Claude Code
+- F2 casi completa (repo `rokbox-bridge`, commit `3bd0d13`). Decisiones D35 (bloqueo por vigencia) y D36 (la app no crea personas en HCAC). Esquema y tests ajustados: 59/59 en verde.
+- La prueba de creación por API dejó 5 intentos fallidos registrados en el HCAC de desarrollo (sin efectos: ninguna persona creada).
+- La contraseña del usuario bridge de DEV se regenera en cada `db reset` (seed). El script local `set_bridge_pw.py` del scratchpad la fija y la guarda solo en `bridge/.env`; habría que llevarlo al repo bridge como herramienta de desarrollo.
 
 ### 2026-10-22 (3) — Claude Code
 - F1 completa:

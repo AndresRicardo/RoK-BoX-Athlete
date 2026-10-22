@@ -169,7 +169,7 @@ create policy "class_usages: propias o staff"
 create table public.access_commands (
   id           uuid primary key default gen_random_uuid(),
   member_id    uuid not null references public.members(id) on delete cascade,
-  command      text not null check (command in ('upsert_person', 'set_validity')),
+  command      text not null default 'set_validity' check (command = 'set_validity'),
   payload      jsonb not null default '{}',
   status       text not null default 'pending'
                check (status in ('pending', 'processing', 'done', 'failed', 'cancelled')),
@@ -270,32 +270,23 @@ begin
     v_target := least(now(), v_ms.valid_until);
   end if;
 
-  -- Persona aún no creada en HikCentral: un solo upsert con todo el estado.
+  -- La persona aún no existe en HCAC (D36): se registra allá (rostro/huella) y el bridge,
+  -- al vincularla por cédula, aplica esta vigencia.
   if v_member.hik_person_id is null then
-    if v_member.document_id is null then
-      return; -- sin cédula no se puede crear en HCAC
-    end if;
-    update public.access_commands set status = 'cancelled', finished_at = now()
-    where member_id = p_member_id and status = 'pending';
-    insert into public.access_commands (member_id, command, payload, requested_by)
-    values (p_member_id, 'upsert_person', jsonb_build_object(
-      'person_code', v_member.document_id,
-      'full_name', v_member.full_name,
-      'phone', v_member.phone,
-      'valid_from', least(coalesce(v_ms.valid_from, now()), v_target - interval '1 minute'),
-      'valid_until', v_target
-    ), auth.uid());
-  elsif v_target is distinct from v_current then
-    update public.access_commands set status = 'cancelled', finished_at = now()
-    where member_id = p_member_id and status = 'pending' and command = 'set_validity';
-    insert into public.access_commands (member_id, command, payload, requested_by)
-    values (p_member_id, 'set_validity', jsonb_build_object(
-      'valid_from', least(coalesce(v_ms.valid_from, now()), v_target - interval '1 minute'),
-      'valid_until', v_target
-    ), auth.uid());
-  else
     return;
   end if;
+
+  if v_target is not distinct from v_current then
+    return;
+  end if;
+
+  update public.access_commands set status = 'cancelled', finished_at = now()
+  where member_id = p_member_id and status = 'pending';
+  insert into public.access_commands (member_id, command, payload, requested_by)
+  values (p_member_id, 'set_validity', jsonb_build_object(
+    'valid_from', least(coalesce(v_ms.valid_from, now()), v_target - interval '1 minute'),
+    'valid_until', v_target
+  ), auth.uid());
 
   update public.memberships set hik_target_until = v_target where member_id = p_member_id;
 end;
@@ -646,10 +637,9 @@ end;
 $$;
 
 create or replace function public.complete_access_command(
-  p_command_id    uuid,
-  p_ok            boolean,
-  p_error         text default null,
-  p_hik_person_id text default null
+  p_command_id uuid,
+  p_ok         boolean,
+  p_error      text default null
 )
 returns public.access_commands
 language plpgsql security definer set search_path = ''
@@ -685,9 +675,6 @@ begin
   returning * into v_cmd;
 
   -- Registrar lo que quedó confirmado en HCAC (prevención de ciclos).
-  if v_cmd.command = 'upsert_person' and p_hik_person_id is not null then
-    update public.members set hik_person_id = p_hik_person_id where id = v_cmd.member_id;
-  end if;
   update public.memberships set
     hik_valid_from  = (v_cmd.payload->>'valid_from')::timestamptz,
     hik_valid_until = (v_cmd.payload->>'valid_until')::timestamptz,
@@ -808,6 +795,7 @@ begin
     end if;
 
     -- Primera vez que se ve esta persona: adoptar el estado de HCAC sin generar pendientes.
+    -- Si el miembro se creó o renovó antes en la app, su vigencia manda y se envía a HCAC (D36).
     if v_ms.hik_synced_at is null then
       update public.memberships set
         valid_from       = coalesce(valid_from, v_from),
@@ -817,6 +805,7 @@ begin
         hik_target_until = v_until,
         hik_synced_at    = now()
       where member_id = v_member.id;
+      perform private.request_hik_sync(v_member.id);
       v_adopted := v_adopted + 1;
       continue;
     end if;
@@ -889,7 +878,7 @@ begin
     'public.use_class(uuid)',
     'public.undo_class_usage(uuid)',
     'public.claim_next_access_command()',
-    'public.complete_access_command(uuid, boolean, text, text)',
+    'public.complete_access_command(uuid, boolean, text)',
     'public.bridge_heartbeat(text, text, int, text)',
     'public.bridge_sync_persons(jsonb, boolean)'
   ] loop
