@@ -1,5 +1,9 @@
 # RöK BoX Athlete v2 — Agent Guidelines
 
+> **Proyecto en curso: Athlete como centro de gestión del box.** Antes de cualquier tarea, lee
+> [`docs/PROGRESS.md`](docs/PROGRESS.md), [`docs/PLAN.md`](docs/PLAN.md) y [`docs/DECISIONES.md`](docs/DECISIONES.md).
+> No inicies desarrollo de ese plan hasta que `PROGRESS.md` indique `Plan: APROBADO`.
+
 ## Workflow
 
 - All work happens on the `develop` branch. Commit and push **only to `develop`**.
