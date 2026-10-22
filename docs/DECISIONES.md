@@ -62,3 +62,9 @@
 | D26 | Salida a producción | **Todo junto**, en un único paso a producción. |
 | D27 | Dónde vive el plan | En el repo Athlete (`docs/`). |
 | D28 | Fecha objetivo | Sin fecha fija. |
+
+## Decisiones posteriores
+
+| ID | Fecha | Decisión |
+|---|---|---|
+| D31 | 2026-10-22 | **Plan aprobado.** P1 (bloqueo automático de la tiquetera en 0), P2 (horarios de push del plan) y P3 (reserva por defecto 0) se aceptan como se propusieron. **DEV se puede borrar y reestructurar por completo** para tener un entorno limpio. Las migraciones `0001`–`0014` se conservan como archivos porque producción ya las tiene aplicadas, pero DEV se recrea desde cero (`db reset --linked`). |

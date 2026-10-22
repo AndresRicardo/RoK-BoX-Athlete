@@ -2,7 +2,7 @@
 
 PWA de alto rendimiento para atletas y staff de RöK BoX CrossFit. Diseñada 100% Mobile-First para pantallas de teléfonos inteligentes.
 
-Este repositorio forma parte del ecosistema unificado **RöK BoX Platform**. Para lineamientos de arquitectura, migraciones globales y diseño de base de datos, consultar el repositorio central: [`d:\rokbox-platform`](https://github.com/AndresRicardo/rokbox-platform).
+Es también el **centro de gestión del box** (socios y coaches). El plan del proyecto está en [`docs/PLAN.md`](docs/PLAN.md) y las migraciones de Supabase en [`supabase/`](supabase/). Lee [`AGENTS.md`](AGENTS.md) antes de contribuir.
 
 ## Características Principales
 
@@ -32,7 +32,7 @@ Este repositorio forma parte del ecosistema unificado **RöK BoX Platform**. Par
    - Renovación de membresías vía RPC `renew_membership`.
    - Aprobación / rechazo de solicitudes de vinculación de cédula vía RPC `review_member_link`.
 7. **Sincronización con Torniquete HikCentral**:
-   - Agente desacoplado en `d:\rokbox-platform\bridge` que sincroniza periódicamente hacia la API OpenAPI de HikCentral Access Control.
+   - Agente en el repo [`rokbox-bridge`](https://github.com/AndresRicardo/rokbox-bridge), instalado en el PC del box, que sincroniza Supabase y HikCentral Access Control en ambos sentidos (API ISAPI Bumblebee).
 
 ---
 

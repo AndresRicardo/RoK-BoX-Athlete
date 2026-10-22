@@ -2,13 +2,14 @@
 
 | Campo | Valor |
 |---|---|
-| **Plan** | 📋 PENDIENTE DE APROBACIÓN ([`PLAN.md`](PLAN.md)) |
-| **Fase actual** | — |
-| **Próximo paso** | Aprobar el plan, resolver P1–P3 y dar visto bueno para crear los repos en GitHub (F0.1) |
+| **Plan** | ✅ **APROBADO** (2026-10-22) |
+| **Fase actual** | F1 — Esquema consolidado en DEV |
+| **Próximo paso** | Escribir las migraciones `0015`–`0022` y hacer el reset completo de DEV |
+| **Bloqueos** | Acceso de la CLI al proyecto de producción (necesario recién en F7) |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
-## Pendientes por confirmar (valores por defecto propuestos)
+## Pendientes P1–P3 (aceptados con el valor propuesto el 2026-10-22)
 
 | ID | Pregunta | Propuesta |
 |---|---|---|
@@ -17,11 +18,15 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 | P3 | Fondo de reserva por defecto al hacer un cuadre | 0 (se digita en cada cuadre) |
 
 ## F0 — Preparación
-- [ ] F0.1 Subir `rokbox-platform` a GitHub privado, crear `rokbox-bridge` (privado) y archivar `rokbox-spent` *(requiere visto bueno)*
-- [ ] F0.2 Traer `supabase/` al repo Athlete y vincular la CLI a DEV
-- [ ] F0.3 Acceso de la CLI a producción y backup inicial
-- [ ] F0.4 Checklist de paridad `main` ↔ `develop` y portar lo faltante (incluido `2995b35`)
-- [ ] F0.5 Actualizar AGENTS.md y README, y quitar `scripts/hikcentral-sync`
+- [x] F0.1 `rokbox-platform` subido a GitHub privado y **archivado**. `rokbox-bridge` creado (privado, con historial, sin credenciales por defecto, 5/5 tests). `rokbox-spent` se archiva en F8.4, porque sigue en uso hasta producción.
+- [x] F0.2 `supabase/config.toml` en Athlete y CLI vinculada a DEV (`db query --linked` y `migration list` funcionan)
+- [~] F0.3 Acceso de la CLI a producción y backup inicial. **Bloqueado:** `supabase orgs list` sale vacío; el token de este PC no ve el proyecto de producción. El usuario debe hacer `supabase login` con una cuenta o token con acceso a la organización. Se necesita recién en F7.
+- [x] F0.4 Paridad `main` ↔ `develop`: todos los stores y acciones existen en la v2 y los líderes ya están en Comunidad. `main` se incorporó en `develop` con estrategia *ours* (`d31835f`). Huecos de UI, a corregir en F3.3:
+  - El feed no tiene "cargar más" (`feedStore.loadMore` sin uso).
+  - Los líderes no tienen "cargar más" (`loadMorePr` / `loadMoreBenchmarks`).
+  - `AthleteProfile` no llama `fetchMyNetwork`, así que el estado de "seguir" puede quedar desactualizado.
+  - `signOut` no resetea `notificationStore` ni `leaderboardStore`.
+- [x] F0.5 AGENTS.md reescrito, README actualizado y `scripts/hikcentral-sync` eliminado
 
 ## F1 — Esquema consolidado en DEV
 - [ ] F1.1 Migraciones `0015`–`0022` y script de reset de DEV
@@ -41,6 +46,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ## F3 — Experiencia del atleta
 - [ ] F3.1 Stores de membresía, tiquetera y deudas
 - [ ] F3.2 Tarjetas, historial de pagos y vínculo
+- [ ] F3.3 Huecos de paridad con `main` (ver F0.4)
 
 ## F4 — Pestaña Gestión
 - [ ] F4.1 Navegación por rol
@@ -73,6 +79,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-10-22 (2) — Claude Code
+- Plan aprobado; P1–P3 aceptados con lo propuesto. D31: DEV se puede borrar y reestructurar por completo.
+- F0 completa, salvo el acceso a producción (F0.3, que no bloquea hasta F7).
+- El historial de los repos privados `rokbox-platform` y `rokbox-bridge` contiene la contraseña del usuario bridge de DEV. Quedará invalidada al recrear los usuarios de DEV en F1.4, con una contraseña nueva que no se guarda en git.
 
 ### 2026-10-22 — Claude Code
 - Sesión de preguntas con el usuario (30 decisiones en `DECISIONES.md`).
