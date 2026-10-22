@@ -48,8 +48,11 @@ create policy "plans: socio actualiza"
 -- 2. MEMBRESÍA ACTUAL DE CADA MIEMBRO
 -- =====================================================================
 -- valid_* / access_enabled: estado deseado según la app.
--- hik_*: último estado CONFIRMADO en HikCentral (lo escribe el bridge). Sirve para
--- detectar cambios hechos directamente en HCAC y evitar ciclos (PLAN §4.2).
+-- HikCentral solo controla el acceso por vigencia (D35): bloquear = EndDate en el momento
+-- del bloqueo; desbloquear = EndDate de vuelta a valid_until.
+-- hik_valid_*: último estado CONFIRMADO en HCAC (lo escribe el bridge); hik_target_until:
+-- último EndDate pedido. Sirven para detectar cambios hechos directamente en HCAC y
+-- evitar ciclos (PLAN §4.2).
 create table public.memberships (
   member_id          uuid primary key references public.members(id) on delete cascade,
   plan_id            uuid references public.membership_plans(id) on delete set null,
@@ -62,8 +65,7 @@ create table public.memberships (
   classes_used       int not null default 0 check (classes_used >= 0),
   hik_valid_from     timestamptz,
   hik_valid_until    timestamptz,
-  hik_access_enabled boolean,
-  hik_access_desired boolean,
+  hik_target_until   timestamptz,
   hik_synced_at      timestamptz,
   last_change_origin text not null default 'app' check (last_change_origin in ('app', 'hikcentral')),
   updated_at         timestamptz not null default now(),
@@ -167,7 +169,7 @@ create policy "class_usages: propias o staff"
 create table public.access_commands (
   id           uuid primary key default gen_random_uuid(),
   member_id    uuid not null references public.members(id) on delete cascade,
-  command      text not null check (command in ('upsert_person', 'set_validity', 'enable', 'disable')),
+  command      text not null check (command in ('upsert_person', 'set_validity')),
   payload      jsonb not null default '{}',
   status       text not null default 'pending'
                check (status in ('pending', 'processing', 'done', 'failed', 'cancelled')),
@@ -236,26 +238,37 @@ as $$
           + time '23:59:59') at time zone 'America/Bogota';
 $$;
 
--- Encola los comandos necesarios para que HikCentral refleje la membresía.
--- p_validity: también enviar la vigencia (tras renovar o editar fechas).
-create or replace function private.request_hik_sync(p_member_id uuid, p_validity boolean)
+-- Encola el comando necesario para que HikCentral refleje la membresía (D35).
+-- EndDate objetivo = valid_until si el acceso es efectivo; si está bloqueado (manual o
+-- tiquetera agotada) = el momento del bloqueo. No duplica comandos si nada cambió.
+create or replace function private.request_hik_sync(p_member_id uuid)
 returns void
 language plpgsql security definer set search_path = ''
 as $$
 declare
-  v_member     public.members;
-  v_ms         public.memberships;
-  v_effective  boolean;
-  v_current    boolean;
+  v_member    public.members;
+  v_ms        public.memberships;
+  v_effective boolean;
+  v_target    timestamptz;
+  v_current   timestamptz;
 begin
   select * into v_member from public.members where id = p_member_id;
   select * into v_ms from public.memberships where member_id = p_member_id for update;
-  if v_ms.member_id is null then
+  if v_ms.member_id is null or v_ms.valid_until is null then
     return;
   end if;
 
   v_effective := v_ms.access_enabled
                  and (v_ms.classes_total is null or v_ms.classes_used < v_ms.classes_total);
+  v_current := coalesce(v_ms.hik_target_until, v_ms.hik_valid_until);
+
+  if v_effective then
+    v_target := v_ms.valid_until;
+  elsif v_current is not null and v_current <= now() then
+    return; -- ya está bloqueado en HCAC
+  else
+    v_target := least(now(), v_ms.valid_until);
+  end if;
 
   -- Persona aún no creada en HikCentral: un solo upsert con todo el estado.
   if v_member.hik_person_id is null then
@@ -269,32 +282,22 @@ begin
       'person_code', v_member.document_id,
       'full_name', v_member.full_name,
       'phone', v_member.phone,
-      'valid_from', v_ms.valid_from,
-      'valid_until', v_ms.valid_until,
-      'enabled', v_effective
+      'valid_from', least(coalesce(v_ms.valid_from, now()), v_target - interval '1 minute'),
+      'valid_until', v_target
     ), auth.uid());
-    update public.memberships set hik_access_desired = v_effective where member_id = p_member_id;
-    return;
-  end if;
-
-  if p_validity and v_ms.valid_until is not null then
+  elsif v_target is distinct from v_current then
     update public.access_commands set status = 'cancelled', finished_at = now()
     where member_id = p_member_id and status = 'pending' and command = 'set_validity';
     insert into public.access_commands (member_id, command, payload, requested_by)
     values (p_member_id, 'set_validity', jsonb_build_object(
-      'valid_from', coalesce(v_ms.valid_from, now()),
-      'valid_until', v_ms.valid_until
+      'valid_from', least(coalesce(v_ms.valid_from, now()), v_target - interval '1 minute'),
+      'valid_until', v_target
     ), auth.uid());
+  else
+    return;
   end if;
 
-  v_current := coalesce(v_ms.hik_access_desired, v_ms.hik_access_enabled, true);
-  if v_effective is distinct from v_current then
-    update public.access_commands set status = 'cancelled', finished_at = now()
-    where member_id = p_member_id and status = 'pending' and command in ('enable', 'disable');
-    insert into public.access_commands (member_id, command, requested_by)
-    values (p_member_id, case when v_effective then 'enable' else 'disable' end, auth.uid());
-    update public.memberships set hik_access_desired = v_effective where member_id = p_member_id;
-  end if;
+  update public.memberships set hik_target_until = v_target where member_id = p_member_id;
 end;
 $$;
 
@@ -405,7 +408,7 @@ begin
     auth.uid(), now(), p_note, auth.uid()
   ) returning * into v_renewal;
 
-  perform private.request_hik_sync(p_member_id, true);
+  perform private.request_hik_sync(p_member_id);
   return v_renewal;
 end;
 $$;
@@ -522,7 +525,7 @@ begin
   set valid_from = p_valid_from, valid_until = p_valid_until, last_change_origin = 'app'
   where member_id = p_member_id;
 
-  perform private.request_hik_sync(p_member_id, true);
+  perform private.request_hik_sync(p_member_id);
   select * into v_ms from public.memberships where member_id = p_member_id;
   return v_ms;
 end;
@@ -547,7 +550,7 @@ begin
   update public.memberships set access_enabled = p_enabled, last_change_origin = 'app'
   where member_id = p_member_id;
 
-  perform private.request_hik_sync(p_member_id, false);
+  perform private.request_hik_sync(p_member_id);
   select * into v_ms from public.memberships where member_id = p_member_id;
   return v_ms;
 end;
@@ -582,7 +585,7 @@ begin
   values (p_member_id, auth.uid())
   returning * into v_usage;
 
-  perform private.request_hik_sync(p_member_id, false);
+  perform private.request_hik_sync(p_member_id);
   return v_usage;
 end;
 $$;
@@ -608,7 +611,7 @@ begin
   update public.memberships set classes_used = greatest(classes_used - 1, 0)
   where member_id = v_usage.member_id;
 
-  perform private.request_hik_sync(v_usage.member_id, false);
+  perform private.request_hik_sync(v_usage.member_id);
   return v_usage;
 end;
 $$;
@@ -682,28 +685,14 @@ begin
   returning * into v_cmd;
 
   -- Registrar lo que quedó confirmado en HCAC (prevención de ciclos).
-  if v_cmd.command = 'upsert_person' then
-    if p_hik_person_id is not null then
-      update public.members set hik_person_id = p_hik_person_id where id = v_cmd.member_id;
-    end if;
-    update public.memberships set
-      hik_valid_from     = (v_cmd.payload->>'valid_from')::timestamptz,
-      hik_valid_until    = (v_cmd.payload->>'valid_until')::timestamptz,
-      hik_access_enabled = coalesce((v_cmd.payload->>'enabled')::boolean, true),
-      hik_synced_at      = now()
-    where member_id = v_cmd.member_id;
-  elsif v_cmd.command = 'set_validity' then
-    update public.memberships set
-      hik_valid_from  = (v_cmd.payload->>'valid_from')::timestamptz,
-      hik_valid_until = (v_cmd.payload->>'valid_until')::timestamptz,
-      hik_synced_at   = now()
-    where member_id = v_cmd.member_id;
-  else
-    update public.memberships set
-      hik_access_enabled = (v_cmd.command = 'enable'),
-      hik_synced_at      = now()
-    where member_id = v_cmd.member_id;
+  if v_cmd.command = 'upsert_person' and p_hik_person_id is not null then
+    update public.members set hik_person_id = p_hik_person_id where id = v_cmd.member_id;
   end if;
+  update public.memberships set
+    hik_valid_from  = (v_cmd.payload->>'valid_from')::timestamptz,
+    hik_valid_until = (v_cmd.payload->>'valid_until')::timestamptz,
+    hik_synced_at   = now()
+  where member_id = v_cmd.member_id;
 
   return v_cmd;
 end;
@@ -735,28 +724,30 @@ end;
 $$;
 
 -- Lectura de HikCentral → app (PLAN §4.2). p_persons: arreglo de objetos
--- {hik_person_id, person_code, full_name, phone, valid_from, valid_until, access_enabled}.
+-- {hik_person_id, person_code, full_name, phone, valid_from, valid_until}.
 -- p_full_snapshot: el lote contiene TODAS las personas (permite detectar eliminadas).
+-- Un cambio de EndDate respecto al último confirmado (hik_valid_until) es un cambio hecho
+-- directamente en HCAC: si extiende la vigencia crea una renovación pendiente de pago (D5);
+-- si deja la vigencia en el futuro, además desbloquea el acceso (D35).
 create or replace function public.bridge_sync_persons(p_persons jsonb, p_full_snapshot boolean default true)
 returns jsonb
 language plpgsql security definer set search_path = ''
 as $$
 declare
-  v_p         jsonb;
-  v_hik_id    text;
-  v_code      text;
-  v_from      timestamptz;
-  v_until     timestamptz;
-  v_enabled   boolean;
-  v_member    public.members;
-  v_ms        public.memberships;
-  v_created   int := 0;
-  v_adopted   int := 0;
-  v_extended  int := 0;
-  v_changed   int := 0;
-  v_skipped   int := 0;
+  v_p           jsonb;
+  v_hik_id      text;
+  v_code        text;
+  v_from        timestamptz;
+  v_until       timestamptz;
+  v_member      public.members;
+  v_ms          public.memberships;
+  v_created     int := 0;
+  v_adopted     int := 0;
+  v_extended    int := 0;
+  v_changed     int := 0;
+  v_skipped     int := 0;
   v_deactivated int := 0;
-  v_seen      text[] := '{}';
+  v_seen        text[] := '{}';
 begin
   if not private.is_bridge() then
     raise exception 'Permiso denegado' using errcode = '42501';
@@ -766,11 +757,10 @@ begin
   end if;
 
   for v_p in select * from jsonb_array_elements(p_persons) loop
-    v_hik_id  := nullif(v_p->>'hik_person_id', '');
-    v_code    := nullif(regexp_replace(coalesce(v_p->>'person_code', ''), '[^0-9A-Za-z-]', '', 'g'), '');
-    v_from    := (v_p->>'valid_from')::timestamptz;
-    v_until   := (v_p->>'valid_until')::timestamptz;
-    v_enabled := coalesce((v_p->>'access_enabled')::boolean, true);
+    v_hik_id := nullif(v_p->>'hik_person_id', '');
+    v_code   := nullif(regexp_replace(coalesce(v_p->>'person_code', ''), '[^0-9A-Za-z-]', '', 'g'), '');
+    v_from   := (v_p->>'valid_from')::timestamptz;
+    v_until  := (v_p->>'valid_until')::timestamptz;
     if v_hik_id is null then
       continue;
     end if;
@@ -794,12 +784,10 @@ begin
         v_hik_id, 'hikcentral'
       ) returning * into v_member;
       insert into public.memberships (
-        member_id, valid_from, valid_until, access_enabled,
-        hik_valid_from, hik_valid_until, hik_access_enabled, hik_access_desired,
+        member_id, valid_from, valid_until, hik_valid_from, hik_valid_until, hik_target_until,
         hik_synced_at, last_change_origin
       ) values (
-        v_member.id, v_from, v_until, v_enabled,
-        v_from, v_until, v_enabled, v_enabled, now(), 'hikcentral'
+        v_member.id, v_from, v_until, v_from, v_until, v_until, now(), 'hikcentral'
       );
       v_created := v_created + 1;
       continue;
@@ -822,14 +810,12 @@ begin
     -- Primera vez que se ve esta persona: adoptar el estado de HCAC sin generar pendientes.
     if v_ms.hik_synced_at is null then
       update public.memberships set
-        valid_from         = coalesce(valid_from, v_from),
-        valid_until        = coalesce(valid_until, v_until),
-        access_enabled     = v_enabled,
-        hik_valid_from     = v_from,
-        hik_valid_until    = v_until,
-        hik_access_enabled = v_enabled,
-        hik_access_desired = v_enabled,
-        hik_synced_at      = now()
+        valid_from       = coalesce(valid_from, v_from),
+        valid_until      = coalesce(valid_until, v_until),
+        hik_valid_from   = v_from,
+        hik_valid_until  = v_until,
+        hik_target_until = v_until,
+        hik_synced_at    = now()
       where member_id = v_member.id;
       v_adopted := v_adopted + 1;
       continue;
@@ -853,22 +839,16 @@ begin
       end if;
       update public.memberships set
         valid_from         = v_from,
-        valid_until        = v_until,
+        -- Vigencia futura fijada en HCAC = acceso habilitado. Si queda en el pasado y la app
+        -- tenía el acceso bloqueado, se conserva la vigencia real de la app.
+        valid_until        = case when v_until is null or v_until > now() or access_enabled
+                                  then v_until else valid_until end,
+        access_enabled     = case when v_until > now() then true else access_enabled end,
         hik_valid_from     = v_from,
         hik_valid_until    = v_until,
+        hik_target_until   = v_until,
         last_change_origin = 'hikcentral'
       where member_id = v_member.id;
-    end if;
-
-    -- Bloqueo / desbloqueo hecho directamente en HCAC.
-    if v_enabled is distinct from v_ms.hik_access_enabled then
-      update public.memberships set
-        access_enabled     = v_enabled,
-        hik_access_enabled = v_enabled,
-        hik_access_desired = v_enabled,
-        last_change_origin = 'hikcentral'
-      where member_id = v_member.id;
-      v_changed := v_changed + 1;
     end if;
 
     update public.memberships set hik_synced_at = now() where member_id = v_member.id;

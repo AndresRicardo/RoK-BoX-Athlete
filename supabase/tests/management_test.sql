@@ -184,7 +184,7 @@ begin
   insert into zz_tests.results (name, ok, detail)
   values ('tiquetera llega a 0 → estado no_classes', v_s.status = 'no_classes' and v_s.classes_left = 0, v_s.status);
   insert into zz_tests.results (name, ok, detail)
-  select 'tiquetera en 0 pide bloqueo a HCAC', hik_access_desired = false, hik_access_desired::text
+  select 'tiquetera en 0 pide bloqueo a HCAC (EndDate = ahora)', hik_target_until <= now(), hik_target_until::text
   from public.memberships where member_id = 'a0000000-0000-0000-0000-000000000002';
   begin
     perform public.use_class('a0000000-0000-0000-0000-000000000002');
@@ -428,25 +428,69 @@ begin
   values ('extensión en HCAC → pendiente; persona nueva → miembro',
           (v_res->>'extended')::int = 1 and (v_res->>'created')::int = 1, v_res::text);
 
-  -- Bloqueo hecho en HCAC.
-  v_res := public.bridge_sync_persons(jsonb_build_array(
-    jsonb_build_object('hik_person_id', 'HIK-003', 'person_code', '999000003', 'full_name', 'ZZTEST Vencido',
-                       'valid_from', v_ms.hik_valid_from, 'valid_until', v_until, 'access_enabled', false)), false);
-  insert into zz_tests.results (name, ok, detail)
-  values ('bloqueo en HCAC se refleja', (v_res->>'changed')::int = 1, v_res::text);
 end $$;
 
 reset role;
 
 do $$ begin
   insert into zz_tests.results (name, ok, detail)
-  select 'estado tras cambios en HCAC', status = 'disabled' and has_pending_payment and last_change_origin = 'hikcentral', status
+  select 'tras extensión en HCAC: pendiente de pago, origen hikcentral',
+         status = 'active' and has_pending_payment and last_change_origin = 'hikcentral', status
   from public.membership_status where member_id = 'a0000000-0000-0000-0000-000000000003';
   insert into zz_tests.results (name, ok, detail)
   select 'socios avisados de renovación pendiente', count(*) = 2, count(*)::text
   from public.notifications where type = 'renewal_pending';
   insert into zz_tests.results (name, ok, detail)
   select 'miembro creado desde HCAC', source = 'hikcentral', source from public.members where hik_person_id = 'HIK-900';
+end $$;
+
+-- Socio bloquea desde la app → el bridge pone EndDate = ahora (D35).
+select set_config('request.jwt.claims', '{"sub":"77777777-7777-7777-7777-777777777777","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.set_member_access('a0000000-0000-0000-0000-000000000003', false);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare
+  v_cmd public.access_commands;
+  v_ms  public.memberships;
+  v_res jsonb;
+begin
+  v_cmd := public.claim_next_access_command();
+  insert into zz_tests.results (name, ok, detail)
+  values ('bloquear encola set_validity con EndDate = ahora',
+          v_cmd.command = 'set_validity' and (v_cmd.payload->>'valid_until')::timestamptz <= now(), v_cmd.payload::text);
+  perform public.complete_access_command(v_cmd.id, true);
+
+  -- Lectura con el bloqueo ya aplicado: sin cambios.
+  select * into v_ms from public.memberships where member_id = 'a0000000-0000-0000-0000-000000000003';
+  v_res := public.bridge_sync_persons(jsonb_build_array(
+    jsonb_build_object('hik_person_id', 'HIK-003', 'person_code', '999000003',
+                       'valid_from', v_ms.hik_valid_from, 'valid_until', v_ms.hik_valid_until)), false);
+  insert into zz_tests.results (name, ok, detail)
+  values ('bloqueo aplicado no se detecta como cambio externo',
+          (v_res->>'changed')::int = 0 and (v_res->>'extended')::int = 0, v_res::text);
+
+  -- Alguien restaura la vigencia directamente en HCAC → desbloqueo.
+  v_res := public.bridge_sync_persons(jsonb_build_array(
+    jsonb_build_object('hik_person_id', 'HIK-003', 'person_code', '999000003',
+                       'valid_from', v_ms.hik_valid_from, 'valid_until', v_ms.valid_until)), false);
+  insert into zz_tests.results (name, ok, detail)
+  values ('restaurar vigencia en HCAC cuenta como cambio (sin renovación nueva)',
+          (v_res->>'changed')::int = 1 and (v_res->>'extended')::int = 0, v_res::text);
+end $$;
+
+reset role;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'desbloqueo hecho en HCAC se refleja en la app', status <> 'disabled' and access_enabled, status
+  from public.membership_status where member_id = 'a0000000-0000-0000-0000-000000000003';
 end $$;
 
 -- Socio completa el pago pendiente.

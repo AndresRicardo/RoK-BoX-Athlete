@@ -65,7 +65,7 @@ Referencia para la app y el bridge. Los tipos completos generados están en
 | `complete_pending_renewal(p_renewal_id, p_amount, p_payment_method, p_received_by_partner, p_plan_id?, p_note?)` | socio | Registra el pago de una renovación hecha en HikCentral y genera el ingreso. |
 | `void_renewal(p_renewal_id, p_reason)` | socio | Anula la renovación y su ingreso. La vigencia no cambia. |
 | `set_membership_validity(p_member_id, p_valid_from, p_valid_until)` | socio | Corrección manual de fechas. |
-| `set_member_access(p_member_id, p_enabled)` | socio | Bloquea o desbloquea el acceso. |
+| `set_member_access(p_member_id, p_enabled)` | socio | Bloquea o desbloquea el acceso. En HCAC, bloquear pone `EndDate` en el momento del bloqueo; desbloquear restaura la vigencia (D35). |
 | `use_class(p_member_id)` / `undo_class_usage(p_usage_id)` | staff | Descuenta o devuelve una clase de la tiquetera. Al llegar a 0 encola el bloqueo en HikCentral. |
 
 `payment_method`: `cash`, `nequi`, `daviplata`, `bre_b`, `transfer`, `card` u `other`.
@@ -105,12 +105,13 @@ Detalle de `calculate_settlement`:
 | `claim_next_access_command()` | Toma el comando pendiente más antiguo (`skip locked`). Devuelve una fila con `id` nulo si no hay. |
 | `complete_access_command(p_command_id, p_ok, p_error?, p_hik_person_id?)` | Con `p_ok`, registra el estado confirmado en HCAC (`hik_*`). Si falla, reintenta hasta 5 veces y luego queda `failed`, con aviso a los socios. |
 | `bridge_heartbeat(p_agent_version?, p_hik_version?, p_persons_count?, p_error?)` | Señal de vida. |
-| `bridge_sync_persons(p_persons jsonb, p_full_snapshot=true)` | Recibe un arreglo de `{hik_person_id, person_code, full_name, phone, valid_from, valid_until, access_enabled}`. Devuelve `{created, adopted, extended, changed, skipped, deactivated}`. |
+| `bridge_sync_persons(p_persons jsonb, p_full_snapshot=true)` | Recibe un arreglo de `{hik_person_id, person_code, full_name, phone, valid_from, valid_until}`. Devuelve `{created, adopted, extended, changed, skipped, deactivated}`. |
 
 Payloads de los comandos que entrega `claim_next_access_command`:
 
 | `command` | `payload` |
 |---|---|
-| `upsert_person` | `{person_code, full_name, phone, valid_from, valid_until, enabled}` |
+| `upsert_person` | `{person_code, full_name, phone, valid_from, valid_until}` |
 | `set_validity` | `{valid_from, valid_until}` |
-| `enable` / `disable` | `{}` |
+
+Solo existen esos dos comandos: el bloqueo también se aplica como `set_validity`, con `valid_until` igual al momento del bloqueo (D35).
