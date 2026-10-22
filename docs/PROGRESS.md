@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F1 — Esquema consolidado en DEV |
-| **Próximo paso** | Escribir las migraciones `0015`–`0022` y hacer el reset completo de DEV |
+| **Fase actual** | F2 — Bridge v3 |
+| **Próximo paso** | F2.1: spike de lectura de personas en Bumblebee (HCAC del PC de desarrollo) |
 | **Bloqueos** | Acceso de la CLI al proyecto de producción (necesario recién en F7) |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -29,11 +29,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - [x] F0.5 AGENTS.md reescrito, README actualizado y `scripts/hikcentral-sync` eliminado
 
 ## F1 — Esquema consolidado en DEV
-- [ ] F1.1 Migraciones `0015`–`0022` y script de reset de DEV
-- [ ] F1.2 Aplicar en DEV y generar tipos
-- [ ] F1.3 Tests SQL (RLS, RPC, cuadre, ingresos automáticos, auditoría)
-- [ ] F1.4 Usuarios y seeds de DEV
-- [ ] F1.5 `RPC_CONTRACT.md`
+- [x] F1.1 Migraciones `0015`–`0022`. DEV se recrea completo con `supabase db reset --linked` (D31), sin script aparte.
+- [x] F1.2 Aplicado en DEV; tipos en `supabase/types/database.types.ts`
+- [x] F1.3 `supabase/tests/management_test.sql`: **54/54 en verde**. Cubre RLS por rol, RPC, cuadre con un escenario calculado a mano, bridge sin ciclos, invitaciones, triggers del feed y trabajos programados. Asesor de seguridad revisado; ajustes en `0022_hardening.sql`.
+- [x] F1.4 `supabase/seed.sql`: usuarios de prueba con contraseña aleatoria (la del bridge vieja quedó invalidada), invitación de la cuenta Google del dueño, planes, catálogo, categorías y miembros ZZTEST
+- [x] F1.5 `docs/RPC_CONTRACT.md` y `supabase/README.md`
 
 ## F2 — Bridge v3
 - [ ] F2.1 Spike de lectura en Bumblebee
@@ -79,6 +79,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-10-22 (3) — Claude Code
+- F1 completa:
+  - Se reemplazaron las migraciones 0015 viejas y las 0016–0020 de `rokbox-platform` por `0015`–`0022` consolidadas, que corrigen E1–E16.
+  - DEV se reseteó por completo (D31). **Se borraron también las cuentas Google de DEV**: al volver a entrar, la del dueño queda como socio por invitación (D33).
+- Decisiones de implementación: D32 (el cuadre usa el efectivo esperado), D33 (invitaciones) y D34 (reglas de membresía).
+- La app (`develop`) **aún usa el esquema viejo** (`staffStore`, `membershipStore`, `debtStore`): el preview de Vercel mostrará errores en membresía, deudas y staff hasta F3–F4. Las funciones de atleta (PRs, feed, líderes) no cambian.
 
 ### 2026-10-22 (2) — Claude Code
 - Plan aprobado; P1–P3 aceptados con lo propuesto. D31: DEV se puede borrar y reestructurar por completo.

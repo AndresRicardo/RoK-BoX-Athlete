@@ -51,18 +51,18 @@ Las migraciones `0015`–`0020` **nunca se aplicaron en producción** (AUDITORIA
 3. **En DEV:** un script `supabase/scripts/reset_management_dev.sql` borra solo los objetos de gestión de 0015–0020. Después se repara el historial (`supabase migration repair`) y se aplican las migraciones nuevas. Las tablas 0001–0014 de DEV se conservan.
 4. **En producción:** se aplican las migraciones nuevas sobre 0014. No hay datos de gestión que migrar (D17).
 
-### Migraciones nuevas (borrador)
+### Migraciones nuevas (implementadas en F1, aplicadas en DEV)
 
 | Archivo | Contenido |
 |---|---|
-| `0015_roles_members.sql` | `user_roles` (`partner`, `coach`, `bridge`), helpers, `members` (con `source` `hikcentral`/`app` y `hik_person_id`), `member_link_requests` y sus RPC (con corrección E7), y la vista `athlete_directory`. |
-| `0016_plans_memberships.sql` | **`membership_plans`**: nombre, tipo `period`/`class_pack`, duración en días o meses, número de clases, precio y estado activo. **`memberships`**: plan, vigencia, `access_enabled`, `classes_total`, `classes_used`, `hik_valid_until`, `hik_synced_at` y `last_change_origin`. **`membership_renewals`**: `origin` (`app`/`hikcentral`), `payment_status` (`paid`/`pending`), `list_price`, `discount`, `discount_reason`, `amount`, `received_by_partner`, `collected_by` y `payment_method`. **`class_usages`**: consumo manual de la tiquetera, con quién lo hizo y cuándo. **Vista `membership_status`**: estados `active`, `expiring_soon`, `overdue`, `disabled`, `no_classes` y `no_membership`, más `classes_left` y `debt_balance`. **RPC** `renew_membership`, `complete_pending_renewal`, `use_class`/`undo_class_usage` y `set_member_access`. |
-| `0017_access_bridge.sql` | `access_commands`, `bridge_status`, `access_events` (reservada para asistencia futura) y los RPC del bridge. Incluye el nuevo **`bridge_sync_persons(p_persons jsonb)`** (ver §4.2). |
-| `0018_products_debts.sql` | **`products`** (catálogo con categoría `store`/`equipment`/`other` y precio), `debts`, `debt_items`, `debt_payments` (con `received_by_partner` obligatorio y `collected_by`), triggers de recálculo y la vista `debt_summary`. |
-| `0019_finance.sql` | `partners` (sin columnas de compatibilidad con Spent), `expense_categories`, `expenses` (`scope` `BOX`/`PERSONAL`), `incomes` (`source` `manual`/`membership`/`debt_payment`/`sale`, con `product_id` y `quantity` opcionales), **`partner_transfers`** (entregas de dinero entre socios) y `settlements` (foto inmutable con efectivo declarado, efectivo esperado, diferencias, transferencias y su estado de pago). Triggers de ingreso automático. RPC **`calculate_settlement`** y **`save_settlement`**. |
-| `0020_audit.sql` | `audit_log` (tabla, id del registro, acción, actor, fecha, valores anterior y nuevo) con un trigger genérico en `memberships`, `membership_renewals`, `class_usages`, `debts`, `debt_items`, `debt_payments`, `expenses`, `incomes`, `partner_transfers`, `settlements`, `partners` y `user_roles`. |
-| `0021_push_notifications.sql` | `push_subscriptions`, `notification_outbox`, preferencias y trabajos **`pg_cron`** que invocan la Edge Function `send-push`. |
-| `0022_realtime.sql` | Publicación de Realtime para las tablas que la app escucha. |
+| `0015_roles_partners_members.sql` | Esquema `private` con helpers de rol, `user_roles`, `partners`, **`role_invites`** (invitación por email que se aplica al crear la cuenta), `members` y `member_link_requests`. RPC: `set_user_role`, `claim_role_invites`, `request_member_link`, `review_member_link` (corrección E7) y `upsert_member`. No toca `profiles` ni `athlete_directory`. |
+| `0016_memberships_access.sql` | Dominio `payment_method`, `membership_plans`, `memberships` (estado deseado + estado confirmado en HCAC `hik_*`), `membership_renewals` (pagadas o pendientes), `class_usages`, `access_commands`, `bridge_status` y `access_events`. RPC de membresía y del bridge, incluido **`bridge_sync_persons`**. |
+| `0017_products_debts.sql` | `products`, `debts`, `debt_items`, `debt_payments` (validación de saldo y socio receptor), recálculo, `create_debt`, `void_debt` y las vistas `debt_summary` y **`membership_status`**. |
+| `0018_finance.sql` | `expense_categories`, `expenses`, `incomes`, `partner_transfers` y `settlements`. Ingresos automáticos, `register_sale`, **`calculate_settlement`**, `save_settlement`, `set_settlement_transfer_paid`, `delete_settlement` y la vista `settlement_list`. |
+| `0019_audit.sql` | `audit_log` y un trigger genérico en 15 tablas. |
+| `0020_notifications.sql` | Extensión de `notifications`, `push_subscriptions`, `notification_preferences`, avisos inmediatos (triggers) y programados (`pg_cron`). El envío push (Edge Function) se hace en F5. |
+| `0021_realtime.sql` | Publicación de Realtime. |
+| `0022_hardening.sql` | Ajustes de seguridad sobre objetos de 0001–0014 señalados por el asesor de Supabase. |
 | `supabase/tests/*.sql` | Tests de RLS por rol (atleta, coach, socio, bridge, anónimo), de los RPC y de la fórmula del cuadre. |
 
 ### Reglas de seguridad (RLS)
@@ -143,14 +143,14 @@ boxExpensesPaid_i  = Σ gastos BOX pagados por i
 personalExpenses_i = Σ gastos PERSONAL de i
 expectedCash_i     = incomeCollected_i − boxExpensesPaid_i − personalExpenses_i
                      − entregas hechas por i + entregas recibidas por i
-cashOnHand_i       = valor DIGITADO por el socio (por defecto = expectedCash_i)
-difference_i       = cashOnHand_i − expectedCash_i            ← alerta de faltante o sobrante (D8)
+declaredCash_i     = valor DIGITADO por el socio (opcional)
+difference_i       = declaredCash_i − expectedCash_i          ← alerta de faltante o sobrante (D8, D32)
 
 totalIncome  = Σ incomeCollected
 boxExpenses  = Σ boxExpensesPaid
 netProfit    = totalIncome − boxExpenses − reserveFund
 grossShare_i = netProfit × percentage_i / 100
-netBalance_i = grossShare_i − (personalExpenses_i + cashOnHand_i)
+netBalance_i = grossShare_i − (personalExpenses_i + expectedCash_i)   ← usa el ESPERADO (D32)
 ```
 
 - Si `netBalance > 0`, el socio recibe; si es negativo, paga. Las transferencias se emparejan de forma greedy y el sobrante va al fondo de reserva. La suma de porcentajes debe dar 100 %.
