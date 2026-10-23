@@ -63,6 +63,7 @@ Las migraciones `0015`–`0020` **nunca se aplicaron en producción** (AUDITORIA
 | `0020_notifications.sql` | Extensión de `notifications`, `push_subscriptions`, `notification_preferences`, avisos inmediatos (triggers) y programados (`pg_cron`). El envío push (Edge Function) se hace en F5. |
 | `0021_realtime.sql` | Publicación de Realtime. |
 | `0022_hardening.sql` | Ajustes de seguridad sobre objetos de 0001–0014 señalados por el asesor de Supabase. |
+| `0023_push_dispatch.sql` | Envío push (F5): trigger y cron que llaman a `send-push` por `pg_net` con un secreto de Vault, `claim_push_batch` (solo `service_role`) y `register_push_subscription`. |
 | `supabase/tests/*.sql` | Tests de RLS por rol (atleta, coach, socio, bridge, anónimo), de los RPC y de la fórmula del cuadre. |
 
 ### Reglas de seguridad (RLS)
@@ -259,7 +260,8 @@ Al final, **el usuario y su socio** prueban en el preview de Vercel durante al m
 1. Restaurar el backup de producción en un proyecto o branch de Supabase temporal y aplicar las migraciones nuevas.
 2. Convertir `profiles.weight_kg` de libras a kilos (E17) y unificar `profiles.box_name` a "RöK BoX" (E18).
 3. Correr los tests SQL y apuntar un build de la app a ese ensayo para validar que los datos de atletas sigan intactos.
-4. Escribir el **runbook** paso a paso y el **plan de reversa**: backup + revert de `main` en Vercel + bridge detenido. HikCentral sigue funcionando solo.
+4. Configurar el push en el ensayo: secretos VAPID, `send-push` y `configure-push.mjs` (ver `supabase/README.md`).
+5. Escribir el **runbook** paso a paso y el **plan de reversa**: backup + revert de `main` en Vercel + bridge detenido. HikCentral sigue funcionando solo.
 
 ### F8 — Producción (requiere orden explícita)
 1. Backup del día.

@@ -5,6 +5,7 @@ import BottomNavigation from '../components/BottomNavigation';
 import AchievementModal from '../components/AchievementModal';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
+import { syncPushSubscription } from '../utils/push';
 
 export default function MobileLayout({ title }) {
   const userId = useAuthStore((state) => state.user?.id);
@@ -14,6 +15,11 @@ export default function MobileLayout({ title }) {
   useEffect(() => {
     if (userId) fetchProfile(userId).catch(() => {});
   }, [userId, fetchProfile]);
+
+  // Si el teléfono ya tiene permiso de push, queda registrado a nombre de esta cuenta.
+  useEffect(() => {
+    if (userId) syncPushSubscription();
+  }, [userId]);
 
   return (
     <div className="min-h-screen bg-[#0A0A0C] text-white flex flex-col justify-between">

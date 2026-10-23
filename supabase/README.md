@@ -3,7 +3,9 @@
 | Ruta | Contenido |
 |---|---|
 | `migrations/0001`–`0014` | Esquema de atletas, **ya aplicado en producción**. No se edita. |
-| `migrations/0015`–`0022` | Gestión: roles, socios, miembros, membresías, bridge, deudas, finanzas, auditoría, notificaciones, realtime y endurecimiento. |
+| `migrations/0015`–`0023` | Gestión: roles, socios, miembros, membresías, bridge, deudas, finanzas, auditoría, notificaciones, realtime, endurecimiento y envío push. |
+| `functions/send-push` | Edge Function que envía los avisos como Web Push (F5). |
+| `scripts/configure-push.mjs` | Configura el secreto entre la base y `send-push` (Vault + secreto de la función). |
 | `seed.sql` | Datos de prueba **solo para DEV** (usuarios `*.dev@rokbox.co`, planes, catálogo, categorías y miembros `ZZTEST`). |
 | `tests/management_test.sql` | Tests de RLS, RPC, cuadre, bridge, invitaciones y trabajos programados. Corren en una transacción que se revierte al final. |
 | `types/database.types.ts` | Tipos generados (referencia). |
@@ -14,10 +16,29 @@ El contrato de datos está en [`docs/RPC_CONTRACT.md`](../docs/RPC_CONTRACT.md).
 
 ```bash
 supabase db reset --linked                                  # DEV desde cero: migraciones + seed (borra todo)
+node supabase/scripts/configure-push.mjs                    # tras un reset: vuelve a conectar la base con send-push
 supabase db query --linked -f supabase/tests/management_test.sql   # tests (resumen en la última fila)
 supabase gen types typescript --linked > supabase/types/database.types.ts
 supabase db advisors --linked --type security
 ```
+
+## Notificaciones push
+
+`public.notifications` es la cola: al insertar un aviso, la base llama por `pg_net` a `send-push`, que lo envía a los teléfonos suscritos (`push_subscriptions`). Un cron cada minuto reintenta lo pendiente. Sin configuración, la base no llama a nada.
+
+Configuración de un proyecto (DEV ya la tiene):
+
+```bash
+# 1. Claves VAPID (una vez por proyecto; la pública también va en VITE_VAPID_PUBLIC_KEY).
+#    Se pueden reutilizar las de DEV. Nunca en git.
+supabase secrets set VAPID_PUBLIC_KEY=... VAPID_PRIVATE_KEY=... VAPID_SUBJECT=mailto:...
+# 2. Función (sin verificación de JWT: se autentica con el secreto compartido)
+supabase functions deploy send-push --no-verify-jwt --use-api
+# 3. Secreto compartido en Vault y en la función (no se imprime). Repetir tras cada db reset.
+node supabase/scripts/configure-push.mjs
+```
+
+Para revisar las llamadas: `select status_code, content from net._http_response order by created desc limit 5;`
 
 ## Usuarios de DEV
 

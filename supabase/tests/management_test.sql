@@ -106,6 +106,9 @@ reset role;
 -- =====================================================================
 -- COACH
 -- =====================================================================
+-- DEV puede tener miembros reales importados: el coach debe ver todos los que existan.
+insert into zz_tests.ctx select 'members_total', count(*)::text from public.members;
+
 select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
 set local role authenticated;
 
@@ -119,7 +122,8 @@ end $$;
 
 do $$ begin
   insert into zz_tests.results (name, ok, detail)
-  select 'coach ve todos los miembros', count(*) = 3, count(*)::text from public.membership_status;
+  select 'coach ve todos los miembros', count(*) = (select val::int from zz_tests.ctx where key = 'members_total'),
+         count(*)::text from public.membership_status;
   insert into zz_tests.results (name, ok, detail)
   select 'coach no ve gastos ni cuadres', (select count(*) from public.expenses) + (select count(*) from public.settlements) = 0, null;
   insert into zz_tests.results (name, ok, detail)
@@ -244,10 +248,10 @@ do $$ begin
     and partner_id = (select val::uuid from zz_tests.ctx where key = 'p_socio2') and amount = 150000;
   insert into zz_tests.results (name, ok, detail)
   select 'abono genera ingreso', count(*) = 1, count(*)::text
-  from public.incomes where source = 'debt_payment' and amount = 5000;
+  from public.incomes where source = 'debt_payment' and amount = 5000 and created_at >= now();
   insert into zz_tests.results (name, ok, detail)
   select 'venta de contado genera ingreso', count(*) = 1 and min(amount) = 18000, min(amount)::text
-  from public.incomes where source = 'sale';
+  from public.incomes where source = 'sale' and created_at >= now();
   insert into zz_tests.results (name, ok, detail)
   select 'renovar sin persona en HCAC no encola comandos (D36)', count(*) = 0, count(*)::text
   from public.access_commands where member_id = 'a0000000-0000-0000-0000-000000000003';
@@ -259,7 +263,7 @@ do $$ begin
   insert into zz_tests.results (name, ok, detail)
   select 'crear deuda con varios ítems envía un solo aviso de cargo', count(*) = 1, count(*)::text
   from public.notifications
-  where recipient_id = '44444444-4444-4444-4444-444444444444' and type = 'debt_charged';
+  where recipient_id = '44444444-4444-4444-4444-444444444444' and type = 'debt_charged' and created_at >= now();
   insert into zz_tests.results (name, ok, detail)
   select 'auditoría registra cambios', count(*) > 0, count(*)::text
   from public.audit_log where table_name in ('membership_renewals', 'debt_payments', 'memberships');
@@ -456,8 +460,9 @@ do $$ begin
          status = 'active' and has_pending_payment and last_change_origin = 'hikcentral', status
   from public.membership_status where member_id = 'a0000000-0000-0000-0000-000000000003';
   insert into zz_tests.results (name, ok, detail)
-  select 'socios avisados de renovación pendiente', count(*) = 2, count(*)::text
-  from public.notifications where type = 'renewal_pending';
+  select 'socios avisados de renovación pendiente',
+         count(*) = (select count(*) from public.user_roles where role = 'partner'), count(*)::text
+  from public.notifications where type = 'renewal_pending' and created_at >= now();
   insert into zz_tests.results (name, ok, detail)
   select 'miembro creado desde HCAC', source = 'hikcentral', source from public.members where hik_person_id = 'HIK-900';
 end $$;
@@ -567,6 +572,73 @@ do $$ begin
   insert into zz_tests.results (name, ok) values ('trabajos programados se ejecutan', true);
 exception when others then
   insert into zz_tests.results (name, ok, detail) values ('trabajos programados se ejecutan', false, sqlerrm);
+end $$;
+
+-- =====================================================================
+-- PUSH (0023)
+-- =====================================================================
+-- Atleta registra un dispositivo; luego atleta2 inicia sesión en el mismo teléfono.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.register_push_subscription('https://push.example/zz-device', 'p256dh-key', 'auth-key', 'test');
+  insert into zz_tests.results (name, ok, detail)
+  select 'push: el atleta registra su dispositivo', count(*) = 1, count(*)::text
+  from public.push_subscriptions where endpoint = 'https://push.example/zz-device';
+  begin
+    perform public.register_push_subscription('http://inseguro', 'a', 'b', null);
+    insert into zz_tests.results (name, ok) values ('push: rechaza endpoint no https', false);
+  exception when others then
+    insert into zz_tests.results (name, ok, detail) values ('push: rechaza endpoint no https', sqlstate = '22023', sqlstate);
+  end;
+  begin
+    perform public.claim_push_batch(10);
+    insert into zz_tests.results (name, ok) values ('push: un usuario no puede reclamar el lote', false);
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('push: un usuario no puede reclamar el lote', true);
+  end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.register_push_subscription('https://push.example/zz-device', 'p256dh-2', 'auth-2', 'test');
+  insert into zz_tests.results (name, ok, detail)
+  select 'push: el dispositivo pasa a la cuenta que inició sesión', count(*) = 1, count(*)::text
+  from public.push_subscriptions where endpoint = 'https://push.example/zz-device';
+end $$;
+reset role;
+
+do $$
+declare
+  v_ids uuid[];
+begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'push: la suscripción quedó a nombre de atleta2', user_id = '66666666-6666-6666-6666-666666666666', user_id::text
+  from public.push_subscriptions where endpoint = 'https://push.example/zz-device';
+
+  -- Lote: atleta2 desactivó "like": ese aviso se marca como enviado pero no se devuelve.
+  update public.notifications set pushed_at = now() where pushed_at is null;
+  insert into public.notification_preferences (user_id, disabled_types)
+  values ('66666666-6666-6666-6666-666666666666', array['like'])
+  on conflict (user_id) do update set disabled_types = excluded.disabled_types;
+  insert into public.notifications (recipient_id, actor_id, type, title, body)
+  values ('66666666-6666-6666-6666-666666666666', null, 'debt_reminder', 'A', 'a'),
+         ('44444444-4444-4444-4444-444444444444', '66666666-6666-6666-6666-666666666666', 'like', null, null),
+         ('66666666-6666-6666-6666-666666666666', '44444444-4444-4444-4444-444444444444', 'like', null, null);
+  insert into public.notifications (recipient_id, actor_id, type, title, body, created_at)
+  values ('66666666-6666-6666-6666-666666666666', null, 'debt_reminder', 'Viejo', 'v', now() - interval '2 days');
+
+  select array_agg(id) into v_ids from public.claim_push_batch(50);
+  insert into zz_tests.results (name, ok, detail)
+  select 'push: el lote devuelve solo lo enviable', coalesce(array_length(v_ids, 1), 0) = 2,
+         coalesce(array_length(v_ids, 1), 0)::text;
+  insert into zz_tests.results (name, ok, detail)
+  select 'push: todo queda marcado (incluye desactivado y viejo)', count(*) = 0, count(*)::text
+  from public.notifications where pushed_at is null;
+  insert into zz_tests.results (name, ok, detail)
+  select 'push: un segundo lote sale vacío', count(*) = 0, count(*)::text from public.claim_push_batch(50);
 end $$;
 
 -- =====================================================================

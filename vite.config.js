@@ -45,6 +45,8 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         // Las librerías de exportación (PDF/Excel) solo las usan los socios: se descargan al exportar.
         globIgnores: ['**/export-*.js'],
+        // Avisos push (public/push-sw.js).
+        importScripts: ['push-sw.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,

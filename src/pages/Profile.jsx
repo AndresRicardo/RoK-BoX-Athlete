@@ -20,6 +20,7 @@ import FollowListModal from '../components/FollowListModal';
 import MembershipCard from '../components/MembershipCard';
 import DebtCard from '../components/DebtCard';
 import PaymentHistory from '../components/PaymentHistory';
+import PushSettings from '../components/PushSettings';
 
 const DEFAULT_BOX = 'RöK BoX';
 const HANDLE_REGEX = /^[a-z0-9._]{3,20}$/;
@@ -539,6 +540,14 @@ export default function Profile() {
         </span>
         <DebtCard />
         <PaymentHistory />
+      </div>
+
+      {/* Notificaciones push y preferencias */}
+      <div id="notificaciones" className="flex flex-col gap-2">
+        <span className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider">
+          Notificaciones
+        </span>
+        <PushSettings />
       </div>
 
       {/* Cerrar Sesión */}

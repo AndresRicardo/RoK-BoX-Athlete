@@ -114,3 +114,13 @@ Payloads de los comandos que entrega `claim_next_access_command`:
 | `set_validity` | `{valid_from, valid_until}` |
 
 Es el único comando. El bloqueo también se aplica como `set_validity`, con `valid_until` igual al momento del bloqueo (D35). La app no crea personas en HikCentral (D36): un miembro sin `hik_person_id` no genera comandos hasta que el pull lo vincule por cédula, y entonces se le envía la vigencia que tiene en la app.
+
+## Notificaciones push
+
+| RPC / tabla | Quién | Notas |
+|---|---|---|
+| `register_push_subscription(p_endpoint, p_p256dh, p_auth, p_user_agent?)` | cualquier usuario | Registra el dispositivo a nombre del usuario actual. Si el endpoint era de otra cuenta (mismo teléfono), pasa a la actual. |
+| `delete push_subscriptions where endpoint = …` | el dueño | Desactivar en este teléfono o cerrar sesión. |
+| `notification_preferences (user_id, disabled_types[])` | el dueño | Tipos apagados: no se crean en la campana (avisos del sistema) y no se envían por push. Los sociales (`like`, `comment`, `follow`) siguen en la campana y solo se apaga su push. |
+| `claim_push_batch(p_limit)` | solo `service_role` (send-push) | Marca `pushed_at` y devuelve los avisos a enviar; descarta los de más de un día. |
+

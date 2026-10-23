@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F5 — Notificaciones push |
-| **Próximo paso** | Revisión de la pestaña Gestión por los socios en el preview; luego F5.1 (suscripción push) |
+| **Fase actual** | F6 — Verificación integral en DEV |
+| **Próximo paso** | F6.1: checklist completo de pruebas de toda la app (`docs/VERIFICACION.md`) |
 | **Bloqueos** | Acceso de la CLI al proyecto de producción (necesario recién en F7) |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -64,8 +64,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - [x] F4.8 `StaffPanel` y `staffStore` eliminados; `/staff` redirige a `/manage`
 
 ## F5 — Notificaciones push
-- [ ] F5.1 Suscripción PWA y preferencias
-- [ ] F5.2 Edge Function, outbox y cron
+- [x] F5.1 Suscripción PWA (`public/push-sw.js` importado por el service worker de Workbox), tarjeta "Notificaciones" en Perfil con guía para iPhone (instalar en inicio, iOS 16.4+) y preferencias por tipo. Al abrir la app el dispositivo se re-registra a nombre de la cuenta actual; al cerrar sesión deja de recibir sus avisos
+- [x] F5.2 `0023_push_dispatch.sql` (trigger por sentencia + cron de respaldo cada minuto vía `pg_net`, secreto en Vault, `claim_push_batch`, `register_push_subscription`) y Edge Function `send-push` versionada en el repo (la v6 vieja de DEV dependía de un trigger que ya no existía). La cola es `notifications.pushed_at`; no hizo falta una tabla outbox aparte
 
 ## F6 — Verificación integral en DEV
 - [ ] F6.1 Checklist E2E (`VERIFICACION.md`)
@@ -84,6 +84,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-10-23 (3) — Claude Code
+- F5 completa. **Push probado de punta a punta en Chrome:** el atleta activó las notificaciones en Perfil (suscripción FCM real), un socio le cargó una deuda y el service worker mostró "Nuevo cargo en tu cuenta · Prueba push: $1.000". Al cerrar sesión la suscripción se borró.
+- Tests SQL: 68/68 (8 nuevos de push). Se hicieron independientes de los datos de DEV 4 tests que asumían una base vacía (miembros importados de HCAC y datos del E2E).
+- E2E de Gestión repetido sin regresiones.
+- Las claves VAPID ya estaban en los secretos de DEV y coinciden con la pública del README. Producción necesitará los mismos pasos (PLAN F7.4).
 
 ### 2026-10-23 (2) — Claude Code
 - F4 completa. **E2E con Chrome headless** contra DEV, con las cuentas de prueba (contraseñas temporales que se invalidan al terminar y sesión inyectada, sin Google): 23/23 pasos en verde y sin errores de red ni de consola. Cubre socio (todas las secciones, renovar, deuda, abono, bloquear/desbloquear, venta, caja, cuadre con pago y exportes PDF/Excel descargados), coach (no ve Caja/Cuadres/Ajustes ni Bloquear) y atleta (sin pestaña Gestión y `/manage` redirige).

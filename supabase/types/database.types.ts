@@ -55,7 +55,7 @@ export type Database = {
         }
         Insert: {
           attempts?: number
-          command: string
+          command?: string
           created_at?: string
           finished_at?: string | null
           id?: string
@@ -1050,9 +1050,8 @@ export type Database = {
           access_enabled: boolean
           classes_total: number | null
           classes_used: number
-          hik_access_desired: boolean | null
-          hik_access_enabled: boolean | null
           hik_synced_at: string | null
+          hik_target_until: string | null
           hik_valid_from: string | null
           hik_valid_until: string | null
           last_change_origin: string
@@ -1068,9 +1067,8 @@ export type Database = {
           access_enabled?: boolean
           classes_total?: number | null
           classes_used?: number
-          hik_access_desired?: boolean | null
-          hik_access_enabled?: boolean | null
           hik_synced_at?: string | null
+          hik_target_until?: string | null
           hik_valid_from?: string | null
           hik_valid_until?: string | null
           last_change_origin?: string
@@ -1086,9 +1084,8 @@ export type Database = {
           access_enabled?: boolean
           classes_total?: number | null
           classes_used?: number
-          hik_access_desired?: boolean | null
-          hik_access_enabled?: boolean | null
           hik_synced_at?: string | null
+          hik_target_until?: string | null
           hik_valid_from?: string | null
           hik_valid_until?: string | null
           last_change_origin?: string
@@ -1838,14 +1835,25 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      claim_push_batch: {
+        Args: { p_limit?: number }
+        Returns: {
+          actor_handle: string
+          actor_id: string
+          body: string
+          comment_body: string
+          event_payload: Json
+          event_type: string
+          id: string
+          link: string
+          recipient_id: string
+          title: string
+          type: string
+        }[]
+      }
       claim_role_invites: { Args: never; Returns: number }
       complete_access_command: {
-        Args: {
-          p_command_id: string
-          p_error?: string
-          p_hik_person_id?: string
-          p_ok: boolean
-        }
+        Args: { p_command_id: string; p_error?: string; p_ok: boolean }
         Returns: {
           attempts: number
           command: string
@@ -1976,6 +1984,30 @@ export type Database = {
           type: string
           value_numeric: number
         }[]
+      }
+      register_push_subscription: {
+        Args: {
+          p_auth: string
+          p_endpoint: string
+          p_p256dh: string
+          p_user_agent?: string
+        }
+        Returns: {
+          auth: string
+          created_at: string
+          endpoint: string
+          id: string
+          last_used_at: string | null
+          p256dh: string
+          user_agent: string | null
+          user_id: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "push_subscriptions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       register_sale: {
         Args: {
@@ -2132,9 +2164,8 @@ export type Database = {
           access_enabled: boolean
           classes_total: number | null
           classes_used: number
-          hik_access_desired: boolean | null
-          hik_access_enabled: boolean | null
           hik_synced_at: string | null
+          hik_target_until: string | null
           hik_valid_from: string | null
           hik_valid_until: string | null
           last_change_origin: string
@@ -2163,9 +2194,8 @@ export type Database = {
           access_enabled: boolean
           classes_total: number | null
           classes_used: number
-          hik_access_desired: boolean | null
-          hik_access_enabled: boolean | null
           hik_synced_at: string | null
+          hik_target_until: string | null
           hik_valid_from: string | null
           hik_valid_until: string | null
           last_change_origin: string

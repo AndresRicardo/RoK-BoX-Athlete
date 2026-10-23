@@ -13,6 +13,7 @@ import useLeaderboardStore from './leaderboardStore';
 import useMembershipStore from './membershipStore';
 import useDebtStore from './debtStore';
 import useManageStore from './manageStore';
+import { forgetPushSubscription } from '../utils/push';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -71,6 +72,9 @@ const useAuthStore = create((set, get) => ({
 
   signOut: async () => {
     set({ loading: true });
+
+    // Antes de perder la sesión: este teléfono deja de recibir los avisos de la cuenta.
+    await forgetPushSubscription();
 
     const { error } = await supabase.auth.signOut();
 
