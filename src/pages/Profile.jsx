@@ -27,6 +27,14 @@ const DEFAULT_BOX = 'RöK BoX';
 const HANDLE_REGEX = /^[a-z0-9._]{3,20}$/;
 const normalizeHandle = (v) => v.toLowerCase().replace(/[^a-z0-9._]/g, '').slice(0, 20);
 
+// Cualquier variante ("rok box", "ROCK BOX", "Rök Box CrossFit"...) se guarda
+// como DEFAULT_BOX para que Comunidad agrupe a todos los atletas del box.
+const normalizeBox = (v) => {
+  const clean = v.trim();
+  const key = clean.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  return /ro(k|c|ck)box/.test(key) ? DEFAULT_BOX : clean;
+};
+
 const GENDERS = [
   ['', 'Prefiero no decirlo'],
   ['male', 'Masculino'],
@@ -56,7 +64,7 @@ function formFromProfile(p, user) {
     firstName: p?.first_name || googleFirst,
     lastName: p?.last_name || meta.family_name || meta.full_name?.split(' ').slice(1).join(' ') || '',
     handle: p?.display_name || normalizeHandle(googleFirst),
-    boxName: p ? (p.box_name || '') : DEFAULT_BOX,
+    boxName: p?.box_name || DEFAULT_BOX,
     discipline: p?.discipline || 'rx',
     birthDate: p?.birth_date || '',
     gender: p?.gender && p.gender !== 'prefer_not_to_say' ? p.gender : '',
@@ -166,7 +174,7 @@ export default function Profile() {
         last_name: form.lastName.trim(),
         display_name: form.handle,
         avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
-        box_name: form.boxName.trim() || null,
+        box_name: normalizeBox(form.boxName) || null,
         discipline: form.discipline,
         birth_date: form.birthDate || null,
         gender: form.gender || null,
@@ -382,11 +390,24 @@ export default function Profile() {
             <Field label="Box">
               <input
                 type="text"
+                list="boxSuggestions"
                 value={form.boxName}
                 onChange={setField('boxName')}
                 placeholder={DEFAULT_BOX}
                 className={inputClass}
               />
+              <datalist id="boxSuggestions">
+                <option value={DEFAULT_BOX} />
+              </datalist>
+              {form.boxName !== DEFAULT_BOX && (
+                <button
+                  type="button"
+                  onClick={() => setForm((prev) => ({ ...prev, boxName: DEFAULT_BOX }))}
+                  className="mt-1.5 px-2.5 py-1 rounded-lg bg-[#FFC815]/15 border border-[#FFC815]/40 text-[11px] font-black text-[#FFC815] tap-bounce"
+                >
+                  Usar “{DEFAULT_BOX}”
+                </button>
+              )}
             </Field>
 
             <div className="grid grid-cols-2 gap-3">
