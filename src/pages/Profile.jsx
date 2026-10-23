@@ -23,6 +23,49 @@ import MembershipCard from '../components/MembershipCard';
 import DebtCard from '../components/DebtCard';
 import PaymentHistory from '../components/PaymentHistory';
 
+const DEFAULT_BOX = 'RöK BoX';
+const HANDLE_REGEX = /^[a-z0-9._]{3,20}$/;
+const normalizeHandle = (v) => v.toLowerCase().replace(/[^a-z0-9._]/g, '').slice(0, 20);
+
+const GENDERS = [
+  ['', 'Prefiero no decirlo'],
+  ['male', 'Masculino'],
+  ['female', 'Femenino'],
+  ['other', 'Otro'],
+];
+
+const inputClass = 'w-full px-3.5 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-[#FFC815]';
+const selectClass = 'w-full px-3 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-[#FFC815]';
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <label className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5] block mb-1">
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// Datos del formulario a partir del perfil guardado o, si es nuevo, de la cuenta Google.
+function formFromProfile(p, user) {
+  const meta = user?.user_metadata || {};
+  const googleFirst = meta.given_name || meta.full_name?.split(' ')[0] || '';
+  return {
+    firstName: p?.first_name || googleFirst,
+    lastName: p?.last_name || meta.family_name || meta.full_name?.split(' ').slice(1).join(' ') || '',
+    handle: p?.display_name || normalizeHandle(googleFirst),
+    boxName: p ? (p.box_name || '') : DEFAULT_BOX,
+    discipline: p?.discipline || 'rx',
+    birthDate: p?.birth_date || '',
+    gender: p?.gender && p.gender !== 'prefer_not_to_say' ? p.gender : '',
+    heightCm: p?.height_cm != null ? String(p.height_cm) : '',
+    experienceYears: p?.experience_years != null ? String(p.experience_years) : '',
+    goal: p?.goal || '',
+  };
+}
+
 export default function Profile() {
   const { user, signOut } = useAuthStore();
   const { profile, fetchProfile, upsertProfile, saving } = useProfileStore();
@@ -39,8 +82,7 @@ export default function Profile() {
   const followingCount = following?.length ?? network?.following?.length ?? 0;
 
   const [documentId, setDocumentId] = useState('');
-  const [handle, setHandle] = useState('');
-  const [discipline, setDiscipline] = useState('rx');
+  const [form, setForm] = useState(() => formFromProfile(null, null));
   const [weightVal, setWeightVal] = useState('');
   const [weightUnit, setWeightUnit] = useState('lb');
   const [isEditing, setIsEditing] = useState(false);
@@ -50,9 +92,10 @@ export default function Profile() {
   useEffect(() => {
     if (user?.id) {
       fetchProfile(user.id).then((p) => {
+        setForm(formFromProfile(p, user));
+        // Sin perfil todavía: abrir el formulario para completarlo
+        if (!p) setIsEditing(true);
         if (p) {
-          setHandle(p.display_name || '');
-          setDiscipline(p.discipline || 'rx');
           if (p.weight_kg) {
             setWeightVal(String(Math.round(p.weight_kg * 2.20462 * 10) / 10));
             setWeightUnit('lb');
@@ -73,13 +116,10 @@ export default function Profile() {
     setDocumentId(activeDoc);
   }, [member?.document_id, linkRequest?.document_id]);
 
-  // Mantener sincronizado si cambia el perfil externamente
-  useEffect(() => {
-    if (profile) {
-      if (profile.display_name) setHandle(profile.display_name);
-      if (profile.discipline) setDiscipline(profile.discipline);
-    }
-  }, [profile]);
+  const setField = (name) => (e) => {
+    const value = name === 'handle' ? normalizeHandle(e.target.value) : e.target.value;
+    setForm((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleWeightUnitChange = (newUnit) => {
     if (newUnit === weightUnit) return;
@@ -98,15 +138,21 @@ export default function Profile() {
 
   const handleSaveProfile = async (e) => {
     e.preventDefault();
-    if (!handle.trim()) {
-      setFeedback({ type: 'error', message: 'El @handle no puede estar vacío.' });
+    if (!form.firstName.trim() || !form.lastName.trim()) {
+      setFeedback({ type: 'error', message: 'Nombre y apellidos son obligatorios.' });
+      return;
+    }
+    if (!HANDLE_REGEX.test(form.handle)) {
+      setFeedback({
+        type: 'error',
+        message: 'El @usuario debe tener de 3 a 20 caracteres: minúsculas, números, punto o guion bajo.',
+      });
       return;
     }
 
     try {
       setFeedback({ type: null, message: null });
       const cleanDoc = documentId.trim();
-      const cleanHandle = handle.trim().toLowerCase().replace(/[^a-z0-9._]/g, '');
 
       let finalWeightKg = null;
       if (weightVal && !isNaN(parseFloat(weightVal))) {
@@ -116,11 +162,18 @@ export default function Profile() {
 
       // Guardar datos de perfil sin document_id (vive en members/link_requests)
       await upsertProfile(user.id, {
-        first_name: profile?.first_name || user.user_metadata?.full_name?.split(' ')[0] || 'Atleta',
-        last_name: profile?.last_name || user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
-        display_name: cleanHandle,
-        discipline,
+        first_name: form.firstName.trim(),
+        last_name: form.lastName.trim(),
+        display_name: form.handle,
+        avatar_url: profile?.avatar_url || user.user_metadata?.avatar_url || user.user_metadata?.picture || null,
+        box_name: form.boxName.trim() || null,
+        discipline: form.discipline,
+        birth_date: form.birthDate || null,
+        gender: form.gender || null,
         weight_kg: finalWeightKg,
+        height_cm: form.heightCm === '' ? null : Number(form.heightCm),
+        experience_years: form.experienceYears === '' ? null : Number(form.experienceYears),
+        goal: form.goal.trim() || null,
       });
 
       // Si ingresó o cambió la cédula respecto al miembro actual, solicitar vínculo seguro
@@ -137,7 +190,12 @@ export default function Profile() {
       setIsEditing(false);
     } catch (err) {
       console.error('Error saving profile:', err);
-      setFeedback({ type: 'error', message: err.message || 'Error al guardar cambios' });
+      setFeedback({
+        type: 'error',
+        message: err?.code === '23505'
+          ? `El @usuario ${form.handle} ya está en uso.`
+          : err.message || 'Error al guardar cambios',
+      });
     }
   };
 
@@ -268,7 +326,7 @@ export default function Profile() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Fingerprint className="w-5 h-5 text-[#FFC815]" />
-            <h4 className="text-sm font-bold text-white">Vínculo HikCentral & Perfil</h4>
+            <h4 className="text-sm font-bold text-white">{profile ? 'Vínculo HikCentral & Perfil' : 'Completa tu perfil'}</h4>
           </div>
           <button
             type="button"
@@ -302,35 +360,44 @@ export default function Profile() {
               </p>
             </div>
 
-            <div>
-              <label className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5] block mb-1">
-                @Handle único
-              </label>
-              <input
-                type="text"
-                value={handle}
-                onChange={(e) => setHandle(e.target.value)}
-                placeholder="usuario"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-[#FFC815]"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nombre *">
+                <input type="text" value={form.firstName} onChange={setField('firstName')} className={inputClass} />
+              </Field>
+              <Field label="Apellidos *">
+                <input type="text" value={form.lastName} onChange={setField('lastName')} className={inputClass} />
+              </Field>
             </div>
 
+            <Field label="@Usuario *">
+              <input
+                type="text"
+                value={form.handle}
+                onChange={setField('handle')}
+                placeholder="usuario"
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Box">
+              <input
+                type="text"
+                value={form.boxName}
+                onChange={setField('boxName')}
+                placeholder={DEFAULT_BOX}
+                className={inputClass}
+              />
+            </Field>
+
             <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5] block mb-1">
-                  Categoría
-                </label>
-                <select
-                  value={discipline}
-                  onChange={(e) => setDiscipline(e.target.value)}
-                  className="w-full px-3 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-xs font-bold text-white focus:outline-none focus:border-[#FFC815]"
-                >
+              <Field label="Categoría">
+                <select value={form.discipline} onChange={setField('discipline')} className={selectClass}>
                   <option value="rx">RX</option>
                   <option value="scaled">Scaled</option>
                   <option value="masters">Masters</option>
-                  <option value="beginner">Beginner</option>
+                  <option value="beginner">Principiante</option>
                 </select>
-              </div>
+              </Field>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -369,6 +436,54 @@ export default function Profile() {
               </div>
             </div>
 
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Nacimiento">
+                <input type="date" value={form.birthDate} onChange={setField('birthDate')} className={selectClass} />
+              </Field>
+              <Field label="Género">
+                <select value={form.gender} onChange={setField('gender')} className={selectClass}>
+                  {GENDERS.map(([value, label]) => (
+                    <option key={value} value={value}>{label}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Altura (cm)">
+                <input
+                  type="number"
+                  min="1"
+                  max="299"
+                  value={form.heightCm}
+                  onChange={setField('heightCm')}
+                  placeholder="Ej. 175"
+                  className={inputClass}
+                />
+              </Field>
+              <Field label="Años entrenando">
+                <input
+                  type="number"
+                  min="0"
+                  max="99"
+                  value={form.experienceYears}
+                  onChange={setField('experienceYears')}
+                  placeholder="Ej. 2"
+                  className={inputClass}
+                />
+              </Field>
+            </div>
+
+            <Field label="Objetivo">
+              <textarea
+                rows={2}
+                value={form.goal}
+                onChange={setField('goal')}
+                placeholder="Ej. Mi primer muscle-up"
+                className={`${inputClass} resize-none`}
+              />
+            </Field>
+
             <button
               type="submit"
               disabled={saving}
@@ -404,6 +519,10 @@ export default function Profile() {
                   + Solicitar Vínculo
                 </button>
               )}
+            </div>
+            <div className="flex justify-between py-1.5 border-b border-white/5">
+              <span className="text-[#A0A0A5]">Box:</span>
+              <span className="font-bold text-white">{profile?.box_name || 'No registrado'}</span>
             </div>
             <div className="flex justify-between py-1.5 border-b border-white/5">
               <span className="text-[#A0A0A5]">Categoría de entreno:</span>

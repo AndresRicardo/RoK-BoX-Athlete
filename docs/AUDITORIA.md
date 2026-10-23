@@ -48,6 +48,7 @@ Revisión hecha contra las decisiones de [`DECISIONES.md`](DECISIONES.md). Se re
 | E14 | No hay infraestructura de **notificaciones push**: `push_subscriptions` existe en DEV sin migración en el repo, y no hay Edge Function ni cron. | Migración, Edge Function `send-push` y trabajos `pg_cron` (D18). |
 | E15 | `equipment_catalog` solo modela implementos. | Renombrarlo a `products`, con categoría `store`/`equipment`/`other` (D12, D13). |
 | E16 | `set_member_access` no valida que el miembro tenga `memberships`. Si no la tiene, encola un comando sin efecto en la app. | Upsert de la membresía y validación. |
+| E17 | En producción (`main`) la columna `profiles.weight_kg` guarda **libras** (ProfileEdit convierte kg→lb al guardar). La v2 la trata como kilos, igual que los logros. | Al migrar (F7/F8): `update profiles set weight_kg = round(weight_kg / 2.20462, 2) where weight_kg is not null`, probado en el ensayo. |
 
 ## 3. Bridge Agent (`rokbox-platform/bridge`)
 

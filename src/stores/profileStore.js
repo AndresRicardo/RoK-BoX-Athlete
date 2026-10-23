@@ -86,13 +86,14 @@ const useProfileStore = create((set) => ({
       throw error;
     }
 
-    const existing = useProfileStore.getState().profile;
+    // Los roles se cargan en fetchProfile aunque el perfil aún no exista
+    const { roles, isStaff, isPartner } = useProfileStore.getState();
     const combined = {
       ...data,
-      roles: existing?.roles || [],
-      isStaff: existing?.isStaff || false,
-      isPartner: existing?.isPartner || false,
-      role: existing?.role || 'athlete',
+      roles,
+      isStaff,
+      isPartner,
+      role: isPartner ? 'admin' : (isStaff ? 'coach' : 'athlete'),
     };
 
     set({ profile: combined, saving: false });

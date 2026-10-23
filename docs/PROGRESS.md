@@ -85,6 +85,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## Bitácora
 
+### 2026-10-23 — Claude Code
+- Arreglos tras la primera prueba del usuario en el preview:
+  - Comunidad → Atletas salía vacía: `fetchSuggestions` recibía el id del usuario como nombre del box. Ahora muestra los del mismo box o los recientes.
+  - El formulario de Perfil de la v2 no tenía nombre, apellidos, box, nacimiento, género, altura, experiencia ni objetivo (sí estaban en `main`). Se agregaron; un usuario sin perfil ve el formulario abierto y el box viene con "RöK BoX". `upsertProfile` ya no pierde los roles al crear el perfil.
+  - Hallazgo E17: en producción `weight_kg` guarda libras. Queda como paso del ensayo F7.
+- La variable de Vercel del preview funciona (el usuario inició sesión en DEV); es la clave anon en formato anterior.
+
 ### 2026-10-22 (5) — Claude Code
 - F3 completa. Hallazgos:
   - La clave publicable de DEV en `client.js` y el README estaba obsoleta ("Invalid API key"); se actualizó. **Si Vercel tiene la clave vieja configurada como variable de entorno, el preview no conecta**: hay que actualizar `VITE_SUPABASE_ANON_KEY` allá.
