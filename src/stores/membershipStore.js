@@ -4,6 +4,8 @@ import { supabase } from '../supabase/client';
 export const useMembershipStore = create((set, get) => ({
   member: null,
   membership: null,
+  renewals: [],
+  classUsages: [],
   linkRequest: null,
   loading: false,
   error: null,
@@ -30,6 +32,8 @@ export const useMembershipStore = create((set, get) => ({
       let member = memberData || null;
       let dynamicMembership = null;
       let linkRequest = null;
+      let renewals = [];
+      let classUsages = [];
 
       if (member) {
         // 2. Si está vinculado, consultar la vista membership_status
@@ -43,21 +47,42 @@ export const useMembershipStore = create((set, get) => ({
           console.warn('Error fetching membership_status:', statusErr);
         }
 
-        if (statusData) {
+        if (statusData && statusData.status !== 'no_membership') {
           const daysRemaining = statusData.days_left ?? 0;
           dynamicMembership = {
             ...statusData,
             daysRemaining,
             isOverdue: statusData.status === 'overdue',
             isExpiringSoon: statusData.status === 'expiring_soon',
+            isClassPack: statusData.plan_kind === 'class_pack',
             dynamicStatus: statusData.status,
           };
         }
+
+        // Historial de pagos de membresía y consumos de tiquetera (RLS: solo los propios)
+        const [renewalsRes, usagesRes] = await Promise.all([
+          supabase
+            .from('membership_renewals')
+            .select('id, plan_name, period_start, period_end, classes, amount, discount, payment_method, payment_status, paid_at, created_at')
+            .eq('member_id', member.id)
+            .is('voided_at', null)
+            .order('period_start', { ascending: false })
+            .limit(24),
+          supabase
+            .from('class_usages')
+            .select('id, used_at')
+            .eq('member_id', member.id)
+            .is('undone_at', null)
+            .order('used_at', { ascending: false })
+            .limit(20),
+        ]);
+        renewals = renewalsRes.data || [];
+        classUsages = usagesRes.data || [];
       } else {
         // 3. Si no está vinculado, consultar si tiene una solicitud de vínculo
         const { data: reqData } = await supabase
           .from('member_link_requests')
-          .select('id, document_id, status, created_at, reviewed_at, reject_reason')
+          .select('id, document_id, status, created_at, reviewed_at, review_note')
           .eq('profile_id', userId)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -69,6 +94,8 @@ export const useMembershipStore = create((set, get) => ({
       set({
         member,
         membership: dynamicMembership,
+        renewals,
+        classUsages,
         linkRequest,
         loading: false,
       });
@@ -118,6 +145,7 @@ export const useMembershipStore = create((set, get) => ({
           event: '*',
           schema: 'public',
           table: 'memberships',
+          ...(get().member?.id ? { filter: `member_id=eq.${get().member.id}` } : {}),
         },
         () => {
           get().fetchMembership(userId);
@@ -129,6 +157,7 @@ export const useMembershipStore = create((set, get) => ({
           event: '*',
           schema: 'public',
           table: 'members',
+          filter: `profile_id=eq.${userId}`,
         },
         () => {
           get().fetchMembership(userId);
@@ -159,6 +188,8 @@ export const useMembershipStore = create((set, get) => ({
     set({
       member: null,
       membership: null,
+      renewals: [],
+      classUsages: [],
       linkRequest: null,
       loading: false,
       error: null,

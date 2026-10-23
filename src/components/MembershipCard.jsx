@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Calendar, Fingerprint, AlertCircle, CheckCircle2, Clock, Lock, RefreshCw, ChevronRight, X, Clock3, Ban } from 'lucide-react';
+import { Calendar, Fingerprint, AlertCircle, CheckCircle2, Clock, Lock, RefreshCw, ChevronRight, X, Clock3, Ban, Ticket, Info } from 'lucide-react';
 import useMembershipStore from '../stores/membershipStore';
 import useAuthStore from '../stores/authStore';
 
 export default function MembershipCard({ onEnterDocument }) {
   const { user } = useAuthStore();
-  const { member, membership, linkRequest, loading, fetchMembership, requestLink } = useMembershipStore();
+  const { member, membership, classUsages, linkRequest, loading, fetchMembership, requestLink } = useMembershipStore();
   const [refreshing, setRefreshing] = useState(false);
 
   // Modal para solicitar vinculación de cédula
@@ -113,7 +113,7 @@ export default function MembershipCard({ onEnterDocument }) {
               </div>
               <p className="text-xs text-[#A0A0A5] mt-1 leading-relaxed">
                 La solicitud para la cédula <span className="font-mono text-white">{linkRequest.document_id}</span> no fue aprobada por el staff.
-                {linkRequest.reject_reason && ` Motivo: ${linkRequest.reject_reason}`}
+                {linkRequest.review_note && ` Motivo: ${linkRequest.review_note}`}
               </p>
               <button
                 type="button"
@@ -209,10 +209,15 @@ export default function MembershipCard({ onEnterDocument }) {
     );
   }
 
-  // 6. Miembro con membresía activa / estado derivado
-  const isOverdue = membership.dynamicStatus === 'overdue' || (membership.daysRemaining < 0);
-  const isExpiringSoon = membership.dynamicStatus === 'expiring_soon' || (membership.daysRemaining >= 0 && membership.daysRemaining <= 3);
-  const isDisabled = membership.dynamicStatus === 'disabled' || !membership.access_enabled;
+  // 6. Miembro con membresía activa / estado derivado (vista membership_status)
+  const status = membership.dynamicStatus;
+  const isDisabled = status === 'disabled';
+  const isOverdue = status === 'overdue';
+  const isNoClasses = status === 'no_classes';
+  const isExpiringSoon = status === 'expiring_soon';
+  const classesTotal = membership.classes_total ?? 0;
+  const classesLeft = membership.classes_left ?? 0;
+  const lastUsage = classUsages?.[0]?.used_at;
 
   const statusBadge = isDisabled ? (
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-zinc-700/50 border border-zinc-600 text-zinc-300">
@@ -223,6 +228,11 @@ export default function MembershipCard({ onEnterDocument }) {
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-red-500/15 border border-red-500/30 text-red-400">
       <AlertCircle className="w-3.5 h-3.5" />
       Vencida ({Math.abs(membership.daysRemaining)}d)
+    </span>
+  ) : isNoClasses ? (
+    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-red-500/15 border border-red-500/30 text-red-400">
+      <Ticket className="w-3.5 h-3.5" />
+      Sin clases
     </span>
   ) : isExpiringSoon ? (
     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-extrabold bg-amber-500/15 border border-amber-500/30 text-amber-400">
@@ -245,11 +255,11 @@ export default function MembershipCard({ onEnterDocument }) {
       })
     : 'Sin fecha registrada';
 
-  const isAccessAllowed = membership.access_enabled && !isOverdue;
+  const isAccessAllowed = status === 'active' || status === 'expiring_soon';
 
   return (
     <div className={`w-full p-4 sm:p-5 rounded-2xl bg-[#1C1C1E] border ${
-      isOverdue ? 'border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-white/5'
+      isOverdue || isNoClasses ? 'border-red-500/30 shadow-[0_0_15px_rgba(239,68,68,0.1)]' : 'border-white/5'
     } shadow-xl relative overflow-hidden`}>
       {/* Background glow decorativo */}
       <div className={`absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl pointer-events-none ${
@@ -263,9 +273,11 @@ export default function MembershipCard({ onEnterDocument }) {
           <span className="text-xs font-bold text-gray-300 uppercase tracking-wider">
             {membership.plan_name || 'Mensualidad'}
           </span>
-          <span className="text-[10px] text-gray-500 font-mono">
-            CC: {member.document_id}
-          </span>
+          {member.document_id && (
+            <span className="text-[10px] text-gray-500 font-mono">
+              CC: {member.document_id}
+            </span>
+          )}
         </div>
         <div className="flex items-center gap-2">
           {statusBadge}
@@ -309,6 +321,40 @@ export default function MembershipCard({ onEnterDocument }) {
           )}
         </div>
       </div>
+
+      {/* Tiquetera: clases restantes */}
+      {membership.isClassPack && classesTotal > 0 && (
+        <div className="mt-3 pt-3 border-t border-white/5">
+          <div className="flex items-center justify-between text-xs">
+            <span className="flex items-center gap-1.5 font-bold text-gray-300">
+              <Ticket className="w-3.5 h-3.5 text-[#FFC815]" />
+              Clases restantes
+            </span>
+            <span className={`font-black ${classesLeft <= 2 ? 'text-amber-400' : 'text-white'}`}>
+              {classesLeft} / {classesTotal}
+            </span>
+          </div>
+          <div className="mt-2 h-2 rounded-full bg-[#292929] overflow-hidden">
+            <div
+              className={`h-full rounded-full ${classesLeft <= 2 ? 'bg-amber-400' : 'bg-[#FFC815]'}`}
+              style={{ width: `${Math.min(100, (classesLeft / classesTotal) * 100)}%` }}
+            />
+          </div>
+          {lastUsage && (
+            <p className="text-[11px] text-[#A0A0A5] mt-1.5">
+              Última clase: {new Date(lastUsage).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })}
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Aún no registrado en el huellero */}
+      {!membership.hik_person_id && (
+        <div className="mt-3 flex items-start gap-2 p-2.5 rounded-xl bg-[#292929]/60 text-[11px] text-[#A0A0A5]">
+          <Info className="w-3.5 h-3.5 text-[#FFC815] shrink-0 mt-0.5" />
+          <span>Aún no estás registrado en el huellero. Pídele al coach que te registre con tu cédula para activar tu acceso.</span>
+        </div>
+      )}
     </div>
   );
 

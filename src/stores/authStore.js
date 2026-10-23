@@ -9,6 +9,7 @@ import useFollowStore from './followStore';
 import useFeedStore from './feedStore';
 import useEngagementStore from './engagementStore';
 import useNotificationStore from './notificationStore';
+import useLeaderboardStore from './leaderboardStore';
 import useMembershipStore from './membershipStore';
 import useDebtStore from './debtStore';
 import useStaffStore from './staffStore';
@@ -87,6 +88,7 @@ const useAuthStore = create((set, get) => ({
     useFeedStore.getState().reset();
     useEngagementStore.getState().reset();
     useNotificationStore.getState().reset();
+    useLeaderboardStore.getState().reset();
     useMembershipStore.getState().reset();
     useDebtStore.getState().reset();
     useStaffStore.getState().reset();

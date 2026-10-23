@@ -34,6 +34,13 @@ const useProfileStore = create((set) => ({
       throw error;
     }
 
+    // Aplicar invitaciones pendientes para este email (socio/coach) antes de leer los roles
+    try {
+      await supabase.rpc('claim_role_invites');
+    } catch (iErr) {
+      console.warn('Could not claim role invites:', iErr);
+    }
+
     // Cargar roles desde la tabla central user_roles
     let roles = [];
     try {
@@ -46,8 +53,8 @@ const useProfileStore = create((set) => ({
       console.warn('Could not load user_roles:', rErr);
     }
 
-    const isStaff = roles.includes('coach') || roles.includes('partner') || roles.includes('admin');
-    const isPartner = roles.includes('partner') || roles.includes('admin');
+    const isStaff = roles.includes('coach') || roles.includes('partner');
+    const isPartner = roles.includes('partner');
 
     const combined = data
       ? {

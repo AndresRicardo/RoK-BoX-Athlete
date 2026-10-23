@@ -61,7 +61,7 @@ npm run icons    # Regenerar iconos PWA desde isotipo limpio.svg
 
 ```env
 VITE_SUPABASE_URL=https://qsqrnfgcozvznkbdyozs.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_7iCTpltHInnukzgVSpP3vc_-a2Op859
+VITE_SUPABASE_ANON_KEY=sb_publishable_Q4QC6J6XxuLoKSu03sqQLg_O5rOkFqz
 VITE_VAPID_PUBLIC_KEY=BHbsQN1dMOrI9IV2AoGpDwKfcY9aE4VO2kS09fOk9qNOJmJyEDpc7sXoIrGeLY-Icwnce_X9WEiovtmgqoC3nYM
 ```
 

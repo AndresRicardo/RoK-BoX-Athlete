@@ -21,6 +21,7 @@ import useFollowStore from '../stores/followStore';
 import FollowListModal from '../components/FollowListModal';
 import MembershipCard from '../components/MembershipCard';
 import DebtCard from '../components/DebtCard';
+import PaymentHistory from '../components/PaymentHistory';
 
 export default function Profile() {
   const { user, signOut } = useAuthStore();
@@ -123,7 +124,7 @@ export default function Profile() {
       });
 
       // Si ingresó o cambió la cédula respecto al miembro actual, solicitar vínculo seguro
-      if (cleanDoc && cleanDoc !== member?.document_id && cleanDoc !== linkRequest?.document_id) {
+      if (!member && cleanDoc && cleanDoc !== linkRequest?.document_id) {
         await requestLink(cleanDoc);
         setFeedback({
           type: 'success',
@@ -291,10 +292,13 @@ export default function Profile() {
                 value={documentId}
                 onChange={(e) => setDocumentId(e.target.value)}
                 placeholder="Ej. 1020304050"
-                className="w-full px-3.5 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-[#FFC815]"
+                readOnly={!!member}
+                className={`w-full px-3.5 py-2.5 rounded-xl bg-[#0A0A0C] border border-white/10 text-sm font-bold text-white focus:outline-none focus:border-[#FFC815] ${member ? 'opacity-60' : ''}`}
               />
               <p className="text-[10px] text-gray-400 mt-1">
-                Al guardar, se enviará una solicitud al staff del box para vincular tu acceso biométrico y mensualidad.
+                {member
+                  ? 'Tu cuenta ya está vinculada. Si la cédula es incorrecta, pídele al staff del box que la corrija.'
+                  : 'Al guardar, se enviará una solicitud al staff del box para vincular tu acceso biométrico y mensualidad.'}
               </p>
             </div>
 
@@ -423,6 +427,7 @@ export default function Profile() {
           Tienda & Pagos del Box
         </span>
         <DebtCard />
+        <PaymentHistory />
       </div>
 
       {/* Cerrar Sesión */}

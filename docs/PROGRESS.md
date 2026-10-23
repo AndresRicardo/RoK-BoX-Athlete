@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F3 — Experiencia del atleta |
-| **Próximo paso** | F3: adaptar `membershipStore`, `debtStore` y sus tarjetas al esquema nuevo |
+| **Fase actual** | F4 — Pestaña Gestión |
+| **Próximo paso** | F4.1: navegación por rol y pestaña Gestión |
 | **Bloqueos** | Acceso de la CLI al proyecto de producción (necesario recién en F7) |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -49,9 +49,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - [x] F2.7 Nombres descifrados (D37) y cédula leída del campo "Cc" (D38). **Importación real a DEV:** 50 personas (49 creadas y 1 vinculada); 12 activas y 38 vencidas; 21 con cédula y 29 sin "Cc". Un ciclo completo `--once` aplicó el comando pendiente y las lecturas siguientes no detectaron cambios falsos.
 
 ## F3 — Experiencia del atleta
-- [ ] F3.1 Stores de membresía, tiquetera y deudas
-- [ ] F3.2 Tarjetas, historial de pagos y vínculo
-- [ ] F3.3 Huecos de paridad con `main` (ver F0.4)
+- [x] F3.1 Stores de membresía (historial de pagos, consumos de tiquetera, `review_note`) y deudas (`name`, `concept`). Verificado con el usuario atleta real y RLS: ve solo lo suyo, sin finanzas
+- [x] F3.2 `MembershipCard` (tiquetera con barra, `no_classes`, aviso "aún no registrado en el huellero"), `DebtCard` (ítems por entregar, medios de pago en español), `PaymentHistory` nuevo en Perfil, cédula bloqueada si ya está vinculada, invitaciones aplicadas al iniciar sesión
+- [x] F3.3 Paridad: el tablero de líderes de la v2 leía columnas inexistentes (mostraba valores vacíos) → se portó el de `main` como `LeaderboardPanel` (grupos, Global/Siguiendo, filtros, "ver más"); feed con "cargar más"; `signOut` resetea líderes. `AthleteProfile` ya cargaba la red (alias `fetchNetwork`)
 
 ## F4 — Pestaña Gestión
 - [ ] F4.1 Navegación por rol
@@ -84,6 +84,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-10-22 (5) — Claude Code
+- F3 completa. Hallazgos:
+  - La clave publicable de DEV en `client.js` y el README estaba obsoleta ("Invalid API key"); se actualizó. **Si Vercel tiene la clave vieja configurada como variable de entorno, el preview no conecta**: hay que actualizar `VITE_SUPABASE_ANON_KEY` allá.
+  - `create_debt` enviaba un aviso por ítem; ahora envía uno solo con el total (test 60/60).
+- DEV re-importado: 49 personas de HCAC más datos de prueba de "ZZTEST Atleta Dev" (renovación, deuda con 2 ítems, abono).
+- No se hizo verificación visual en el navegador: el inicio de sesión es con Google. Queda para el usuario en el preview.
 
 ### 2026-10-22 (4) — Claude Code
 - F2 casi completa (repo `rokbox-bridge`, commit `3bd0d13`). Decisiones D35 (bloqueo por vigencia) y D36 (la app no crea personas en HCAC). Esquema y tests ajustados: 59/59 en verde.

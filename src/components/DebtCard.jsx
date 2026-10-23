@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { ShoppingBag, AlertTriangle, CheckCircle, ChevronRight, X, Receipt, Package, ArrowDownLeft } from 'lucide-react';
 import useDebtStore from '../stores/debtStore';
-import { formatCOP } from '../utils/currency';
+import { formatCOP, paymentMethodLabel } from '../utils/currency';
 
 export default function DebtCard() {
   const { debts, totalPending, loading } = useDebtStore();
@@ -125,9 +125,6 @@ export default function DebtCard() {
                       <div className="flex items-start justify-between">
                         <div className="flex-1 pr-2">
                           <div className="flex items-center gap-2">
-                            <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-[#292929] text-[#A0A0A5]">
-                              {item.delivery_status || 'Implementos'}
-                            </span>
                             <span className="text-[11px] text-gray-400">
                               {new Date(item.created_at).toLocaleDateString('es-CO', {
                                 day: 'numeric',
@@ -169,7 +166,10 @@ export default function DebtCard() {
                           {item.items.map((it) => (
                             <div key={it.id} className="flex items-center justify-between text-xs text-gray-300">
                               <span>
-                                {it.item_name} {it.quantity > 1 ? `× ${it.quantity}` : ''}
+                                {it.name} {it.quantity > 1 ? `× ${it.quantity}` : ''}
+                                {it.delivery_status === 'pending' && (
+                                  <span className="ml-1.5 text-[10px] font-bold text-amber-400">Por entregar</span>
+                                )}
                               </span>
                               <span className="font-semibold text-white">{formatCOP(it.subtotal)}</span>
                             </div>
@@ -187,7 +187,7 @@ export default function DebtCard() {
                           {item.payments.map((pmt) => (
                             <div key={pmt.id} className="flex items-center justify-between text-xs text-emerald-300">
                               <span>
-                                {new Date(pmt.paid_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} • {pmt.payment_method?.toUpperCase()}
+                                {new Date(pmt.paid_at).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })} • {paymentMethodLabel(pmt.payment_method)}
                               </span>
                               <span className="font-bold">+ {formatCOP(pmt.amount)}</span>
                             </div>
@@ -195,9 +195,9 @@ export default function DebtCard() {
                         </div>
                       )}
 
-                      {item.notes && (
+                      {isVoided && item.void_reason && (
                         <p className="text-xs text-[#A0A0A5] bg-[#1C1C1E] p-2 rounded-lg italic">
-                          Nota: {item.notes}
+                          Anulado: {item.void_reason}
                         </p>
                       )}
                     </div>

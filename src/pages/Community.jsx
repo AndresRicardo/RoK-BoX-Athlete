@@ -1,31 +1,28 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Users, Trophy, Search, Activity, Crown, Medal, RefreshCw } from 'lucide-react';
+import { Users, Trophy, Search, Activity } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
 import useFeedStore from '../stores/feedStore';
-import useLeaderboardStore from '../stores/leaderboardStore';
 import useFollowStore from '../stores/followStore';
 import useEngagementStore from '../stores/engagementStore';
 import FeedEventCard from '../components/FeedEventCard';
 import AthleteRow from '../components/AthleteRow';
+import LeaderboardPanel from '../components/LeaderboardPanel';
 
 export default function Community() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
-  const { events, fetchFeed, subscribeFeed, unsubscribeFeed, loading: loadingFeed } = useFeedStore();
-  const { prs: leaderboardPRs, benchmarks: leaderboardBenchmarks, fetchLeaderboards, loading: loadingLeaderboards } = useLeaderboardStore();
+  const { events, fetchFeed, subscribeFeed, unsubscribeFeed, loading: loadingFeed, hasMore: hasMoreFeed, loadingMore: loadingMoreFeed, loadMore: loadMoreFeed } = useFeedStore();
   const { searchAthletes, searchResults, searching, fetchSuggestions, suggestions } = useFollowStore();
   const { fetchEngagement } = useEngagementStore();
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'feed');
   const [searchQuery, setSearchQuery] = useState('');
-  const [leaderboardCategory, setLeaderboardCategory] = useState('prs'); // 'prs' | 'benchmarks'
 
   useEffect(() => {
     if (user?.id) {
       fetchFeed(user.id);
       subscribeFeed(user.id);
-      fetchLeaderboards('global').catch(() => {});
       fetchSuggestions(user.id).catch(() => {});
     }
 
@@ -126,7 +123,19 @@ export default function Community() {
               </p>
             </div>
           ) : (
-            events.map((evt) => <FeedEventCard key={evt.id} event={evt} />)
+            <>
+              {events.map((evt) => <FeedEventCard key={evt.id} event={evt} />)}
+              {hasMoreFeed && (
+                <button
+                  type="button"
+                  onClick={() => loadMoreFeed().catch(() => {})}
+                  disabled={loadingMoreFeed}
+                  className="w-full py-2.5 rounded-xl bg-[#1C1C1E] border border-white/5 text-xs font-bold text-[#FFC815] tap-bounce disabled:opacity-50"
+                >
+                  {loadingMoreFeed ? 'Cargando...' : 'Cargar más actividad'}
+                </button>
+              )}
+            </>
           )}
         </div>
       )}
@@ -134,126 +143,7 @@ export default function Community() {
       {/* ======================================================== */}
       {/* TAB 2: TABLERO DE LÍDERES */}
       {/* ======================================================== */}
-      {activeTab === 'leaderboard' && (
-        <div className="flex flex-col gap-4">
-          {/* Subselector: PRs vs Benchmarks */}
-          <div className="flex items-center justify-center gap-2">
-            <button
-              type="button"
-              onClick={() => setLeaderboardCategory('prs')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-black transition-colors ${
-                leaderboardCategory === 'prs'
-                  ? 'bg-white text-black'
-                  : 'bg-[#1C1C1E] text-gray-400'
-              }`}
-            >
-              Fuerza / PRs
-            </button>
-            <button
-              type="button"
-              onClick={() => setLeaderboardCategory('benchmarks')}
-              className={`px-4 py-1.5 rounded-xl text-xs font-black transition-colors ${
-                leaderboardCategory === 'benchmarks'
-                  ? 'bg-white text-black'
-                  : 'bg-[#1C1C1E] text-gray-400'
-              }`}
-            >
-              WODs / Benchmarks
-            </button>
-          </div>
-
-          {loadingLeaderboards ? (
-            <div className="p-8 text-center text-xs text-[#A0A0A5]">
-              Cargando tabla de líderes...
-            </div>
-          ) : leaderboardCategory === 'prs' ? (
-            leaderboardPRs.length === 0 ? (
-              <div className="p-8 rounded-2xl bg-[#1C1C1E] border border-white/5 text-center text-xs text-[#A0A0A5]">
-                No hay marcas de PRs registradas para el ranking aún.
-              </div>
-            ) : (
-              leaderboardPRs.map((item, idx) => (
-                <div
-                  key={`${item.movement || idx}-${idx}`}
-                  className="p-4 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col gap-2.5"
-                >
-                  <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                    <h4 className="text-sm font-black text-[#FFC815]">
-                      {item.movement || 'Movimiento'}
-                    </h4>
-                    <span className="text-[10px] uppercase font-bold text-gray-400">
-                      Récord del Box
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-xl bg-[#FFC815]/20 text-[#FFC815] font-black text-sm flex items-center justify-center">
-                        {idx === 0 ? <Crown className="w-4 h-4" /> : `#${idx + 1}`}
-                      </div>
-                      <div>
-                        <span className="text-sm font-bold text-white block">
-                          {item.athlete_name || item.full_name || 'Atleta'}
-                        </span>
-                        <span className="text-xs text-[#A0A0A5]">
-                          @{item.display_name || 'atleta'}
-                        </span>
-                      </div>
-                    </div>
-
-                    <div className="text-right">
-                      <span className="text-base font-black text-white block">
-                        {item.value} {item.unit || 'kg'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              ))
-            )
-          ) : leaderboardBenchmarks.length === 0 ? (
-            <div className="p-8 rounded-2xl bg-[#1C1C1E] border border-white/5 text-center text-xs text-[#A0A0A5]">
-              No hay resultados de benchmarks registrados para el ranking aún.
-            </div>
-          ) : (
-            leaderboardBenchmarks.map((item, idx) => (
-              <div
-                key={`${item.name || idx}-${idx}`}
-                className="p-4 rounded-2xl bg-[#1C1C1E] border border-white/5 flex flex-col gap-2.5"
-              >
-                <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-black text-white">{item.name}</h4>
-                    <span className="px-1.5 py-0.2 rounded text-[9px] font-extrabold bg-[#292929] text-[#FFC815]">
-                      {item.scaling || 'RX'}
-                    </span>
-                  </div>
-                  <span className="text-[10px] uppercase font-bold text-gray-400">
-                    Mejor Tiempo
-                  </span>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 font-black text-sm flex items-center justify-center">
-                      {idx === 0 ? <Medal className="w-4 h-4" /> : `#${idx + 1}`}
-                    </div>
-                    <div>
-                      <span className="text-sm font-bold text-white block">
-                        {item.athlete_name || item.full_name || 'Atleta'}
-                      </span>
-                      <span className="text-xs text-[#A0A0A5]">
-                        @{item.display_name || 'atleta'}
-                      </span>
-                    </div>
-                  </div>
-
-                  <span className="text-base font-black text-white">{item.result}</span>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      )}
+      {activeTab === 'leaderboard' && <LeaderboardPanel />}
 
       {/* ======================================================== */}
       {/* TAB 3: BUSCAR ATLETAS */}

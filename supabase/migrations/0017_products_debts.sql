@@ -227,6 +227,9 @@ begin
   values (p_member_id, coalesce(nullif(trim(p_concept), ''), 'Consumo'), auth.uid())
   returning id into v_debt.id;
 
+  -- Un solo aviso al atleta por la deuda completa, no uno por ítem (ver 0020).
+  perform set_config('rokbox.suppress_debt_notify', 'on', true);
+
   for v_item in select * from jsonb_array_elements(p_items) loop
     v_prod := null;
     if nullif(v_item->>'product_id', '') is not null then
@@ -247,7 +250,9 @@ begin
     );
   end loop;
 
+  perform set_config('rokbox.suppress_debt_notify', 'off', true);
   select * into v_debt from public.debts where id = v_debt.id;
+  perform private.notify_debt_created(v_debt.id);
   return v_debt;
 end;
 $$;

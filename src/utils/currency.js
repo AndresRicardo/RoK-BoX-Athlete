@@ -11,3 +11,18 @@ export function formatCOP(amount) {
     minimumFractionDigits: 0,
   }).format(num);
 }
+
+const PAYMENT_METHOD_LABELS = {
+  cash: 'Efectivo',
+  nequi: 'Nequi',
+  daviplata: 'Daviplata',
+  bre_b: 'Bre-B',
+  transfer: 'Transferencia',
+  card: 'Tarjeta',
+  other: 'Otro',
+};
+
+/** Nombre en español del medio de pago (dominio public.payment_method). */
+export function paymentMethodLabel(method) {
+  return PAYMENT_METHOD_LABELS[method] || method || '—';
+}

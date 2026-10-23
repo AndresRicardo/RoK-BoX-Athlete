@@ -102,7 +102,24 @@ $$;
 -- 4. AVISOS INMEDIATOS
 -- =====================================================================
 
--- Atleta: cargo nuevo en su cuenta (al aumentar el total de una deuda).
+-- Atleta: deuda nueva (create_debt la llama una vez con el total).
+create or replace function private.notify_debt_created(p_debt_id uuid)
+returns void
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_debt    public.debts;
+  v_profile uuid;
+begin
+  select * into v_debt from public.debts where id = p_debt_id;
+  select profile_id into v_profile from public.members where id = v_debt.member_id;
+  perform private.notify(array[v_profile], 'debt_charged', 'Nuevo cargo en tu cuenta',
+    v_debt.concept || ': ' || private.cop(v_debt.total_amount),
+    '/?tab=debts', jsonb_build_object('debt_id', v_debt.id));
+end;
+$$;
+
+-- Atleta: cargo agregado a una deuda existente (al aumentar el total).
 create or replace function private.notify_debt_charged()
 returns trigger
 language plpgsql security definer set search_path = ''
@@ -110,6 +127,9 @@ as $$
 declare
   v_profile uuid;
 begin
+  if current_setting('rokbox.suppress_debt_notify', true) = 'on' then
+    return null;
+  end if;
   if new.total_amount > old.total_amount and new.voided_at is null then
     select profile_id into v_profile from public.members where id = new.member_id;
     perform private.notify(array[v_profile], 'debt_charged', 'Nuevo cargo en tu cuenta',

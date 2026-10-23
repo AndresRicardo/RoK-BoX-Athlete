@@ -67,9 +67,9 @@ export const useDebtStore = create((set, get) => ({
       const enrichedDebts = debtList.map((d) => {
         const items = itemsByDebt[d.id] || [];
         const payments = paymentsByDebt[d.id] || [];
-        const concept = items.length > 0
-          ? items.map((it) => `${it.item_name}${it.quantity > 1 ? ` (x${it.quantity})` : ''}`).join(', ')
-          : (d.notes || 'Implementos del box');
+        const summary = items
+          .map((it) => `${it.name}${it.quantity > 1 ? ` (x${it.quantity})` : ''}`)
+          .join(', ');
 
         return {
           ...d,
@@ -78,7 +78,8 @@ export const useDebtStore = create((set, get) => ({
           paid_amount: Number(d.paid_amount || 0),
           items,
           payments,
-          concept,
+          concept: d.concept || 'Consumo',
+          summary,
         };
       });
 

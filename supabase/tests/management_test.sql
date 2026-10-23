@@ -257,6 +257,10 @@ do $$ begin
   where recipient_id = '44444444-4444-4444-4444-444444444444'
     and type in ('debt_charged', 'debt_payment', 'membership_renewed');
   insert into zz_tests.results (name, ok, detail)
+  select 'crear deuda con varios ítems envía un solo aviso de cargo', count(*) = 1, count(*)::text
+  from public.notifications
+  where recipient_id = '44444444-4444-4444-4444-444444444444' and type = 'debt_charged';
+  insert into zz_tests.results (name, ok, detail)
   select 'auditoría registra cambios', count(*) > 0, count(*)::text
   from public.audit_log where table_name in ('membership_renewals', 'debt_payments', 'memberships');
 end $$;
