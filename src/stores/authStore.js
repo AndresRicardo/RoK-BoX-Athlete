@@ -12,7 +12,7 @@ import useNotificationStore from './notificationStore';
 import useLeaderboardStore from './leaderboardStore';
 import useMembershipStore from './membershipStore';
 import useDebtStore from './debtStore';
-import useStaffStore from './staffStore';
+import useManageStore from './manageStore';
 
 const useAuthStore = create((set, get) => ({
   user: null,
@@ -91,7 +91,7 @@ const useAuthStore = create((set, get) => ({
     useLeaderboardStore.getState().reset();
     useMembershipStore.getState().reset();
     useDebtStore.getState().reset();
-    useStaffStore.getState().reset();
+    useManageStore.getState().reset();
 
     set({
       user: null,

@@ -1,9 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 import {
   User,
   Fingerprint,
-  ShieldCheck,
   LogOut,
   Receipt,
   Users,
@@ -142,8 +140,6 @@ export default function Profile() {
     setWeightUnit(newUnit);
   };
 
-  const isStaff = profile?.isStaff || profile?.role === 'coach' || profile?.role === 'admin';
-
   const handleSaveProfile = async (e) => {
     e.preventDefault();
     if (!form.firstName.trim() || !form.lastName.trim()) {
@@ -270,31 +266,6 @@ export default function Profile() {
           </button>
         </div>
       </div>
-
-      {/* Staff Panel Link if authorized */}
-      {isStaff && (
-        <Link
-          to="/staff"
-          className="p-4 rounded-2xl bg-gradient-to-r from-[#FFC815]/20 via-[#FFC815]/10 to-transparent border border-[#FFC815]/40 flex items-center justify-between tap-bounce shadow-lg"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-[#FFC815] text-black">
-              <ShieldCheck className="w-5 h-5 stroke-[2.5]" />
-            </div>
-            <div>
-              <span className="text-xs font-black uppercase tracking-wider text-[#FFC815] block">
-                Modo Staff Habilitado ({(profile?.roles?.[0] || 'staff').toUpperCase()})
-              </span>
-              <p className="text-xs text-gray-300">
-                Gestionar deudas, cobros y atletas del box
-              </p>
-            </div>
-          </div>
-          <span className="px-3 py-1 rounded-xl bg-[#FFC815] text-black font-extrabold text-xs">
-            Abrir
-          </span>
-        </Link>
-      )}
 
       {/* Feedback Messages */}
       {feedback.message && (

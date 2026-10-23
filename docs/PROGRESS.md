@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F4 — Pestaña Gestión |
-| **Próximo paso** | F4.1: navegación por rol y pestaña Gestión |
+| **Fase actual** | F5 — Notificaciones push |
+| **Próximo paso** | Revisión de la pestaña Gestión por los socios en el preview; luego F5.1 (suscripción push) |
 | **Bloqueos** | Acceso de la CLI al proyecto de producción (necesario recién en F7) |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -54,14 +54,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - [x] F3.3 Paridad: el tablero de líderes de la v2 leía columnas inexistentes (mostraba valores vacíos) → se portó el de `main` como `LeaderboardPanel` (grupos, Global/Siguiendo, filtros, "ver más"); feed con "cargar más"; `signOut` resetea líderes. `AthleteProfile` ya cargaba la red (alias `fetchNetwork`)
 
 ## F4 — Pestaña Gestión
-- [ ] F4.1 Navegación por rol
-- [ ] F4.2 Miembros
-- [ ] F4.3 Deudas y ventas
-- [ ] F4.4 Pendientes
-- [ ] F4.5 Caja
-- [ ] F4.6 Cuadres y exportes
-- [ ] F4.7 Ajustes
-- [ ] F4.8 Eliminar StaffPanel legado
+- [x] F4.1 Navegación por rol: 6.ª pestaña "Gestión" solo para socios y coaches (Logros se queda en la barra: cada ítem mide 60 px en 360 px). `StaffRoute` protege las rutas `/manage/*` (Caja, Cuadres y Ajustes solo socios)
+- [x] F4.2 Miembros: lista con búsqueda y filtros por estado, ficha (renovar, descontar/deshacer clase, bloquear/desbloquear, corregir fechas, editar datos, deudas, historial y anulación de renovaciones, estado en HikCentral) y alta de miembro
+- [x] F4.3 Deudas y ventas: nueva deuda (catálogo o ítem libre, por entregar), abonos, anular, venta de contado
+- [x] F4.4 Pendientes: renovaciones de HCAC sin pago (registrar pago o anular), vínculos por aprobar o rechazar, comandos fallidos
+- [x] F4.5 Caja: por socio y mes, efectivo esperado (misma fórmula del cuadre), gastos BOX/PERSONAL, ingresos manuales y entregas; solo se editan los propios
+- [x] F4.6 Cuadres: calcular, revisar, guardar, marcar transferencias pagadas, eliminar, exportar a PDF (jsPDF) y Excel (write-excel-file). Las librerías se cargan solo al exportar y no entran al precache de la PWA
+- [x] F4.7 Ajustes: socios y porcentajes, planes, catálogo, categorías, roles e invitaciones, estado del bridge con sus últimos comandos y auditoría
+- [x] F4.8 `StaffPanel` y `staffStore` eliminados; `/staff` redirige a `/manage`
 
 ## F5 — Notificaciones push
 - [ ] F5.1 Suscripción PWA y preferencias
@@ -84,6 +84,15 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-10-23 (2) — Claude Code
+- F4 completa. **E2E con Chrome headless** contra DEV, con las cuentas de prueba (contraseñas temporales que se invalidan al terminar y sesión inyectada, sin Google): 23/23 pasos en verde y sin errores de red ni de consola. Cubre socio (todas las secciones, renovar, deuda, abono, bloquear/desbloquear, venta, caja, cuadre con pago y exportes PDF/Excel descargados), coach (no ve Caja/Cuadres/Ajustes ni Bloquear) y atleta (sin pestaña Gestión y `/manage` redirige).
+- Hallazgos corregidos en el camino:
+  - La campana no mostraba los avisos del sistema (cargos, abonos, renovaciones, vínculos): ahora muestra título y cuerpo y abre su enlace. Las notificaciones sin autor rompían la consulta de `athlete_directory` (`id=in.(null)`).
+  - Los enlaces de los avisos (`/gestion/...`) redirigen a las rutas nuevas.
+  - Si fallaba la carga de permisos, Gestión se quedaba en "Cargando": ahora ofrece reintentar.
+  - El nuevo cuadre proponía empezar mañana si el último cerró hoy.
+- Datos de prueba en DEV: renovaciones, deudas, ventas, movimientos de caja y cuadres hechos por el E2E (se pueden borrar con `db reset`).
 
 ### 2026-10-23 — Claude Code
 - Arreglos tras la primera prueba del usuario en el preview:

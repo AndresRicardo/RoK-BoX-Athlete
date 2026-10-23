@@ -257,7 +257,7 @@ Al final, **el usuario y su socio** prueban en el preview de Vercel durante al m
 
 ### F7 — Ensayo del paso a producción
 1. Restaurar el backup de producción en un proyecto o branch de Supabase temporal y aplicar las migraciones nuevas.
-2. Convertir `profiles.weight_kg` de libras a kilos (E17).
+2. Convertir `profiles.weight_kg` de libras a kilos (E17) y unificar `profiles.box_name` a "RöK BoX" (E18).
 3. Correr los tests SQL y apuntar un build de la app a ese ensayo para validar que los datos de atletas sigan intactos.
 4. Escribir el **runbook** paso a paso y el **plan de reversa**: backup + revert de `main` en Vercel + bridge detenido. HikCentral sigue funcionando solo.
 

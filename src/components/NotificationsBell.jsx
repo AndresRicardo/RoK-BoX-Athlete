@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react';
-import { Bell, Check, Heart, MessageSquare, UserPlus, Trophy, X } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Bell, Check, Heart, MessageSquare, UserPlus, Trophy, X, Receipt, CalendarCheck, Ticket, Link2, WifiOff, AlertTriangle, Inbox,
+} from 'lucide-react';
 import useNotificationStore from '../stores/notificationStore';
 import useAuthStore from '../stores/authStore';
 import { timeAgo } from '../utils/time';
 
 export default function NotificationsBell() {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
   const { user } = useAuthStore();
   const {
     items = [],
@@ -38,6 +42,10 @@ export default function NotificationsBell() {
     if (!notif.read_at && user?.id && typeof markRead === 'function') {
       await markRead(notif.id, user.id);
     }
+    if (notif.link) {
+      setIsOpen(false);
+      navigate(notif.link);
+    }
   };
 
   const handleMarkAllRead = async () => {
@@ -56,6 +64,23 @@ export default function NotificationsBell() {
         return <UserPlus className="w-4 h-4 text-blue-400" />;
       case 'achievement':
         return <Trophy className="w-4 h-4 text-[#FFC815]" />;
+      case 'debt_charged':
+      case 'debt_payment':
+      case 'debt_reminder':
+        return <Receipt className="w-4 h-4 text-amber-400" />;
+      case 'membership_expiring':
+      case 'membership_renewed':
+        return <CalendarCheck className="w-4 h-4 text-emerald-400" />;
+      case 'classes_low':
+        return <Ticket className="w-4 h-4 text-amber-400" />;
+      case 'link_request':
+        return <Link2 className="w-4 h-4 text-sky-400" />;
+      case 'renewal_pending':
+        return <Inbox className="w-4 h-4 text-[#FFC815]" />;
+      case 'bridge_offline':
+        return <WifiOff className="w-4 h-4 text-red-400" />;
+      case 'access_command_failed':
+        return <AlertTriangle className="w-4 h-4 text-red-400" />;
       default:
         return <Bell className="w-4 h-4 text-gray-400" />;
     }
@@ -147,12 +172,19 @@ export default function NotificationsBell() {
                         {getIcon(notif.type)}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-xs text-gray-200 leading-snug">
-                          <span className="font-bold text-white">
-                            {actor?.display_name ? `@${actor.display_name}` : 'Un atleta'}
-                          </span>{' '}
-                          {notif.text || notif.message || 'interactuó contigo'}
-                        </p>
+                        {notif.title ? (
+                          <>
+                            <p className="text-xs font-bold text-white leading-snug">{notif.title}</p>
+                            {notif.body && <p className="text-xs text-gray-300 leading-snug mt-0.5">{notif.body}</p>}
+                          </>
+                        ) : (
+                          <p className="text-xs text-gray-200 leading-snug">
+                            <span className="font-bold text-white">
+                              {actor?.display_name ? `@${actor.display_name}` : 'Un atleta'}
+                            </span>{' '}
+                            {notif.text || notif.message || 'interactuó contigo'}
+                          </p>
+                        )}
                         {notif.comment_body && (
                           <p className="text-xs text-[#A0A0A5] mt-1 line-clamp-2 italic">
                             "{notif.comment_body}"

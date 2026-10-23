@@ -169,13 +169,18 @@ const useNotificationStore = create((set, get) => ({
 
   _withActors: async (rows) => {
     if (rows.length === 0) return [];
-    const ids = [...new Set(rows.map((n) => n.actor_id))];
-    const { data: people, error } = await supabase
-      .from('athlete_directory')
-      .select('*')
-      .in('id', ids);
-    if (error) throw error;
-    const byId = new Map((people || []).map((p) => [p.id, p]));
+    // Los avisos del sistema (membresía, deudas, gestión) no tienen autor.
+    const ids = [...new Set(rows.map((n) => n.actor_id).filter(Boolean))];
+    let people = [];
+    if (ids.length > 0) {
+      const { data, error } = await supabase
+        .from('athlete_directory')
+        .select('*')
+        .in('id', ids);
+      if (error) throw error;
+      people = data || [];
+    }
+    const byId = new Map(people.map((p) => [p.id, p]));
     return rows.map((n) => ({
       ...n,
       actor: byId.get(n.actor_id) || null,

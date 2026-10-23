@@ -1,11 +1,9 @@
 import { Link } from 'react-router-dom';
-import { ShieldCheck } from 'lucide-react';
 import useProfileStore from '../stores/profileStore';
 import NotificationsBell from './NotificationsBell';
 
 export default function TopHeader({ title }) {
-  const { profile, isStaff: storeIsStaff } = useProfileStore();
-  const isStaff = storeIsStaff || profile?.isStaff || profile?.role === 'admin' || profile?.role === 'coach';
+  const { profile } = useProfileStore();
 
   return (
     <header className="sticky top-0 z-30 w-full glass-header safe-top px-4 pb-3 flex items-center justify-between">
@@ -34,17 +32,6 @@ export default function TopHeader({ title }) {
 
       {/* Actions */}
       <div className="flex items-center gap-2">
-        {isStaff && (
-          <Link
-            to="/staff"
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-[#FFC815]/15 border border-[#FFC815]/30 text-[#FFC815] text-xs font-bold tap-bounce"
-            title="Panel de Staff / Coach"
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span className="hidden xs:inline">Staff</span>
-          </Link>
-        )}
-
         <NotificationsBell />
 
         <Link to="/profile" className="tap-bounce">

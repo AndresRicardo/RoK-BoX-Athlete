@@ -1,9 +1,20 @@
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import TopHeader from '../components/TopHeader';
 import BottomNavigation from '../components/BottomNavigation';
 import AchievementModal from '../components/AchievementModal';
+import useAuthStore from '../stores/authStore';
+import useProfileStore from '../stores/profileStore';
 
 export default function MobileLayout({ title }) {
+  const userId = useAuthStore((state) => state.user?.id);
+  const fetchProfile = useProfileStore((state) => state.fetchProfile);
+
+  // Roles para la barra inferior (pestaña Gestión), en cualquier pantalla de entrada.
+  useEffect(() => {
+    if (userId) fetchProfile(userId).catch(() => {});
+  }, [userId, fetchProfile]);
+
   return (
     <div className="min-h-screen bg-[#0A0A0C] text-white flex flex-col justify-between">
       {/* Container móvil centrado */}

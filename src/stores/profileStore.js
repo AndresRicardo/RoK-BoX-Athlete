@@ -6,13 +6,14 @@ const useProfileStore = create((set) => ({
   roles: [],
   isStaff: false,
   isPartner: false,
+  rolesLoaded: false,
   loading: false,
   error: null,
   saving: false,
 
   fetchProfile: async (userId) => {
     if (!userId) {
-      set({ profile: null, roles: [], isStaff: false, isPartner: false, loading: false, error: null });
+      set({ profile: null, roles: [], isStaff: false, isPartner: false, rolesLoaded: false, loading: false, error: null });
       return null;
     }
 
@@ -66,7 +67,7 @@ const useProfileStore = create((set) => ({
         }
       : null;
 
-    set({ profile: combined, roles, isStaff, isPartner, loading: false });
+    set({ profile: combined, roles, isStaff, isPartner, rolesLoaded: true, loading: false });
     return combined;
   },
 
@@ -143,7 +144,7 @@ const useProfileStore = create((set) => ({
   },
 
   reset: () => {
-    set({ profile: null, roles: [], isStaff: false, isPartner: false, loading: false, error: null, saving: false });
+    set({ profile: null, roles: [], isStaff: false, isPartner: false, rolesLoaded: false, loading: false, error: null, saving: false });
   },
 }));
 

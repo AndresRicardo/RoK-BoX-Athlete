@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+// Vite normaliza los ids de módulo con "/" también en Windows.
+const EXPORT_LIBS = /node_modules\/(jspdf|jspdf-autotable|write-excel-file|html2canvas|dompurify|canvg|fflate)\//;
+
 export default defineConfig({
   plugins: [
     react(),
@@ -40,6 +43,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
+        // Las librerías de exportación (PDF/Excel) solo las usan los socios: se descargan al exportar.
+        globIgnores: ['**/export-*.js'],
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -62,6 +67,12 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
+        // Los chunks de las librerías de exportación llevan el prefijo export- (ver globIgnores).
+        chunkFileNames: (chunk) => (
+          chunk.moduleIds.some((id) => EXPORT_LIBS.test(id))
+            ? 'assets/export-[name]-[hash].js'
+            : 'assets/[name]-[hash].js'
+        ),
         manualChunks: {
           'vendor-react': ['react', 'react-dom', 'react-router-dom'],
           'vendor-charts': ['recharts'],
