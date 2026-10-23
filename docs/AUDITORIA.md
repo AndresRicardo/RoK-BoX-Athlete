@@ -49,6 +49,7 @@ Revisión hecha contra las decisiones de [`DECISIONES.md`](DECISIONES.md). Se re
 | E15 | `equipment_catalog` solo modela implementos. | Renombrarlo a `products`, con categoría `store`/`equipment`/`other` (D12, D13). |
 | E16 | `set_member_access` no valida que el miembro tenga `memberships`. Si no la tiene, encola un comando sin efecto en la app. | Upsert de la membresía y validación. |
 | E17 | En producción (`main`) la columna `profiles.weight_kg` guarda **libras** (ProfileEdit convierte kg→lb al guardar). La v2 la trata como kilos, igual que los logros. | Al migrar (F7/F8): `update profiles set weight_kg = round(weight_kg / 2.20462, 2) where weight_kg is not null`, probado en el ensayo. |
+| E18 | En producción `profiles.box_name` es texto libre: hay variantes del nombre del box ("rok box", "ROKBOX", vacío...) y Comunidad solo sugiere atletas con el nombre exacto. Desde el 2026-10-23 la app unifica las variantes al guardar. | Al migrar (F7/F8): `update profiles set box_name = 'RöK BoX' where box_name is null or regexp_replace(lower(unaccent(box_name)), '[^a-z0-9]', '', 'g') ~ 'ro(k|c|ck)box'`, revisando antes la lista de valores distintos. |
 
 ## 3. Bridge Agent (`rokbox-platform/bridge`)
 
