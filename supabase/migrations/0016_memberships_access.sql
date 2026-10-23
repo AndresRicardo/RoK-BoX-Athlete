@@ -784,6 +784,12 @@ begin
       update public.members set is_active = true where id = v_member.id;
     end if;
 
+    -- Cédula registrada después en HCAC (campo "Cc"): completarla si la app no tiene una.
+    if v_member.document_id is null and v_code is not null
+       and not exists (select 1 from public.members where document_id = v_code) then
+      update public.members set document_id = v_code where id = v_member.id;
+    end if;
+
     insert into public.memberships (member_id) values (v_member.id) on conflict do nothing;
     select * into v_ms from public.memberships where member_id = v_member.id for update;
 

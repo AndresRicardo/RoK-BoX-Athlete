@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F2 — Bridge v3 (falta la prueba de escritura en vivo) · F3 siguiente |
-| **Próximo paso** | Resolver F2.7 (nombres cifrados y campo de la cédula) antes de importar las personas reales. Mientras tanto: F3. |
+| **Fase actual** | F3 — Experiencia del atleta |
+| **Próximo paso** | F3: adaptar `membershipStore`, `debtStore` y sus tarjetas al esquema nuevo |
 | **Bloqueos** | Acceso de la CLI al proyecto de producción (necesario recién en F7) |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -46,9 +46,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
   - renovación desde la app (vigencia 22/nov → 22/dic 23:59 en HCAC);
   - bloqueo (`EndDate` = momento del bloqueo) y desbloqueo (vigencia restaurada);
   - la lectura siguiente no detecta cambios fantasma.
-- [ ] F2.7 **Bloqueante para importar las personas reales:**
-  - (a) HCAC devuelve **los nombres cifrados** por la API (AES, con llave de sesión). Hay que decidir de dónde salen los nombres.
-  - (b) La persona ZZTEST quedó con `PersonCode` = `5452986509`, no con la cédula digitada. Hay que confirmar en qué campo de HCAC se guarda la cédula.
+- [x] F2.7 Nombres descifrados (D37) y cédula leída del campo "Cc" (D38). **Importación real a DEV:** 50 personas (49 creadas y 1 vinculada); 12 activas y 38 vencidas; 21 con cédula y 29 sin "Cc". Un ciclo completo `--once` aplicó el comando pendiente y las lecturas siguientes no detectaron cambios falsos.
 
 ## F3 — Experiencia del atleta
 - [ ] F3.1 Stores de membresía, tiquetera y deudas
