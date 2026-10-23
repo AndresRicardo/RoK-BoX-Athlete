@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Users, Trophy, Search, Activity } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
+import useProfileStore from '../stores/profileStore';
 import useFeedStore from '../stores/feedStore';
 import useFollowStore from '../stores/followStore';
 import useEngagementStore from '../stores/engagementStore';
@@ -13,7 +14,8 @@ export default function Community() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user } = useAuthStore();
   const { events, fetchFeed, subscribeFeed, unsubscribeFeed, loading: loadingFeed, hasMore: hasMoreFeed, loadingMore: loadingMoreFeed, loadMore: loadMoreFeed } = useFeedStore();
-  const { searchAthletes, searchResults, searching, fetchSuggestions, suggestions } = useFollowStore();
+  const profile = useProfileStore((state) => state.profile);
+  const { searchAthletes, searchResults, searching, fetchSuggestions, suggestions, fetchExplore, explore } = useFollowStore();
   const { fetchEngagement } = useEngagementStore();
 
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'feed');
@@ -23,13 +25,19 @@ export default function Community() {
     if (user?.id) {
       fetchFeed(user.id);
       subscribeFeed(user.id);
-      fetchSuggestions(user.id).catch(() => {});
+      fetchExplore(user.id).catch(() => {});
     }
 
     return () => {
       unsubscribeFeed();
     };
   }, [user?.id]);
+
+  useEffect(() => {
+    if (user?.id && profile?.box_name) {
+      fetchSuggestions(profile.box_name, user.id).catch(() => {});
+    }
+  }, [user?.id, profile?.box_name, fetchSuggestions]);
 
   useEffect(() => {
     if (user?.id && events?.length > 0) {
@@ -49,7 +57,7 @@ export default function Community() {
     const q = e.target.value;
     setSearchQuery(q);
     if (q.trim().length >= 2) {
-      searchAthletes(q.trim());
+      searchAthletes(q.trim(), user?.id);
     }
   };
 
@@ -181,14 +189,14 @@ export default function Community() {
           ) : (
             <div className="flex flex-col gap-2">
               <span className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider">
-                Atletas Sugeridos en RöK BoX
+                {suggestions.length > 0 ? 'Atletas de tu box' : 'Atletas recientes'}
               </span>
-              {suggestions.length === 0 ? (
+              {(suggestions.length > 0 ? suggestions : explore).length === 0 ? (
                 <div className="p-6 text-center text-xs text-[#A0A0A5]">
                   Escribe en el buscador para encontrar atletas de tu comunidad.
                 </div>
               ) : (
-                suggestions.map((athlete) => (
+                (suggestions.length > 0 ? suggestions : explore).map((athlete) => (
                   <AthleteRow key={athlete.id} athlete={athlete} />
                 ))
               )}
