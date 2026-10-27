@@ -1,9 +1,14 @@
 import { useEffect, useState } from 'react';
-import { MessageCircle, Check, ChevronRight, Pencil } from 'lucide-react';
+import { MessageCircle, Check, ChevronRight, Pencil, Briefcase } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import { Sheet, Field, TextArea, Button, ErrorBox, Loading, Money, useAction, inputClass } from './ui';
-import { buildDebtReminder, whatsappPhone, whatsappUrl } from '../../utils/whatsapp';
+import {
+  buildDebtReminder, whatsappPhone, whatsappUrl, whatsappAppUrl, WHATSAPP_APPS,
+  canChooseWhatsappApp, getPreferredWhatsappApp, setPreferredWhatsappApp,
+} from '../../utils/whatsapp';
 import { timeAgo } from '../../utils/time';
+
+const OPEN_CLASS = 'py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 tap-bounce';
 
 /** Línea "Recordado hace 3 d por Ana" / "Nunca se le ha recordado". */
 export function lastReminderText(debtor) {
@@ -21,6 +26,10 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
   const [phoneInput, setPhoneInput] = useState('');
   const [editingPhone, setEditingPhone] = useState(false);
   const [sent, setSent] = useState(false);
+  const canChoose = canChooseWhatsappApp();
+  const [app, setApp] = useState(() => (canChoose ? getPreferredWhatsappApp() : null));
+  const [choosing, setChoosing] = useState(false);
+  const [remember, setRemember] = useState(false);
   const load = useAction();
   const action = useAction();
 
@@ -29,6 +38,7 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
     setData(null);
     setSent(false);
     setEditingPhone(false);
+    setChoosing(false);
     action.setError(null);
     load.run(async () => {
       const [debtors, debts, template] = await Promise.all([
@@ -66,6 +76,30 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
     onSent?.();
   });
 
+  // En Android se pregunta la app si no hay una elección recordada o si pidió cambiarla.
+  const askApp = canChoose && (!app || choosing);
+
+  const openProps = (appKey) => ({
+    // intent:// se abre en la misma pestaña (Android lanza la app sin salir de aquí).
+    href: appKey ? whatsappAppUrl(appKey, phone, text) : whatsappUrl(phone, text),
+    ...(appKey ? {} : { target: '_blank', rel: 'noopener noreferrer' }),
+    onClick: (e) => {
+      if (!text.trim()) {
+        e.preventDefault();
+        action.setError('El mensaje está vacío.');
+        return;
+      }
+      if (appKey && askApp) {
+        if (remember) {
+          setPreferredWhatsappApp(appKey);
+          setApp(appKey);
+        }
+        setChoosing(false);
+      }
+      markSent();
+    },
+  });
+
   const footer = debtor && phone && !editingPhone && (
     sent ? (
       <div className="flex flex-col gap-2">
@@ -80,23 +114,49 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
           <Button variant="secondary" className="w-full py-3" onClick={onClose}>Listo</Button>
         )}
       </div>
+    ) : askApp ? (
+      <div className="flex flex-col gap-2.5">
+        <span className="text-xs font-bold text-white text-center">¿Desde qué WhatsApp lo envías?</span>
+        <div className="grid grid-cols-2 gap-2">
+          <a {...openProps('whatsapp')} className={`${OPEN_CLASS} bg-[#25D366] text-black`}>
+            <MessageCircle className="w-4 h-4" /> WhatsApp
+          </a>
+          <a {...openProps('business')} className={`${OPEN_CLASS} bg-[#128C7E] text-white`}>
+            <Briefcase className="w-4 h-4" /> Business
+          </a>
+        </div>
+        <label className="flex items-center justify-center gap-2 text-[11px] font-bold text-gray-300">
+          <input
+            type="checkbox"
+            checked={remember}
+            onChange={(e) => setRemember(e.target.checked)}
+            className="accent-[#25D366] w-4 h-4"
+          />
+          Recordar mi elección en este teléfono
+        </label>
+      </div>
     ) : (
-      <a
-        href={whatsappUrl(phone, text)}
-        target="_blank"
-        rel="noopener noreferrer"
-        onClick={(e) => {
-          if (!text.trim()) {
-            e.preventDefault();
-            action.setError('El mensaje está vacío.');
-            return;
-          }
-          markSent();
-        }}
-        className="w-full py-3 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 tap-bounce bg-[#25D366] text-black"
-      >
-        <MessageCircle className="w-4 h-4" /> Abrir WhatsApp
-      </a>
+      <div className="flex flex-col gap-2">
+        <a
+          {...openProps(canChoose ? app : null)}
+          className={`${OPEN_CLASS} w-full ${app === 'business' ? 'bg-[#128C7E] text-white' : 'bg-[#25D366] text-black'}`}
+        >
+          {app === 'business' ? <Briefcase className="w-4 h-4" /> : <MessageCircle className="w-4 h-4" />}
+          Abrir {canChoose && app ? WHATSAPP_APPS[app].label : 'WhatsApp'}
+        </a>
+        {canChoose && app && (
+          <button
+            type="button"
+            onClick={() => {
+              setRemember(true);
+              setChoosing(true);
+            }}
+            className="text-[11px] font-bold text-[#A0A0A5]"
+          >
+            Cambiar de app
+          </button>
+        )}
+      </div>
     )
   );
 

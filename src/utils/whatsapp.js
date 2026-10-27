@@ -82,3 +82,45 @@ export function buildDebtReminder({ template, fullName, total, debts }) {
 export function whatsappUrl(phone, text) {
   return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
 }
+
+// ---------------------------------------------------------------------
+// WhatsApp o WhatsApp Business. Solo Android deja elegir la app (intent con el
+// paquete); en iPhone y en el computador wa.me abre la que el sistema decida.
+// ---------------------------------------------------------------------
+export const WHATSAPP_APPS = {
+  whatsapp: { label: 'WhatsApp', pkg: 'com.whatsapp' },
+  business: { label: 'WhatsApp Business', pkg: 'com.whatsapp.w4b' },
+};
+
+const APP_PREF_KEY = 'rokbox.whatsappApp';
+
+export function canChooseWhatsappApp() {
+  return typeof navigator !== 'undefined' && /Android/i.test(navigator.userAgent);
+}
+
+/** Abre la app indicada; si no está instalada, Chrome sigue a wa.me. */
+export function whatsappAppUrl(app, phone, text) {
+  const { pkg } = WHATSAPP_APPS[app];
+  const query = `phone=${phone}&text=${encodeURIComponent(text)}`;
+  const fallback = encodeURIComponent(whatsappUrl(phone, text));
+  return `intent://send/?${query}#Intent;scheme=whatsapp;package=${pkg};S.browser_fallback_url=${fallback};end`;
+}
+
+// La elección se recuerda por teléfono (cada uno tiene sus apps instaladas).
+export function getPreferredWhatsappApp() {
+  try {
+    const value = localStorage.getItem(APP_PREF_KEY);
+    return WHATSAPP_APPS[value] ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setPreferredWhatsappApp(app) {
+  try {
+    if (app) localStorage.setItem(APP_PREF_KEY, app);
+    else localStorage.removeItem(APP_PREF_KEY);
+  } catch {
+    // Sin almacenamiento (modo privado): se vuelve a preguntar la próxima vez.
+  }
+}

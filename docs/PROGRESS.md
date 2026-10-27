@@ -90,6 +90,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - Recordatorio de deuda por WhatsApp (D41): enlace `wa.me` con el mensaje listo y editable, registro de quién recordó y cuándo, celular editable desde la misma hoja y plantilla del box en Ajustes.
 - Tests SQL: 78/78 (10 nuevos). Los tests ya no dependen de los nombres ni porcentajes de los socios ni del catálogo de DEV, que los socios empezaron a editar ("Socio Dos" → "Gabriel", productos reales): crean su propio plan, producto y categoría `ZZTEST` dentro de la transacción.
 - E2E del recordatorio 20/20 (socio y coach, sin errores de red ni de consola): WhatsApp se abre con el número `57…` y el texto editado, el recordatorio queda registrado y la plantilla se guarda y se restaura.
+- En Android se elige entre WhatsApp y WhatsApp Business, con opción de recordar la elección en el teléfono y "Cambiar de app". E2E ampliado: 30/30.
 - El bridge corre en modo continuo en el PC de desarrollo (venv creado en `rokbox-bridge/.venv`).
 
 ### 2026-10-23 (3) — Claude Code
