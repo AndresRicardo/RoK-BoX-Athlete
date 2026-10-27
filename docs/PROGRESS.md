@@ -93,6 +93,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - En Android se elige entre WhatsApp y WhatsApp Business, con opción de recordar la elección en el teléfono y "Cambiar de app". E2E ampliado: 30/30.
 - Celulares sin indicativo: los colombianos de 10 dígitos ya funcionaban; ahora al corregir un número se elige el país y se guarda con su indicativo (venezolanos, ecuatorianos, etc.). Se corrigió que `+57` con 9 dígitos pasaba como válido. La lista distingue "Sin celular" de "Revisar celular". E2E: 34/34; 33 pruebas unitarias de normalización.
 - Deudas agrupadas por persona: en Deudas, "Por persona" (por defecto) muestra una tarjeta por miembro con la suma de sus deudas del filtro, sus conceptos y, al desplegarla, cada deuda con "Ver ficha" y "Recordar por WhatsApp"; "Por deuda" conserva la lista anterior. La vista elegida se recuerda en el teléfono. E2E 15/15.
+- Cuadre manual (D42, `0025_manual_settlements.sql`): selector "Datos de la app" / "Manual" en Nuevo cuadre, campos por socio, "Copiar de la app", aviso de entregas descuadradas y marca "Manual" en la lista, el detalle, el PDF y el Excel. El cálculo del cuadre se extrajo a `private.settlement_result` sin cambiar su resultado. Tests SQL 86/86 (8 nuevos, incluida la igualdad manual = calculado con los mismos datos). E2E 16/16.
 - El bridge corre en modo continuo en el PC de desarrollo (venv creado en `rokbox-bridge/.venv`).
 
 ### 2026-10-23 (3) — Claude Code

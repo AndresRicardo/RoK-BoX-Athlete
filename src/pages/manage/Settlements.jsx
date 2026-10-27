@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Plus, AlertTriangle, FileText, FileSpreadsheet, CheckCircle2, Circle, Trash2, Calculator } from 'lucide-react';
+import {
+  Plus, AlertTriangle, FileText, FileSpreadsheet, CheckCircle2, Circle, Trash2, Calculator, PencilLine, Download,
+} from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import useFinanceStore from '../../stores/financeStore';
 import {
   ManageHeader, Card, SectionTitle, Button, ErrorBox, Loading, Empty, Field, TextInput, TextArea, MoneyInput,
-  Sheet, Money, Row, useAction, inputClass,
+  Sheet, Money, Row, Segmented, Badge, useAction, inputClass,
 } from '../../components/manage/ui';
 import { formatCOP } from '../../utils/currency';
 import { bogotaDate, addDays, monthRange, formatDate } from '../../utils/dates';
@@ -65,11 +67,42 @@ function Totals({ s }) {
   );
 }
 
-/** Nuevo cuadre: periodo, reserva y efectivo declarado → calcular → guardar. */
+const MODES = [
+  ['app', 'Datos de la app'],
+  ['manual', 'Manual'],
+];
+
+// Totales que se escriben a mano por socio (mismas claves que el resultado del cuadre).
+const MANUAL_FIELDS = [
+  ['income_collected', 'Ingresos recibidos'],
+  ['box_expenses_paid', 'Gastos BOX pagados'],
+  ['personal_expenses', 'Gastos personales'],
+  ['transfers_given', 'Entregó a socios'],
+  ['transfers_received', 'Recibió de socios'],
+];
+
+function ManualBadge() {
+  return <Badge className="bg-sky-500/15 text-sky-400 border-sky-500/30">Manual</Badge>;
+}
+
+/** Valores escritos a mano → { [partnerId]: { campo: número } } (vacío = no se envía). */
+function manualPayload(manual) {
+  return Object.fromEntries(Object.entries(manual).map(([id, fields]) => [
+    id,
+    Object.fromEntries(Object.entries(fields).filter(([, v]) => v !== '').map(([k, v]) => [k, Number(v)])),
+  ]));
+}
+
+/**
+ * Nuevo cuadre: periodo, reserva y efectivo declarado → calcular → guardar. En modo
+ * manual, los totales de cada socio se escriben a mano (D42).
+ */
 function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
   const { partners } = useManageStore();
-  const { calculateSettlement, saveSettlement } = useFinanceStore();
+  const { calculateSettlement, saveSettlement, calculateManualSettlement, saveManualSettlement } = useFinanceStore();
   const active = partners.filter((p) => p.is_active);
+  const [mode, setMode] = useState('app');
+  const [manual, setManual] = useState({});
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [reserve, setReserve] = useState('');
@@ -88,6 +121,8 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
     setEnd(today);
     setReserve('');
     setDeclared({});
+    setMode('app');
+    setManual({});
     setTitle('');
     setNotes('');
     setResult(null);
@@ -106,13 +141,43 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
     ),
   });
 
-  const calculate = () => run(async () => {
+  const setManualField = (partnerId, field) => touch((v) => setManual((prev) => ({
+    ...prev,
+    [partnerId]: { ...prev[partnerId], [field]: v },
+  })));
+
+  const manualParams = () => ({ start, end, reserve: Number(reserve || 0), manual: manualPayload(manual) });
+
+  const checkPeriod = () => {
     if (!start || !end || end < start) throw new Error('Revisa las fechas del periodo.');
-    setResult(await calculateSettlement(params()));
+  };
+
+  // Punto de partida para el modo manual: los totales que la app tiene del periodo.
+  const copyFromApp = () => run(async () => {
+    checkPeriod();
+    const calc = await calculateSettlement({ start, end, reserve: 0, declaredCash: {} });
+    setManual(Object.fromEntries(calc.partners.map((p) => [
+      p.partner_id,
+      {
+        ...Object.fromEntries(MANUAL_FIELDS.map(([key]) => [key, String(Math.round(Number(p[key] || 0)))])),
+        declared_cash: manual[p.partner_id]?.declared_cash ?? '',
+      },
+    ])));
+    setResult(null);
+  });
+
+  const calculate = () => run(async () => {
+    checkPeriod();
+    setResult(mode === 'manual'
+      ? await calculateManualSettlement(manualParams())
+      : await calculateSettlement(params()));
   });
 
   const save = () => run(async () => {
-    const saved = await saveSettlement({ ...params(), title: title.trim(), notes: notes.trim() });
+    const extra = { title: title.trim(), notes: notes.trim() };
+    const saved = mode === 'manual'
+      ? await saveManualSettlement({ ...manualParams(), ...extra })
+      : await saveSettlement({ ...params(), ...extra });
     onSaved?.(saved);
     onClose();
   });
@@ -135,6 +200,13 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
     >
       {!result ? (
         <>
+          <Segmented options={MODES} value={mode} onChange={touch(setMode)} />
+          {mode === 'manual' && (
+            <p className="text-[11px] text-[#A0A0A5] -mt-1">
+              Escribe a mano los totales de cada socio en el periodo (por ejemplo, de meses anteriores a la app o
+              llevados en otro lado). El reparto usa la misma fórmula que el cuadre con los datos de la app.
+            </p>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <Field label="Desde">
               <input type="date" value={start} onChange={(e) => touch(setStart)(e.target.value)} className={`${inputClass} text-xs`} />
@@ -149,26 +221,83 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
           <Field label="Fondo de reserva" hint="Dinero que queda en la caja del box antes de repartir.">
             <MoneyInput value={reserve} onChange={touch(setReserve)} />
           </Field>
-          <SectionTitle>Efectivo que cada socio dice tener (opcional)</SectionTitle>
-          <p className="text-[10px] text-gray-500 -mt-2">
-            Si lo escribes, el cuadre te avisa si falta o sobra dinero frente a lo esperado.
-          </p>
-          {active.map((p) => (
-            <Field key={p.id} label={p.name}>
-              <MoneyInput
-                value={declared[p.id] ?? ''}
-                onChange={touch((v) => setDeclared((prev) => ({ ...prev, [p.id]: v })))}
-                placeholder="Sin declarar"
-              />
-            </Field>
-          ))}
+          {mode === 'manual' ? (
+            <>
+              <div className="flex items-center justify-between gap-2">
+                <SectionTitle>Datos de cada socio</SectionTitle>
+                <button
+                  type="button"
+                  onClick={copyFromApp}
+                  disabled={busy}
+                  className="text-[11px] font-black text-[#FFC815] flex items-center gap-1 mt-1 disabled:opacity-50"
+                >
+                  <Download className="w-3.5 h-3.5" /> Copiar de la app
+                </button>
+              </div>
+              <p className="text-[10px] text-gray-500 -mt-2">
+                Lo que dejes vacío cuenta como $ 0. "Copiar de la app" llena los campos con lo registrado en el periodo
+                para que solo corrijas lo necesario.
+              </p>
+              {active.map((p) => (
+                <Card key={p.id} className="bg-[#0A0A0C] flex flex-col gap-2.5">
+                  <span className="text-sm font-black text-white">
+                    {p.name} <span className="text-gray-500 text-xs">{Number(p.share_percentage)} %</span>
+                  </span>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+                    {MANUAL_FIELDS.map(([key, label]) => (
+                      <Field key={key} label={label}>
+                        <MoneyInput value={manual[p.id]?.[key] ?? ''} onChange={setManualField(p.id, key)} />
+                      </Field>
+                    ))}
+                    <Field label="Efectivo que tiene">
+                      <MoneyInput
+                        value={manual[p.id]?.declared_cash ?? ''}
+                        onChange={setManualField(p.id, 'declared_cash')}
+                        placeholder="Opcional"
+                      />
+                    </Field>
+                  </div>
+                </Card>
+              ))}
+            </>
+          ) : (
+            <>
+              <SectionTitle>Efectivo que cada socio dice tener (opcional)</SectionTitle>
+              <p className="text-[10px] text-gray-500 -mt-2">
+                Si lo escribes, el cuadre te avisa si falta o sobra dinero frente a lo esperado.
+              </p>
+              {active.map((p) => (
+                <Field key={p.id} label={p.name}>
+                  <MoneyInput
+                    value={declared[p.id] ?? ''}
+                    onChange={touch((v) => setDeclared((prev) => ({ ...prev, [p.id]: v })))}
+                    placeholder="Sin declarar"
+                  />
+                </Field>
+              ))}
+            </>
+          )}
         </>
       ) : (
         <>
-          <span className="text-xs text-gray-400">
-            {formatDate(result.period_start, { withYear: true })} a {formatDate(result.period_end, { withYear: true })}
-          </span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-gray-400">
+              {formatDate(result.period_start, { withYear: true })} a {formatDate(result.period_end, { withYear: true })}
+            </span>
+            {result.is_manual && <ManualBadge />}
+          </div>
           <Totals s={result} />
+          {result.transfers_mismatch && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex gap-2">
+              <AlertTriangle className="w-4 h-4 shrink-0" />
+              <span>
+                Lo que los socios entregaron ({formatCOP(result.partners.reduce((t, p) => t + Number(p.transfers_given), 0))})
+                no es igual a lo que recibieron
+                ({formatCOP(result.partners.reduce((t, p) => t + Number(p.transfers_received), 0))}).
+                Revisa esos valores antes de guardar.
+              </span>
+            </div>
+          )}
           {result.has_cash_differences && (
             <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex gap-2">
               <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -186,7 +315,11 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
             </div>
           ))}
           <Field label="Título (opcional)">
-            <TextInput value={title} onChange={(e) => setTitle(e.target.value)} placeholder={`Cuadre ${start} a ${end}`} />
+            <TextInput
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder={`${mode === 'manual' ? 'Cuadre manual' : 'Cuadre'} ${start} a ${end}`}
+            />
           </Field>
           <Field label="Notas">
             <TextArea value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -223,7 +356,10 @@ function SettlementDetailSheet({ open, settlement, onClose, onChanged }) {
   });
 
   const toExcel = () => run(async () => {
-    const movements = await fetchMovements(settlement.period_start, settlement.period_end);
+    // Un cuadre manual no sale de los movimientos de la app: no se exportan.
+    const movements = settlement.is_manual
+      ? null
+      : await fetchMovements(settlement.period_start, settlement.period_end);
     await exportSettlementExcel(settlement, { movements, partners, categories });
   });
 
@@ -243,9 +379,18 @@ function SettlementDetailSheet({ open, settlement, onClose, onChanged }) {
         </div>
       )}
     >
-      <span className="text-xs text-gray-400">
-        {formatDate(settlement.period_start, { withYear: true })} a {formatDate(settlement.period_end, { withYear: true })}
-      </span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-gray-400">
+          {formatDate(settlement.period_start, { withYear: true })} a {formatDate(settlement.period_end, { withYear: true })}
+        </span>
+        {settlement.is_manual && <ManualBadge />}
+      </div>
+      {settlement.is_manual && (
+        <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-300 text-xs flex gap-2">
+          <PencilLine className="w-4 h-4 shrink-0" />
+          <span>Cuadre manual: los totales de cada socio se escribieron a mano; no dependen de los movimientos de la app.</span>
+        </div>
+      )}
       {settlement.modified_after && (
         <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0" />
@@ -343,7 +488,10 @@ export default function Settlements() {
                 className="w-full text-left p-3.5 rounded-2xl bg-[#1C1C1E] border border-white/5 flex items-center gap-3 tap-bounce"
               >
                 <div className="flex-1 min-w-0">
-                  <span className="text-sm font-black text-white block truncate">{s.title}</span>
+                  <span className="text-sm font-black text-white flex items-center gap-1.5 min-w-0">
+                    <span className="truncate">{s.title}</span>
+                    {s.is_manual && <ManualBadge />}
+                  </span>
                   <span className="text-[11px] text-gray-400 block">
                     {formatDate(s.period_start)} a {formatDate(s.period_end, { withYear: true })}
                   </span>

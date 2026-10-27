@@ -102,6 +102,15 @@ Detalle de `calculate_settlement`:
 
 `settlement_list` incluye `modified_after = true` si algún movimiento del periodo cambió después de guardar el cuadre.
 
+### Cuadre manual (D42)
+
+| RPC | Quién | Notas |
+|---|---|---|
+| `calculate_manual_settlement(p_start, p_end, p_reserve_fund, p_partners)` | socio | `p_partners` = `{"<partner_id>": {income_collected, box_expenses_paid, personal_expenses, transfers_given, transfers_received, declared_cash?}}`. Lo que falte cuenta como 0. Rechaza socios desconocidos o inactivos, campos desconocidos, textos y montos negativos. Devuelve lo mismo que `calculate_settlement` más `is_manual: true` y `transfers_mismatch`. |
+| `save_manual_settlement(p_title, p_start, p_end, p_reserve_fund, p_partners, p_notes)` | socio | Guarda con `is_manual = true`. Título por defecto "Cuadre manual AAAA-MM-DD a AAAA-MM-DD". |
+
+`calculate_settlement` también devuelve `is_manual: false` y `transfers_mismatch`. En `settlement_list`, `modified_after` siempre es falso para un cuadre manual.
+
 ## Bridge (solo el rol `bridge`)
 
 | RPC | Notas |

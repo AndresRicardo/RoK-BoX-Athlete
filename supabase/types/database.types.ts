@@ -1635,6 +1635,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          is_manual: boolean
           net_profit: number
           notes: string | null
           partners_snapshot: Json
@@ -1652,6 +1653,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          is_manual?: boolean
           net_profit: number
           notes?: string | null
           partners_snapshot: Json
@@ -1669,6 +1671,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string
+          is_manual?: boolean
           net_profit?: number
           notes?: string | null
           partners_snapshot?: Json
@@ -1896,6 +1899,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string | null
+          is_manual: boolean | null
           modified_after: boolean | null
           net_profit: number | null
           notes: string | null
@@ -1914,6 +1918,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string | null
+          is_manual?: boolean | null
           modified_after?: never
           net_profit?: number | null
           notes?: string | null
@@ -1932,6 +1937,7 @@ export type Database = {
           created_by?: string | null
           deleted_at?: string | null
           id?: string | null
+          is_manual?: boolean | null
           modified_after?: never
           net_profit?: number | null
           notes?: string | null
@@ -1959,6 +1965,15 @@ export type Database = {
       }
       bridge_sync_persons: {
         Args: { p_full_snapshot?: boolean; p_persons: Json }
+        Returns: Json
+      }
+      calculate_manual_settlement: {
+        Args: {
+          p_end: string
+          p_partners?: Json
+          p_reserve_fund?: number
+          p_start: string
+        }
         Returns: Json
       }
       calculate_settlement: {
@@ -2299,6 +2314,40 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      save_manual_settlement: {
+        Args: {
+          p_end: string
+          p_notes?: string
+          p_partners?: Json
+          p_reserve_fund?: number
+          p_start: string
+          p_title: string
+        }
+        Returns: {
+          box_expenses: number
+          created_at: string
+          created_by: string | null
+          deleted_at: string | null
+          id: string
+          is_manual: boolean
+          net_profit: number
+          notes: string | null
+          partners_snapshot: Json
+          period_end: string
+          period_start: string
+          reserve_fund: number
+          title: string
+          total_income: number
+          transfers: Json
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "settlements"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       save_settlement: {
         Args: {
           p_declared_cash?: Json
@@ -2314,6 +2363,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          is_manual: boolean
           net_profit: number
           notes: string | null
           partners_snapshot: Json
@@ -2396,6 +2446,7 @@ export type Database = {
           created_by: string | null
           deleted_at: string | null
           id: string
+          is_manual: boolean
           net_profit: number
           notes: string | null
           partners_snapshot: Json

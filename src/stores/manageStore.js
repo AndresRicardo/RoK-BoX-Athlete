@@ -44,7 +44,8 @@ const useManageStore = create((set, get) => ({
     const { data: { user } } = await supabase.auth.getUser();
     const [plans, partners, products, categories] = await Promise.all([
       query(supabase.from('membership_plans').select('*').order('sort_order').order('name')),
-      query(supabase.from('partners').select('*').order('created_at')),
+      // Mismo orden que el cuadre (calculate_settlement): fecha de creación y nombre.
+      query(supabase.from('partners').select('*').order('created_at').order('name')),
       query(supabase.from('products').select('*').order('sort_order').order('name')),
       // Solo socios pueden leer categorías; a un coach le llega vacío.
       supabase.from('expense_categories').select('*').order('sort_order').order('name')

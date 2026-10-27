@@ -97,6 +97,24 @@ const useFinanceStore = create(() => ({
     p_notes: notes || null,
   }),
 
+  // Cuadre manual (D42): manual = { [partnerId]: { income_collected, box_expenses_paid,
+  // personal_expenses, transfers_given, transfers_received, declared_cash? } }.
+  calculateManualSettlement: ({ start, end, reserve, manual }) => rpc('calculate_manual_settlement', {
+    p_start: start,
+    p_end: end,
+    p_reserve_fund: reserve || 0,
+    p_partners: manual || {},
+  }),
+
+  saveManualSettlement: ({ title, start, end, reserve, manual, notes }) => rpc('save_manual_settlement', {
+    p_title: title || null,
+    p_start: start,
+    p_end: end,
+    p_reserve_fund: reserve || 0,
+    p_partners: manual || {},
+    p_notes: notes || null,
+  }),
+
   setTransferPaid: (settlementId, index, paid) => rpc('set_settlement_transfer_paid', {
     p_settlement_id: settlementId,
     p_index: index,

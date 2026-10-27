@@ -394,6 +394,80 @@ begin
   insert into zz_tests.ctx values ('settlement', v_set.id::text);
 end $$;
 
+-- Cuadre manual (0025): con los mismos totales escritos a mano da exactamente el mismo resultado.
+do $$
+declare
+  v_ric  text := (select val from zz_tests.ctx where key = 'p_ricardo');
+  v_s2   text := (select val from zz_tests.ctx where key = 'p_socio2');
+  v_auto jsonb;
+  v_man  jsonb;
+  v_set  public.settlements;
+begin
+  v_auto := public.calculate_settlement('2026-01-01', '2026-01-07', 100000, jsonb_build_object(v_ric, 600000));
+  v_man := public.calculate_manual_settlement('2026-01-01', '2026-01-07', 100000, jsonb_build_object(
+    v_ric, jsonb_build_object('income_collected', 1000000, 'box_expenses_paid', 200000, 'personal_expenses', 50000,
+                              'transfers_given', 100000, 'transfers_received', 0, 'declared_cash', 600000),
+    v_s2, jsonb_build_object('income_collected', 400000, 'box_expenses_paid', 100000, 'transfers_received', 100000)));
+  insert into zz_tests.results (name, ok, detail)
+  values ('cuadre manual: mismo resultado que el calculado con los mismos datos',
+          (v_man - 'is_manual') = (v_auto - 'is_manual') and (v_man->>'is_manual')::boolean
+          and not (v_auto->>'is_manual')::boolean,
+          (v_man->'transfers')::text);
+
+  v_man := public.calculate_manual_settlement('2025-12-01', '2025-12-31', 0, jsonb_build_object(
+    v_ric, jsonb_build_object('income_collected', 300000, 'transfers_given', 50000)));
+  insert into zz_tests.results (name, ok, detail)
+  values ('cuadre manual: socio sin datos cuenta en 0 y avisa entregas descuadradas',
+          jsonb_array_length(v_man->'partners') = 2 and (v_man->>'total_income')::numeric = 300000
+          and (v_man->>'transfers_mismatch')::boolean,
+          v_man->>'total_income');
+
+  begin
+    perform public.calculate_manual_settlement('2025-12-01', '2025-12-31', 0,
+      jsonb_build_object(gen_random_uuid()::text, jsonb_build_object('income_collected', 1)));
+    insert into zz_tests.results (name, ok, detail) values ('cuadre manual: rechaza socio desconocido', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('cuadre manual: rechaza socio desconocido', true);
+  end;
+  begin
+    perform public.calculate_manual_settlement('2025-12-01', '2025-12-31', 0,
+      jsonb_build_object(v_ric, jsonb_build_object('income_collected', -5)));
+    insert into zz_tests.results (name, ok, detail) values ('cuadre manual: rechaza montos negativos', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('cuadre manual: rechaza montos negativos', true);
+  end;
+  begin
+    perform public.calculate_manual_settlement('2025-12-01', '2025-12-31', 0,
+      jsonb_build_object(v_ric, jsonb_build_object('income_collected', '1000')));
+    insert into zz_tests.results (name, ok, detail) values ('cuadre manual: rechaza texto en un monto', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('cuadre manual: rechaza texto en un monto', true);
+  end;
+
+  v_set := public.save_manual_settlement(null, '2026-01-01', '2026-01-07', 100000, jsonb_build_object(
+    v_ric, jsonb_build_object('income_collected', 1000000, 'box_expenses_paid', 200000, 'personal_expenses', 50000,
+                              'transfers_given', 100000),
+    v_s2, jsonb_build_object('income_collected', 400000, 'box_expenses_paid', 100000, 'transfers_received', 100000)),
+    'Nota manual');
+  insert into zz_tests.results (name, ok, detail)
+  values ('cuadre manual: se guarda marcado como manual',
+          v_set.is_manual and v_set.title like 'Cuadre manual 2026-01-01%' and v_set.net_profit = 1000000
+          and jsonb_array_length(v_set.transfers) = 2,
+          v_set.title);
+  insert into zz_tests.ctx values ('settlement_manual', v_set.id::text);
+end $$;
+
+reset role;
+
+-- Un coach no puede hacer cuadres manuales.
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.calculate_manual_settlement('2025-12-01', '2025-12-31', 0, '{}');
+  insert into zz_tests.results (name, ok, detail) values ('cuadre manual: solo socios', false, 'no falló');
+exception when insufficient_privilege then
+  insert into zz_tests.results (name, ok) values ('cuadre manual: solo socios', true);
+end $$;
 reset role;
 
 -- En una sola transacción now() no avanza: se simula que el cuadre se guardó antes.
@@ -406,6 +480,14 @@ do $$ begin
   insert into zz_tests.results (name, ok, detail)
   select 'cuadre marca movimientos modificados después', modified_after, null
   from public.settlement_list where id = (select val::uuid from zz_tests.ctx where key = 'settlement');
+end $$;
+
+update public.settlements set created_at = now() - interval '2 minutes'
+where id = (select val::uuid from zz_tests.ctx where key = 'settlement_manual');
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'cuadre manual: no se marca por movimientos de la app', not modified_after, null
+  from public.settlement_list where id = (select val::uuid from zz_tests.ctx where key = 'settlement_manual');
 end $$;
 
 -- =====================================================================

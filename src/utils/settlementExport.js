@@ -35,9 +35,11 @@ export async function exportSettlementPdf(settlement) {
   doc.setTextColor(110);
   doc.text(
     `Periodo: ${formatDate(settlement.period_start, { withYear: true })} a ${formatDate(settlement.period_end, { withYear: true })}`
-      + ` · Guardado: ${formatDateTime(settlement.created_at)}`,
+      + ` · Guardado: ${formatDateTime(settlement.created_at)}`
+      + (settlement.is_manual ? ' · Cuadre manual (totales escritos a mano)' : ''),
     40,
     86,
+    { maxWidth: 530 },
   );
   doc.setTextColor(0);
 
@@ -93,6 +95,7 @@ export async function exportSettlementPdf(settlement) {
 /**
  * Excel con el cuadre y los movimientos del periodo.
  * movements = { incomes, expenses, transfers } y partners/categories para los nombres.
+ * En un cuadre manual (movements = null) solo va la hoja del cuadre.
  */
 export async function exportSettlementExcel(settlement, { movements, partners, categories }) {
   const { default: writeExcelFile } = await import('write-excel-file/browser');
@@ -109,6 +112,7 @@ export async function exportSettlementExcel(settlement, { movements, partners, c
   const summary = [
     [{ value: settlement.title, ...bold }],
     ['Periodo', `${settlement.period_start} a ${settlement.period_end}`],
+    ['Tipo', settlement.is_manual ? 'Manual (totales escritos a mano)' : 'Con los movimientos de la app'],
     ['Ingresos totales', num(settlement.total_income)],
     ['Gastos del BOX', num(settlement.box_expenses)],
     ['Fondo de reserva', num(settlement.reserve_fund)],
@@ -124,6 +128,14 @@ export async function exportSettlementExcel(settlement, { movements, partners, c
       t.paid_at ? `Pagada ${day(t.paid_at)}` : 'Pendiente',
     ]),
   ];
+
+  const widths = (...w) => w.map((width) => ({ width }));
+  const summarySheet = { sheet: 'Cuadre', data: summary, columns: widths(24, 20, 20, 20, 20) };
+
+  if (!movements) {
+    await writeExcelFile([summarySheet]).toFile(`${fileBase(settlement)}.xlsx`);
+    return;
+  }
 
   const incomes = [
     header(['Fecha', 'Socio', 'Concepto', 'Origen', 'Medio', 'Monto', 'Nota']),
@@ -149,10 +161,8 @@ export async function exportSettlementExcel(settlement, { movements, partners, c
     ]),
   ];
 
-  const widths = (...w) => w.map((width) => ({ width }));
-
   await writeExcelFile([
-    { sheet: 'Cuadre', data: summary, columns: widths(24, 20, 20, 20, 20) },
+    summarySheet,
     { sheet: 'Ingresos', data: incomes, columns: widths(12, 14, 36, 14, 14, 14, 30) },
     { sheet: 'Gastos', data: expenses, columns: widths(12, 14, 32, 10, 18, 14, 14, 30) },
     { sheet: 'Entregas', data: transfers, columns: widths(12, 14, 14, 14, 16, 30) },
