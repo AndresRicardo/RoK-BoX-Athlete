@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   Plus, AlertTriangle, FileText, FileSpreadsheet, CheckCircle2, Circle, Trash2, Calculator, PencilLine, Download,
+  Wand2, Info,
 } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import useFinanceStore from '../../stores/financeStore';
@@ -11,6 +12,7 @@ import {
 import { formatCOP } from '../../utils/currency';
 import { bogotaDate, addDays, monthRange, formatDate } from '../../utils/dates';
 import { exportSettlementPdf, exportSettlementExcel } from '../../utils/settlementExport';
+import { solveManualField } from '../../utils/settlementManual';
 
 /** Tabla por socio del resultado de calculate_settlement o de un cuadre guardado. */
 function PartnerBreakdown({ partners }) {
@@ -85,6 +87,32 @@ function ManualBadge() {
   return <Badge className="bg-sky-500/15 text-sky-400 border-sky-500/30">Manual</Badge>;
 }
 
+/** Texto del aviso de "Autocompletar" según el resultado de solveManualField. */
+function autoFillNotice(r) {
+  if (r.ok) return { tone: 'ok', text: `${r.label}: ${formatCOP(r.value)} (calculado con los demás datos).` };
+  if (r.reason === 'complete') {
+    return {
+      tone: 'info',
+      text: 'Ya están los cuatro datos, no hay nada que calcular. Para calcular uno, bórralo y vuelve a tocar Autocompletar.',
+    };
+  }
+  if (r.reason === 'negative') {
+    return { tone: 'warn', text: `Con estos datos, ${r.label} daría ${formatCOP(r.value)}, que no es posible. Revisa los valores.` };
+  }
+  const n = r.missing.length;
+  return {
+    tone: 'warn',
+    text: `Faltan datos para autocompletar: ${r.missing.join(', ')}. `
+      + `Escribe ${n === 2 ? 'uno de ellos' : `${n - 1} de ellos`} y vuelve a tocar Autocompletar.`,
+  };
+}
+
+const NOTICE_STYLES = {
+  ok: 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300',
+  info: 'bg-sky-500/10 border-sky-500/30 text-sky-300',
+  warn: 'bg-amber-500/10 border-amber-500/30 text-amber-300',
+};
+
 /** Valores escritos a mano → { [partnerId]: { campo: número } } (vacío = no se envía). */
 function manualPayload(manual) {
   return Object.fromEntries(Object.entries(manual).map(([id, fields]) => [
@@ -103,6 +131,7 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
   const active = partners.filter((p) => p.is_active);
   const [mode, setMode] = useState('app');
   const [manual, setManual] = useState({});
+  const [autoInfo, setAutoInfo] = useState({}); // { [partnerId]: { field?, tone, text } }
   const [start, setStart] = useState('');
   const [end, setEnd] = useState('');
   const [reserve, setReserve] = useState('');
@@ -123,6 +152,7 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
     setDeclared({});
     setMode('app');
     setManual({});
+    setAutoInfo({});
     setTitle('');
     setNotes('');
     setResult(null);
@@ -141,10 +171,26 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
     ),
   });
 
-  const setManualField = (partnerId, field) => touch((v) => setManual((prev) => ({
-    ...prev,
-    [partnerId]: { ...prev[partnerId], [field]: v },
-  })));
+  const setManualField = (partnerId, field) => touch((v) => {
+    setManual((prev) => ({ ...prev, [partnerId]: { ...prev[partnerId], [field]: v } }));
+    // Al cambiar un dato, el aviso y la marca de "calculado" de ese socio ya no aplican.
+    setAutoInfo((prev) => {
+      if (!prev[partnerId]) return prev;
+      const next = { ...prev };
+      delete next[partnerId];
+      return next;
+    });
+  });
+
+  // Despeja el único dato que falte del socio (ingresos, gastos o efectivo).
+  const autoFill = (partnerId) => {
+    const r = solveManualField(manual[partnerId] || {});
+    if (r.ok) {
+      setManual((prev) => ({ ...prev, [partnerId]: { ...prev[partnerId], [r.field]: String(r.value) } }));
+      setResult(null);
+    }
+    setAutoInfo((prev) => ({ ...prev, [partnerId]: { field: r.ok ? r.field : null, ...autoFillNotice(r) } }));
+  };
 
   const manualParams = () => ({ start, end, reserve: Number(reserve || 0), manual: manualPayload(manual) });
 
@@ -163,6 +209,7 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
         declared_cash: manual[p.partner_id]?.declared_cash ?? '',
       },
     ])));
+    setAutoInfo({});
     setResult(null);
   });
 
@@ -238,25 +285,52 @@ function NewSettlementSheet({ open, lastEnd, onClose, onSaved }) {
                 Lo que dejes vacío cuenta como $ 0. "Copiar de la app" llena los campos con lo registrado en el periodo
                 para que solo corrijas lo necesario.
               </p>
+              <div className="p-3 rounded-xl bg-sky-500/10 border border-sky-500/30 text-sky-300 text-[11px] flex gap-2">
+                <Wand2 className="w-4 h-4 shrink-0" />
+                <span>
+                  ¿Te falta un dato? Deja vacío solo ese (ingresos, gastos BOX, gastos personales o efectivo que tiene) y toca
+                  "Autocompletar": se calcula con los otros tres. Entregado y recibido vacíos cuentan como $ 0.
+                </span>
+              </div>
               {active.map((p) => (
-                <Card key={p.id} className="bg-[#0A0A0C] flex flex-col gap-2.5">
-                  <span className="text-sm font-black text-white">
-                    {p.name} <span className="text-gray-500 text-xs">{Number(p.share_percentage)} %</span>
-                  </span>
-                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
-                    {MANUAL_FIELDS.map(([key, label]) => (
-                      <Field key={key} label={label}>
-                        <MoneyInput value={manual[p.id]?.[key] ?? ''} onChange={setManualField(p.id, key)} />
-                      </Field>
-                    ))}
-                    <Field label="Efectivo que tiene">
-                      <MoneyInput
-                        value={manual[p.id]?.declared_cash ?? ''}
-                        onChange={setManualField(p.id, 'declared_cash')}
-                        placeholder="Opcional"
-                      />
-                    </Field>
+                <Card key={p.id} className="bg-[#0A0A0C] flex flex-col gap-2.5" data-partner={p.id}>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-sm font-black text-white">
+                      {p.name} <span className="text-gray-500 text-xs">{Number(p.share_percentage)} %</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => autoFill(p.id)}
+                      className="px-2.5 py-1.5 rounded-lg bg-sky-500/15 border border-sky-500/30 text-[11px] font-black text-sky-300 flex items-center gap-1 tap-bounce"
+                    >
+                      <Wand2 className="w-3.5 h-3.5" /> Autocompletar
+                    </button>
                   </div>
+                  <div className="grid grid-cols-2 gap-x-3 gap-y-2.5">
+                    {[...MANUAL_FIELDS, ['declared_cash', 'Efectivo que tiene']].map(([key, label]) => {
+                      const calculated = autoInfo[p.id]?.field === key;
+                      return (
+                        <Field key={key} label={calculated ? `${label} · calculado` : label}>
+                          <MoneyInput
+                            value={manual[p.id]?.[key] ?? ''}
+                            onChange={setManualField(p.id, key)}
+                            placeholder={key === 'declared_cash' ? 'Opcional' : 'Sin dato'}
+                            className={`${inputClass} ${calculated ? 'border-emerald-500/60 text-emerald-300' : ''}`}
+                          />
+                        </Field>
+                      );
+                    })}
+                  </div>
+                  {autoInfo[p.id] && (
+                    <div className={`p-2.5 rounded-xl border text-[11px] flex gap-2 ${NOTICE_STYLES[autoInfo[p.id].tone]}`}>
+                      {autoInfo[p.id].tone === 'ok'
+                        ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+                        : autoInfo[p.id].tone === 'info'
+                          ? <Info className="w-4 h-4 shrink-0" />
+                          : <AlertTriangle className="w-4 h-4 shrink-0" />}
+                      <span>{autoInfo[p.id].text}</span>
+                    </div>
+                  )}
                 </Card>
               ))}
             </>
