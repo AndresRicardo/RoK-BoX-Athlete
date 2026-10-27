@@ -554,18 +554,35 @@ export function DebtDetailSheet({ open, debt, onClose, onChanged }) {
   );
 }
 
-export function DebtRow({ debt, onClick }) {
+/** Concepto de la deuda con sus ítems: "Consumo · Agua, Barra". */
+export function debtLabel(debt) {
+  return [debt.concept, debt.items.map((i) => i.name).join(', ')].filter(Boolean).join(' · ') || 'Deuda';
+}
+
+/** Fila de una deuda. Dentro del grupo de una persona (`compact`) no repite el nombre. */
+export function DebtRow({ debt, onClick, compact = false }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left p-3 rounded-2xl bg-[#1C1C1E] border border-white/5 flex items-center gap-3 tap-bounce"
+      className={`w-full text-left rounded-2xl border flex items-center gap-3 tap-bounce ${
+        compact ? 'p-2.5 bg-[#0A0A0C] border-white/5' : 'p-3 bg-[#1C1C1E] border-white/5'
+      }`}
     >
       <div className="flex-1 min-w-0">
-        <span className="text-sm font-black text-white block truncate">{debt.member_name}</span>
-        <span className="text-[11px] text-[#A0A0A5] block truncate">
-          {[debt.concept, debt.items.map((i) => i.name).join(', ')].filter(Boolean).join(' · ') || 'Deuda'} · {formatDate(debt.created_at)}
-        </span>
+        {compact ? (
+          <>
+            <span className="text-xs font-black text-white block truncate">{debtLabel(debt)}</span>
+            <span className="text-[11px] text-[#A0A0A5] block">{formatDate(debt.created_at)}</span>
+          </>
+        ) : (
+          <>
+            <span className="text-sm font-black text-white block truncate">{debt.member_name}</span>
+            <span className="text-[11px] text-[#A0A0A5] block truncate">
+              {debtLabel(debt)} · {formatDate(debt.created_at)}
+            </span>
+          </>
+        )}
       </div>
       <div className="flex flex-col items-end gap-1 shrink-0">
         <Money value={debt.status === 'voided' ? debt.total_amount : debt.balance} className="text-sm text-white" />
