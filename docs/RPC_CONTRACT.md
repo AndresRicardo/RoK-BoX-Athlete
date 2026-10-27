@@ -33,6 +33,8 @@ Referencia para la app y el bridge. Los tipos completos generados están en
 |---|---|---|
 | `membership_status` | Una fila por miembro con el estado de su membresía. Ver detalle abajo. | Atleta: la suya. Staff: todas. |
 | `debt_summary` | Deudas, más `member_name` y `status` (`pending`/`partial`/`paid`/`voided`) | Atleta: las suyas. Staff: todas. |
+| `debtor_summary` | Una fila por miembro con saldo: `balance`, `open_debts`, `oldest_debt_at`, `phone`, `last_reminder_at`, `last_reminder_by`, `reminders_count` | Staff (un atleta solo vería su fila, sin recordatorios) |
+| `app_settings` | Ajustes del box por clave; hoy solo `debt_reminder_template` | Lee el staff; escriben los socios |
 | `debt_items`, `debt_payments` | Detalle de cada deuda | Igual que `debt_summary` |
 | `membership_renewals` | Historial, incluidas las pendientes de pago | Atleta: las suyas. Staff: todas. |
 | `class_usages` | Consumos de tiquetera | Atleta: los suyos. Staff: todos. |
@@ -79,6 +81,8 @@ Referencia para la app y el bridge. Los tipos completos generados están en
 | `insert debt_payments {debt_id, amount, payment_method, received_by_partner, note?}` | staff | Rechaza abonos mayores al saldo. Genera el ingreso automáticamente. |
 | `update debt_items / debt_payments set deleted_at` | staff | Borrado lógico. Recalcula los totales y anula el ingreso. |
 | `register_sale(p_product_id, p_quantity, p_payment_method, p_received_by_partner, p_unit_price?, p_note?)` | staff | Venta de contado, registrada como ingreso `sale`. |
+| `log_debt_reminder(p_member_id)` | staff | Registra un recordatorio por WhatsApp con el saldo calculado en el servidor (D41). Falla si el miembro no tiene saldo. `debt_reminders` no admite escritura directa. |
+| `upsert/delete app_settings {key: 'debt_reminder_template', value}` | socio | Plantilla del mensaje con `{nombre}`, `{total}` y `{detalle}`. Sin fila = plantilla por defecto de la app. Auditada. |
 
 ## Caja y cuadres (solo socios)
 - **`expenses` e `incomes`:** se insertan y editan directamente. RLS solo permite tocar los propios y, en ingresos, solo los de `source` `manual` o `sale`. El borrado es `deleted_at = now()`.

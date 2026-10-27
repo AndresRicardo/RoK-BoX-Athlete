@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import {
-  Users2, Tag, Package, FolderTree, ShieldCheck, Wifi, History, ChevronRight, Plus, Trash2, Mail,
+  Users2, Tag, Package, FolderTree, ShieldCheck, Wifi, History, ChevronRight, Plus, Trash2, Mail, MessageCircle,
 } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import useAuthStore from '../../stores/authStore';
@@ -12,6 +12,7 @@ import {
 import { planDuration } from '../../components/manage/RenewSheet';
 import { formatDateTime } from '../../utils/dates';
 import { timeAgo } from '../../utils/time';
+import { DEFAULT_DEBT_TEMPLATE, TEMPLATE_PLACEHOLDERS, buildDebtReminder } from '../../utils/whatsapp';
 
 const SECTIONS = [
   { key: 'partners', label: 'Socios y porcentajes', icon: Users2 },
@@ -19,6 +20,7 @@ const SECTIONS = [
   { key: 'products', label: 'Catálogo de productos', icon: Package },
   { key: 'categories', label: 'Categorías de gasto', icon: FolderTree },
   { key: 'roles', label: 'Roles e invitaciones', icon: ShieldCheck },
+  { key: 'whatsapp', label: 'Mensaje de cobro por WhatsApp', icon: MessageCircle },
   { key: 'bridge', label: 'Conexión con HikCentral', icon: Wifi },
   { key: 'audit', label: 'Auditoría', icon: History },
 ];
@@ -570,6 +572,76 @@ function BridgeSection() {
 }
 
 // ---------------------------------------------------------------------
+// Mensaje de cobro por WhatsApp (D41)
+// ---------------------------------------------------------------------
+const SAMPLE_DEBTS = [
+  { concept: 'Mensualidad', items: [], balance: 70000, created_at: '2026-01-02' },
+  { concept: 'Consumo', items: [{ name: 'Agua 600 ml', quantity: 2 }], balance: 5000, created_at: '2026-01-05' },
+];
+
+function WhatsAppSection() {
+  const { fetchReminderTemplate, saveReminderTemplate } = useManageStore();
+  const [value, setValue] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const { run, busy, error } = useAction();
+
+  useEffect(() => {
+    run(async () => setValue((await fetchReminderTemplate()) || DEFAULT_DEBT_TEMPLATE));
+  }, [fetchReminderTemplate, run]);
+
+  if (value === null) return error ? <ErrorBox error={error} /> : <Loading />;
+
+  const isDefault = value.trim() === DEFAULT_DEBT_TEMPLATE;
+  const save = (text) => run(async () => {
+    if (!text.trim()) throw new Error('El mensaje no puede quedar vacío.');
+    if (text.length > 2000) throw new Error('El mensaje es muy largo (máximo 2.000 caracteres).');
+    // Guardar el texto por defecto = no guardar nada (así recibe las mejoras futuras).
+    await saveReminderTemplate(text.trim() === DEFAULT_DEBT_TEMPLATE ? null : text.trim());
+    setValue(text.trim());
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  });
+
+  return (
+    <>
+      <p className="text-[11px] text-[#A0A0A5]">
+        Es el texto base del recordatorio de deuda. Antes de enviarlo, quien cobra puede ajustarlo para cada persona.
+      </p>
+      <Card className="flex flex-col gap-1.5">
+        {TEMPLATE_PLACEHOLDERS.map(([key, desc]) => (
+          <div key={key} className="flex items-center gap-2 text-[11px]">
+            <code className="px-1.5 py-0.5 rounded bg-[#0A0A0C] text-[#FFC815] font-bold">{key}</code>
+            <span className="text-gray-300">{desc}</span>
+          </div>
+        ))}
+        <span className="text-[10px] text-gray-500 mt-1">En WhatsApp, *texto* se ve en negrita.</span>
+      </Card>
+      <Field label="Mensaje">
+        <textarea
+          rows={12}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          className={`${inputClass} font-normal resize-none`}
+        />
+      </Field>
+      <SectionTitle>Así se verá</SectionTitle>
+      <div className="p-3 rounded-2xl rounded-tr-sm bg-[#005C4B] text-[13px] text-white whitespace-pre-wrap break-words">
+        {buildDebtReminder({ template: value, fullName: 'JUAN PÉREZ', total: 75000, debts: SAMPLE_DEBTS })}
+      </div>
+      <ErrorBox error={error} />
+      <div className="grid grid-cols-2 gap-2">
+        <Button variant="secondary" disabled={busy || isDefault} onClick={() => save(DEFAULT_DEBT_TEMPLATE)}>
+          Restaurar original
+        </Button>
+        <Button disabled={busy} onClick={() => save(value)}>
+          {busy ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar'}
+        </Button>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------
 // Auditoría
 // ---------------------------------------------------------------------
 const TABLE_LABELS = {
@@ -589,6 +661,7 @@ const TABLE_LABELS = {
   partners: 'Socios',
   user_roles: 'Roles',
   expense_categories: 'Categorías',
+  app_settings: 'Ajustes del box',
 };
 const ACTION_LABELS = { INSERT: 'Creó', UPDATE: 'Modificó', DELETE: 'Borró' };
 const IGNORED_KEYS = new Set(['updated_at', 'hik_synced_at']);
@@ -655,6 +728,7 @@ const SECTION_COMPONENTS = {
   products: ProductsSection,
   categories: CategoriesSection,
   roles: RolesSection,
+  whatsapp: WhatsAppSection,
   bridge: BridgeSection,
   audit: AuditSection,
 };

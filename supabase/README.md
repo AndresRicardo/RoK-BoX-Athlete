@@ -3,7 +3,7 @@
 | Ruta | Contenido |
 |---|---|
 | `migrations/0001`–`0014` | Esquema de atletas, **ya aplicado en producción**. No se edita. |
-| `migrations/0015`–`0023` | Gestión: roles, socios, miembros, membresías, bridge, deudas, finanzas, auditoría, notificaciones, realtime, endurecimiento y envío push. |
+| `migrations/0015`–`0024` | Gestión: roles, socios, miembros, membresías, bridge, deudas, finanzas, auditoría, notificaciones, realtime, endurecimiento, envío push y recordatorios de deuda por WhatsApp. |
 | `functions/send-push` | Edge Function que envía los avisos como Web Push (F5). |
 | `scripts/configure-push.mjs` | Configura el secreto entre la base y `send-push` (Vault + secreto de la función). |
 | `seed.sql` | Datos de prueba **solo para DEV** (usuarios `*.dev@rokbox.co`, planes, catálogo, categorías y miembros `ZZTEST`). |

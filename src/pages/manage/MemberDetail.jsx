@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import {
   RefreshCw, Ticket, Undo2, Lock, Unlock, Pencil, Plus, CalendarRange, Fingerprint, Smartphone,
-  CheckCircle2, Clock3, AlertTriangle,
+  CheckCircle2, Clock3, AlertTriangle, MessageCircle,
 } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import useProfileStore from '../../stores/profileStore';
@@ -12,6 +12,7 @@ import {
 } from '../../components/manage/ui';
 import RenewSheet from '../../components/manage/RenewSheet';
 import MemberFormSheet from '../../components/manage/MemberFormSheet';
+import WhatsAppReminderSheet from '../../components/manage/WhatsAppReminderSheet';
 import { NewDebtSheet, DebtDetailSheet, DebtRow } from '../../components/manage/DebtSheets';
 import { formatDate, formatDateTime, bogotaDate, bogotaDayStart, bogotaDayLastSecond } from '../../utils/dates';
 import { formatCOP } from '../../utils/currency';
@@ -79,7 +80,7 @@ export default function MemberDetail() {
   const { fetchMemberDetail, loadCatalogs, consumeClass, undoClassUsage, setMemberAccess, voidRenewal, partners, fetchMembers } = useManageStore();
   const isPartner = useProfileStore((state) => state.isPartner);
   const [data, setData] = useState(null);
-  const [sheet, setSheet] = useState(null); // 'renew' | 'edit' | 'debt' | 'validity' | 'void:<id>'
+  const [sheet, setSheet] = useState(null); // 'renew' | 'edit' | 'debt' | 'whatsapp' | 'validity' | 'void:<id>'
   const [selectedDebt, setSelectedDebt] = useState(null);
   const load = useAction();
   const action = useAction();
@@ -292,9 +293,16 @@ export default function MemberDetail() {
       {/* Deudas */}
       <SectionTitle
         action={(
-          <button type="button" onClick={() => setSheet('debt')} className="text-[11px] font-black text-[#FFC815] flex items-center gap-1">
-            <Plus className="w-3.5 h-3.5" /> Nueva deuda
-          </button>
+          <div className="flex items-center gap-3">
+            {Number(s.debt_balance) > 0 && (
+              <button type="button" onClick={() => setSheet('whatsapp')} className="text-[11px] font-black text-[#25D366] flex items-center gap-1">
+                <MessageCircle className="w-3.5 h-3.5" /> Recordar
+              </button>
+            )}
+            <button type="button" onClick={() => setSheet('debt')} className="text-[11px] font-black text-[#FFC815] flex items-center gap-1">
+              <Plus className="w-3.5 h-3.5" /> Nueva deuda
+            </button>
+          </div>
         )}
       >
         Deudas {openDebts.length > 0 && `· saldo ${formatCOP(s.debt_balance)}`}
@@ -359,6 +367,14 @@ export default function MemberDetail() {
         memberName={s.full_name}
         onClose={() => setSheet(null)}
         onDone={refresh}
+      />
+      <WhatsAppReminderSheet
+        open={sheet === 'whatsapp'}
+        memberId={s.member_id}
+        onClose={() => {
+          setSheet(null);
+          refresh();
+        }}
       />
       <DebtDetailSheet
         open={!!selectedDebt}

@@ -64,6 +64,7 @@ Las migraciones `0015`–`0020` **nunca se aplicaron en producción** (AUDITORIA
 | `0021_realtime.sql` | Publicación de Realtime. |
 | `0022_hardening.sql` | Ajustes de seguridad sobre objetos de 0001–0014 señalados por el asesor de Supabase. |
 | `0023_push_dispatch.sql` | Envío push (F5): trigger y cron que llaman a `send-push` por `pg_net` con un secreto de Vault, `claim_push_batch` (solo `service_role`) y `register_push_subscription`. |
+| `0024_debt_reminders.sql` | Recordatorio de deuda por WhatsApp (D41): `app_settings` (plantilla del box), `debt_reminders` (registro), `log_debt_reminder` y la vista `debtor_summary`. |
 | `supabase/tests/*.sql` | Tests de RLS por rol (atleta, coach, socio, bridge, anónimo), de los RPC y de la fórmula del cuadre. |
 
 ### Reglas de seguridad (RLS)

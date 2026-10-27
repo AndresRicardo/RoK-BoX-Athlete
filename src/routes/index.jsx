@@ -15,6 +15,7 @@ import ManageHome from '../pages/manage/ManageHome';
 import Members from '../pages/manage/Members';
 import MemberDetail from '../pages/manage/MemberDetail';
 import Debts from '../pages/manage/Debts';
+import DebtReminders from '../pages/manage/DebtReminders';
 import Pending from '../pages/manage/Pending';
 import Cash from '../pages/manage/Cash';
 import Settlements from '../pages/manage/Settlements';
@@ -93,6 +94,7 @@ export const router = createBrowserRouter([
       { path: 'manage/members', element: staff(<Members />) },
       { path: 'manage/members/:id', element: staff(<MemberDetail />) },
       { path: 'manage/debts', element: staff(<Debts />) },
+      { path: 'manage/debts/reminders', element: staff(<DebtReminders />) },
       { path: 'manage/pending', element: staff(<Pending />) },
       { path: 'manage/cash', element: partnerOnly(<Cash />) },
       { path: 'manage/settlements', element: partnerOnly(<Settlements />) },

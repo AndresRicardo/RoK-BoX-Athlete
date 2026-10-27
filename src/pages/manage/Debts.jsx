@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Search, Plus, ShoppingBag } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Search, Plus, ShoppingBag, MessageCircle } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import {
   ManageHeader, Chips, Button, ErrorBox, Empty, Loading, Money, useAction,
@@ -66,6 +67,13 @@ export default function Debts() {
           <ShoppingBag className="w-4 h-4" /> Venta de contado
         </Button>
       </div>
+
+      <Link
+        to="/manage/debts/reminders"
+        className="py-2.5 px-4 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 tap-bounce bg-[#25D366]/15 text-[#25D366] border border-[#25D366]/30"
+      >
+        <MessageCircle className="w-4 h-4" /> Recordar por WhatsApp
+      </Link>
 
       <div className="relative">
         <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />

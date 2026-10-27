@@ -22,14 +22,32 @@ insert into auth.users (instance_id, id, aud, role, email, encrypted_password, c
 values ('00000000-0000-0000-0000-000000000000', '77777777-7777-7777-7777-777777777777',
         'authenticated', 'authenticated', 'ricardo.test@rokbox.co', '', now(), now());
 insert into public.user_roles (user_id, role) values ('77777777-7777-7777-7777-777777777777', 'partner');
-update public.partners set user_id = '77777777-7777-7777-7777-777777777777' where name = 'Ricardo';
+
+-- Los socios de DEV se pueden renombrar o cambiar de porcentaje desde la app: aquí se dejan
+-- como los esperan los tests (dentro de la transacción, que se revierte).
+-- "Socio Dos" = el socio de la cuenta socio2; "Ricardo" = el otro socio más antiguo.
+update public.partners set name = 'zz_tmp_' || id where name in ('Ricardo', 'Socio Dos');
+update public.partners set name = 'Socio Dos', share_percentage = 50, is_active = true
+where user_id = '22222222-2222-2222-2222-222222222222';
+update public.partners set name = 'Ricardo', share_percentage = 50, is_active = true,
+       user_id = '77777777-7777-7777-7777-777777777777'
+where id = (select id from public.partners
+            where user_id is distinct from '22222222-2222-2222-2222-222222222222'
+            order by created_at limit 1);
+update public.partners set is_active = false where name not in ('Ricardo', 'Socio Dos');
+
+-- Catálogo propio de los tests: el de DEV lo editan los socios.
+insert into public.membership_plans (name, kind, duration_months, duration_days, class_count, price)
+values ('ZZTEST Mensual', 'period', 1, 0, null, 150000);
+insert into public.products (name, category, price) values ('ZZTEST Bebida', 'store', 6000);
+insert into public.expense_categories (name) values ('ZZTEST Otros');
 
 insert into zz_tests.ctx values
   ('p_ricardo', (select id::text from public.partners where name = 'Ricardo')),
   ('p_socio2',  (select id::text from public.partners where name = 'Socio Dos')),
-  ('plan_mensual', (select id::text from public.membership_plans where name = 'Mensual')),
-  ('prod_bebida', (select id::text from public.products where name = 'Bebida hidratante')),
-  ('cat_otros', (select id::text from public.expense_categories where name = 'Otros'));
+  ('plan_mensual', (select id::text from public.membership_plans where name = 'ZZTEST Mensual')),
+  ('prod_bebida', (select id::text from public.products where name = 'ZZTEST Bebida')),
+  ('cat_otros', (select id::text from public.expense_categories where name = 'ZZTEST Otros'));
 
 -- =====================================================================
 -- ATLETA (vinculado)
@@ -640,6 +658,101 @@ begin
   insert into zz_tests.results (name, ok, detail)
   select 'push: un segundo lote sale vacío', count(*) = 0, count(*)::text from public.claim_push_batch(50);
 end $$;
+
+-- =====================================================================
+-- RECORDATORIOS DE DEUDA POR WHATSAPP (0024)
+-- =====================================================================
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare
+  v_rem public.debt_reminders;
+  v_member uuid;
+begin
+  perform public.create_debt('a0000000-0000-0000-0000-000000000001', 'Recordatorio test',
+    '[{"name":"Ítem recordatorio","quantity":1,"unit_price":5000}]'::jsonb);
+  v_rem := public.log_debt_reminder('a0000000-0000-0000-0000-000000000001');
+  insert into zz_tests.results (name, ok, detail)
+  select 'recordatorio: el coach lo registra con el saldo real',
+         v_rem.balance = (select sum(balance) from public.debts
+                          where member_id = 'a0000000-0000-0000-0000-000000000001' and voided_at is null)
+         and v_rem.sent_by = '33333333-3333-3333-3333-333333333333',
+         v_rem.balance::text;
+  insert into zz_tests.results (name, ok, detail)
+  select 'recordatorio: la vista muestra el último y quién lo envió',
+         last_reminder_by = '33333333-3333-3333-3333-333333333333' and last_reminder_at = v_rem.sent_at
+         and balance = v_rem.balance,
+         last_reminder_at::text
+  from public.debtor_summary where member_id = 'a0000000-0000-0000-0000-000000000001';
+
+  v_member := (public.upsert_member(null, 'ZZTEST Sin Deuda', null, null, null, null)).id;
+  begin
+    perform public.log_debt_reminder(v_member);
+    insert into zz_tests.results (name, ok, detail) values ('recordatorio: sin saldo no se registra', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('recordatorio: sin saldo no se registra', true);
+  end;
+
+  begin
+    insert into public.debt_reminders (member_id, balance, sent_by)
+    values ('a0000000-0000-0000-0000-000000000001', 1, '33333333-3333-3333-3333-333333333333');
+    insert into zz_tests.results (name, ok, detail) values ('recordatorio: no se inserta directo en la tabla', false, 'no falló');
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('recordatorio: no se inserta directo en la tabla', true);
+  end;
+
+  begin
+    insert into public.app_settings (key, value) values ('debt_reminder_template', 'hack');
+    insert into zz_tests.results (name, ok, detail) values ('plantilla: el coach no la edita', false, 'no falló');
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('plantilla: el coach no la edita', true);
+  end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into public.app_settings (key, value) values ('debt_reminder_template', 'Hola {nombre}, debes {total}')
+  on conflict (key) do update set value = excluded.value;
+  insert into zz_tests.results (name, ok, detail)
+  select 'plantilla: el socio la guarda y queda auditada',
+         (select count(*) from public.app_settings where key = 'debt_reminder_template') = 1
+         and exists (select 1 from public.audit_log where table_name = 'app_settings'
+                     and record_id = 'debt_reminder_template' and changed_at >= now()),
+         null;
+  begin
+    insert into public.app_settings (key, value) values ('otra_clave', 'x');
+    insert into zz_tests.results (name, ok, detail) values ('plantilla: solo claves conocidas', false, 'no falló');
+  exception when check_violation then
+    insert into zz_tests.results (name, ok) values ('plantilla: solo claves conocidas', true);
+  end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'plantilla: el coach la lee', count(*) = 1, count(*)::text
+  from public.app_settings where key = 'debt_reminder_template';
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'recordatorio: el atleta no ve recordatorios ni la plantilla',
+         (select count(*) from public.debt_reminders) + (select count(*) from public.app_settings) = 0, null;
+  begin
+    perform public.log_debt_reminder('a0000000-0000-0000-0000-000000000001');
+    insert into zz_tests.results (name, ok, detail) values ('recordatorio: el atleta no puede registrar', false, 'no falló');
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('recordatorio: el atleta no puede registrar', true);
+  end;
+end $$;
+reset role;
 
 -- =====================================================================
 -- RESULTADO

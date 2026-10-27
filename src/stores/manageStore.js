@@ -204,6 +204,36 @@ const useManageStore = create((set, get) => ({
   }),
 
   // ---------------------------------------------------------------------
+  // Recordatorios de deuda por WhatsApp (D41)
+  // ---------------------------------------------------------------------
+  // Miembros con saldo, con su último recordatorio y quién lo envió.
+  fetchDebtors: async ({ memberId } = {}) => {
+    let req = supabase.from('debtor_summary').select('*').order('balance', { ascending: false });
+    if (memberId) req = req.eq('member_id', memberId);
+    const rows = await query(req);
+    const senderIds = [...new Set(rows.map((r) => r.last_reminder_by).filter(Boolean))];
+    const senders = senderIds.length
+      ? await query(supabase.from('athlete_directory').select('id, full_name, display_name').in('id', senderIds))
+      : [];
+    const senderById = Object.fromEntries(senders.map((s) => [s.id, s]));
+    return rows.map((r) => ({ ...r, lastReminderByName: senderById[r.last_reminder_by]?.full_name || null }));
+  },
+
+  // Plantilla del box; null = usar la plantilla por defecto.
+  fetchReminderTemplate: async () => {
+    const rows = await query(
+      supabase.from('app_settings').select('value').eq('key', 'debt_reminder_template'),
+    );
+    return rows[0]?.value || null;
+  },
+
+  saveReminderTemplate: (value) => (value
+    ? query(supabase.from('app_settings').upsert({ key: 'debt_reminder_template', value }).select())
+    : query(supabase.from('app_settings').delete().eq('key', 'debt_reminder_template').select())),
+
+  logDebtReminder: (memberId) => rpc('log_debt_reminder', { p_member_id: memberId }),
+
+  // ---------------------------------------------------------------------
   // Pendientes
   // ---------------------------------------------------------------------
   fetchPending: async ({ isPartner }) => {
