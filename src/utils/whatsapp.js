@@ -20,19 +20,83 @@ export const TEMPLATE_PLACEHOLDERS = [
 
 const MAX_DETAIL_LINES = 6;
 
+// Indicativos para los números guardados sin él. Colombia primero (es el valor por defecto).
+export const COUNTRY_CODES = [
+  ['57', 'Colombia'],
+  ['58', 'Venezuela'],
+  ['593', 'Ecuador'],
+  ['51', 'Perú'],
+  ['507', 'Panamá'],
+  ['52', 'México'],
+  ['1', 'EE. UU. / Canadá'],
+  ['34', 'España'],
+  ['54', 'Argentina'],
+  ['56', 'Chile'],
+  ['55', 'Brasil'],
+];
+
+const COLOMBIA = '57';
+
 /**
  * Número para wa.me (solo dígitos, con indicativo) o null si no sirve.
- * Celulares colombianos de 10 dígitos (3xx...) reciben el 57; un número con "+" se
- * toma como internacional.
+ * - Celular colombiano sin indicativo (10 dígitos, empieza por 3): se le pone el 57.
+ * - Con indicativo de Colombia (57, +57 o 0057): debe seguir un celular de 10 dígitos.
+ * - Con "+" o "00" y otro indicativo: se toma como internacional.
+ * Un número de otro país guardado sin indicativo no se puede adivinar: hay que
+ * corregirlo eligiendo el país (phoneWithCountry).
  */
 export function whatsappPhone(raw) {
   if (!raw) return null;
   const text = String(raw).trim();
-  const digits = text.replace(/\D/g, '');
-  if (/^3\d{9}$/.test(digits)) return `57${digits}`;
-  if (/^573\d{9}$/.test(digits)) return digits;
-  if (text.startsWith('+') && digits.length >= 8 && digits.length <= 15) return digits;
+  let digits = text.replace(/\D/g, '');
+  const international = text.startsWith('+') || digits.startsWith('00');
+  if (digits.startsWith('00')) digits = digits.slice(2);
+  if (!international && /^3\d{9}$/.test(digits)) return `${COLOMBIA}${digits}`;
+  if (digits.startsWith(COLOMBIA)) return /^573\d{9}$/.test(digits) ? digits : null;
+  if (international && digits.length >= 8 && digits.length <= 15) return digits;
   return null;
+}
+
+/** Por qué un número guardado no sirve, para mostrarlo a quien cobra. */
+export function phoneProblem(raw) {
+  if (!raw?.trim()) return 'Sin celular';
+  if (whatsappPhone(raw)) return null;
+  const digits = raw.replace(/\D/g, '').replace(/^(00)?57(?=3)/, '');
+  if (/^3\d{8}$/.test(digits)) return 'Celular incompleto (9 dígitos)';
+  if (/^3\d{10,}$/.test(digits)) return 'Celular con dígitos de más';
+  return 'Número por revisar';
+}
+
+/**
+ * Número escrito por el usuario + país elegido → texto a guardar en el miembro.
+ * Se quitan los ceros iniciales (prefijo nacional, p. ej. 0412 en Venezuela). Si ya
+ * trae el indicativo del país elegido, no se repite. Colombia se guarda sin indicativo,
+ * como el resto de los números del box.
+ */
+export function phoneWithCountry(countryCode, input) {
+  let digits = String(input || '').replace(/\D/g, '').replace(/^0+/, '');
+  if (!digits) return '';
+  if (countryCode === COLOMBIA) {
+    if (/^573\d{9}$/.test(digits)) digits = digits.slice(2);
+    return digits;
+  }
+  if (digits.startsWith(countryCode) && digits.length > countryCode.length + 7) {
+    digits = digits.slice(countryCode.length);
+  }
+  return `+${countryCode} ${digits}`;
+}
+
+/** Separa un número guardado en país y número nacional, para editarlo. */
+export function splitCountry(raw) {
+  const text = String(raw || '').trim();
+  const digits = text.replace(/\D/g, '').replace(/^00/, '');
+  if (text.startsWith('+') || text.replace(/\s/g, '').startsWith('00')) {
+    const match = COUNTRY_CODES.map(([code]) => code)
+      .sort((a, b) => b.length - a.length)
+      .find((code) => digits.startsWith(code));
+    if (match) return { country: match, number: digits.slice(match.length) };
+  }
+  return { country: COLOMBIA, number: text };
 }
 
 /** "JUAN CARLOS PÉREZ" → "Juan". */

@@ -5,6 +5,7 @@ import { Sheet, Field, TextArea, Button, ErrorBox, Loading, Money, useAction, in
 import {
   buildDebtReminder, whatsappPhone, whatsappUrl, whatsappAppUrl, WHATSAPP_APPS,
   canChooseWhatsappApp, getPreferredWhatsappApp, setPreferredWhatsappApp,
+  COUNTRY_CODES, phoneWithCountry, phoneProblem, splitCountry,
 } from '../../utils/whatsapp';
 import { timeAgo } from '../../utils/time';
 
@@ -24,6 +25,7 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
   const [data, setData] = useState(null); // { debtor, debts }
   const [text, setText] = useState('');
   const [phoneInput, setPhoneInput] = useState('');
+  const [country, setCountry] = useState('57');
   const [editingPhone, setEditingPhone] = useState(false);
   const [sent, setSent] = useState(false);
   const canChoose = canChooseWhatsappApp();
@@ -48,7 +50,9 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
       ]);
       const debtor = debtors[0] || null;
       setData({ debtor, debts });
-      setPhoneInput(debtor?.phone || '');
+      const parts = splitCountry(debtor?.phone);
+      setCountry(parts.country);
+      setPhoneInput(parts.number);
       if (debtor) {
         setText(buildDebtReminder({ template, fullName: debtor.full_name, total: debtor.balance, debts }));
       }
@@ -60,9 +64,11 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
   const phone = whatsappPhone(debtor?.phone);
 
   const savePhone = () => action.run(async () => {
-    const value = phoneInput.trim();
+    const value = phoneWithCountry(country, phoneInput);
     if (!whatsappPhone(value)) {
-      throw new Error('Escribe un celular de 10 dígitos (ej. 3001234567) o un número internacional con +.');
+      throw new Error(country === '57'
+        ? 'Revisa el número: un celular colombiano tiene 10 dígitos y empieza por 3 (ej. 3001234567).'
+        : 'Revisa el número: escríbelo sin el indicativo del país, como lo marcarías allá.');
     }
     await saveMember({ id: memberId, phone: value });
     setData((prev) => ({ ...prev, debtor: { ...prev.debtor, phone: value } }));
@@ -179,18 +185,36 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
           {editingPhone || !phone ? (
             <Field
               label="Celular para WhatsApp"
-              hint={debtor.phone && !phone ? `El número guardado (${debtor.phone}) no es un celular válido.` : 'Se guarda en los datos del miembro.'}
+              hint={debtor.phone && !phone
+                ? `El número guardado (${debtor.phone}) no sirve: ${phoneProblem(debtor.phone).toLowerCase()}. Si es de otro país, elige el país y escríbelo sin indicativo.`
+                : 'Si es de otro país, elige el país. Se guarda en los datos del miembro con su indicativo.'}
             >
-              <div className="flex gap-2">
+              <div className="grid grid-cols-[6.5rem_minmax(0,1fr)_auto] gap-2">
+                <select
+                  value={country}
+                  onChange={(e) => {
+                    setCountry(e.target.value);
+                    action.setError(null);
+                  }}
+                  aria-label="País"
+                  className={`${inputClass} px-2 text-xs`}
+                >
+                  {COUNTRY_CODES.map(([code, name]) => (
+                    <option key={code} value={code}>+{code} {name}</option>
+                  ))}
+                </select>
                 <input
                   type="tel"
                   inputMode="tel"
                   value={phoneInput}
-                  onChange={(e) => setPhoneInput(e.target.value)}
-                  placeholder="3001234567"
-                  className={inputClass}
+                  onChange={(e) => {
+                    setPhoneInput(e.target.value);
+                    action.setError(null);
+                  }}
+                  placeholder={country === '57' ? '3001234567' : 'Sin indicativo'}
+                  className={`${inputClass} min-w-0`}
                 />
-                <Button className="shrink-0" disabled={action.busy} onClick={savePhone}>Guardar</Button>
+                <Button disabled={action.busy} onClick={savePhone}>Guardar</Button>
               </div>
             </Field>
           ) : (
@@ -200,7 +224,12 @@ export default function WhatsAppReminderSheet({ open, memberId, onClose, onSent,
               </span>
               <button
                 type="button"
-                onClick={() => setEditingPhone(true)}
+                onClick={() => {
+                  const parts = splitCountry(debtor.phone);
+                  setCountry(parts.country);
+                  setPhoneInput(parts.number);
+                  setEditingPhone(true);
+                }}
                 className="text-[11px] font-black text-[#FFC815] flex items-center gap-1"
               >
                 <Pencil className="w-3 h-3" /> Cambiar

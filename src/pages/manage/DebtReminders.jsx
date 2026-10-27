@@ -13,7 +13,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const FILTERS = [
   ['due', 'Por recordar'],
   ['all', 'Todos'],
-  ['no_phone', 'Sin celular'],
+  ['no_phone', 'Sin celular válido'],
 ];
 
 const fold = (s) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -125,7 +125,7 @@ export default function DebtReminders() {
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-[10px] font-bold text-orange-400">
-                      <PhoneOff className="w-3.5 h-3.5" /> Sin celular
+                      <PhoneOff className="w-3.5 h-3.5" /> {d.phone ? 'Revisar celular' : 'Sin celular'}
                     </span>
                   )}
                 </div>
