@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import {
   Users2, Tag, Package, FolderTree, ShieldCheck, Wifi, History, ChevronRight, Plus, Trash2, Mail, MessageCircle,
+  AlertTriangle,
 } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import useAuthStore from '../../stores/authStore';
@@ -344,8 +345,45 @@ function CategoriesSection() {
 // ---------------------------------------------------------------------
 // Roles e invitaciones
 // ---------------------------------------------------------------------
+const userLabel = (u) => u?.profile?.full_name || u?.email || 'otra cuenta';
+
+/**
+ * "¿Qué socio es?": todos los socios activos. Si el elegido ya tiene otra cuenta, avisa que
+ * esa cuenta dejará de ser socio. El socio propio no se puede pasar a otra cuenta.
+ */
+function PartnerPicker({ value, onChange, partners, users, myId }) {
+  const userById = Object.fromEntries(users.map((u) => [u.userId, u]));
+  const chosen = partners.find((p) => p.id === value);
+  return (
+    <>
+      <Field label="¿Qué socio es?" hint="Su cuenta queda asociada a este socio para la caja y los cuadres.">
+        <Select value={value || ''} onChange={(e) => onChange(e.target.value)}>
+          <option value="">— Elegir —</option>
+          {partners.filter((p) => p.is_active).map((p) => (
+            <option key={p.id} value={p.id} disabled={p.user_id === myId}>
+              {p.name}
+              {p.user_id === myId ? ' (eres tú)' : p.user_id ? ` (hoy: ${userLabel(userById[p.user_id])})` : ''}
+            </option>
+          ))}
+        </Select>
+      </Field>
+      {chosen?.user_id && chosen.user_id !== myId && (
+        <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-[11px] flex gap-2">
+          <AlertTriangle className="w-4 h-4 shrink-0" />
+          <span>
+            {chosen.name} hoy está asociado a la cuenta de {userLabel(userById[chosen.user_id])}. Al confirmar, esa cuenta
+            deja de ser socio y la nueva queda como {chosen.name}. La caja y los cuadres de {chosen.name} no cambian.
+          </span>
+        </div>
+      )}
+    </>
+  );
+}
+
 function RolesSection() {
-  const { partners, fetchRoles, setUserRole, saveInvite, deleteInvite, searchUsers, saveRow } = useManageStore();
+  const {
+    partners, fetchRoles, setUserRole, assignPartnerAccount, saveInvite, deleteInvite, searchUsers, loadCatalogs,
+  } = useManageStore();
   const myId = useAuthStore((state) => state.user?.id);
   const [data, setData] = useState(null);
   const [invite, setInvite] = useState(null);
@@ -362,6 +400,8 @@ function RolesSection() {
     const name = user.profile?.full_name || 'este usuario';
     if (!window.confirm(`¿Quitarle el rol ${ROLE_LABELS[role]} a ${name}?`)) return;
     await setUserRole(user.userId, role, false);
+    // Quitar el rol de socio deja su socio libre para asociarlo a otra cuenta.
+    if (role === 'partner') await loadCatalogs(true);
     await refresh();
   });
 
@@ -387,6 +427,7 @@ function RolesSection() {
             {u.roles.map((r) => (
               <span key={r} className="pl-2 pr-1 py-0.5 rounded-md bg-[#FFC815]/10 border border-[#FFC815]/30 text-[11px] font-black text-[#FFC815] flex items-center gap-1">
                 {ROLE_LABELS[r] || r}
+                {r === 'partner' && partners.find((p) => p.user_id === u.userId) && ` · ${partners.find((p) => p.user_id === u.userId).name}`}
                 {r !== 'bridge' && (
                   <button type="button" onClick={() => revoke(u, r)} className="p-0.5 text-[#FFC815]/60 hover:text-red-400" aria-label={`Quitar ${ROLE_LABELS[r]}`}>
                     <Trash2 className="w-3 h-3" />
@@ -454,12 +495,13 @@ function RolesSection() {
               </Select>
             </Field>
             {invite.role === 'partner' && (
-              <Field label="¿Qué socio es?" hint="Su cuenta queda asociada a este socio para la caja y los cuadres.">
-                <Select value={invite.partnerId} onChange={(e) => setInvite({ ...invite, partnerId: e.target.value })}>
-                  <option value="">— Elegir —</option>
-                  {partners.filter((p) => !p.user_id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </Select>
-              </Field>
+              <PartnerPicker
+                value={invite.partnerId}
+                onChange={(partnerId) => setInvite({ ...invite, partnerId })}
+                partners={partners}
+                users={data.users}
+                myId={myId}
+              />
             )}
           </>
         )}
@@ -475,12 +517,13 @@ function RolesSection() {
               </Select>
             </Field>
             {grant.role === 'partner' && (
-              <Field label="¿Qué socio es?" hint="Su cuenta queda asociada a este socio para la caja y los cuadres.">
-                <Select value={grant.partnerId || ''} onChange={(e) => setGrant({ ...grant, partnerId: e.target.value })}>
-                  <option value="">— Elegir —</option>
-                  {partners.filter((p) => !p.user_id).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                </Select>
-              </Field>
+              <PartnerPicker
+                value={grant.partnerId}
+                onChange={(partnerId) => setGrant({ ...grant, partnerId })}
+                partners={partners}
+                users={data.users}
+                myId={myId}
+              />
             )}
             <Field label="Buscar usuario">
               <TextInput value={grant.q} onChange={(e) => doSearch(e.target.value)} placeholder="Nombre o @usuario" />
@@ -491,9 +534,15 @@ function RolesSection() {
                 type="button"
                 onClick={() => action.run(async () => {
                   if (grant.role === 'partner' && !grant.partnerId) throw new Error('Elige qué socio es.');
-                  if (!window.confirm(`¿Darle el rol ${ROLE_LABELS[grant.role]} a ${u.full_name}?`)) return;
-                  await setUserRole(u.id, grant.role, true);
-                  if (grant.role === 'partner') await saveRow('partners', { id: grant.partnerId, user_id: u.id });
+                  const partner = partners.find((p) => p.id === grant.partnerId);
+                  const roleText = grant.role === 'partner' ? `Socio (${partner?.name})` : ROLE_LABELS[grant.role];
+                  if (!window.confirm(`¿Darle el rol ${roleText} a ${u.full_name}?`)) return;
+                  if (grant.role === 'partner') {
+                    await assignPartnerAccount(grant.partnerId, u.id);
+                    await loadCatalogs(true);
+                  } else {
+                    await setUserRole(u.id, grant.role, true);
+                  }
                   setGrant(null);
                   await refresh();
                 })}

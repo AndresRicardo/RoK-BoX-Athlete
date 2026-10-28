@@ -339,6 +339,9 @@ const useManageStore = create((set, get) => ({
 
   setUserRole: (userId, role, grant) => rpc('set_user_role', { p_user_id: userId, p_role: role, p_grant: grant }),
 
+  // Da el rol de socio y asocia la cuenta al socio; si tenía otra cuenta, esa deja de ser socio.
+  assignPartnerAccount: (partnerId, userId) => rpc('assign_partner_account', { p_partner_id: partnerId, p_user_id: userId }),
+
   saveInvite: (invite) => query(
     supabase.from('role_invites').upsert({
       email: invite.email.trim().toLowerCase(),

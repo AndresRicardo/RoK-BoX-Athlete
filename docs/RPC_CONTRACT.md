@@ -22,7 +22,8 @@ Referencia para la app y el bridge. Los tipos completos generados están en
 
 | RPC | Quién | Qué hace |
 |---|---|---|
-| `set_user_role(p_user_id, p_role, p_grant)` | socio | Da o quita un rol. No permite quitar el último socio. |
+| `set_user_role(p_user_id, p_role, p_grant)` | socio | Da o quita un rol. No permite quitar el último socio. Quitar `partner` deja libre su socio (`partners.user_id = null`). |
+| `assign_partner_account(p_partner_id, p_user_id)` | socio | Da el rol de socio a la cuenta y la asocia al socio. Si el socio tenía otra cuenta, esa pierde el rol de socio. Error 22023 si el socio no existe o está inactivo, si la cuenta ya es de otro socio o si quien llama intenta pasar su propio socio a otra cuenta. |
 | `claim_role_invites()` | cualquiera | Aplica las invitaciones pendientes para el email del usuario. La app lo llama al iniciar sesión. |
 
 `role_invites (email, roles[], partner_id)`: la escriben los socios. Se aplica sola cuando se crea la cuenta con ese email.

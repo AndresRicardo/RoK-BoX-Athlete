@@ -23,18 +23,24 @@ values ('00000000-0000-0000-0000-000000000000', '77777777-7777-7777-7777-7777777
         'authenticated', 'authenticated', 'ricardo.test@rokbox.co', '', now(), now());
 insert into public.user_roles (user_id, role) values ('77777777-7777-7777-7777-777777777777', 'partner');
 
--- Los socios de DEV se pueden renombrar o cambiar de porcentaje desde la app: aquí se dejan
--- como los esperan los tests (dentro de la transacción, que se revierte).
--- "Socio Dos" = el socio de la cuenta socio2; "Ricardo" = el otro socio más antiguo.
+-- Los socios de DEV se pueden renombrar, cambiar de porcentaje o asociar a otras cuentas desde
+-- la app: aquí se dejan como los esperan los tests (dentro de la transacción, que se revierte).
+-- Los dos socios más antiguos pasan a ser "Ricardo" (cuenta 7777…) y "Socio Dos" (cuenta socio2).
+update public.partners set user_id = null where user_id = '22222222-2222-2222-2222-222222222222';
 update public.partners set name = 'zz_tmp_' || id where name in ('Ricardo', 'Socio Dos');
-update public.partners set name = 'Socio Dos', share_percentage = 50, is_active = true
-where user_id = '22222222-2222-2222-2222-222222222222';
-update public.partners set name = 'Ricardo', share_percentage = 50, is_active = true,
-       user_id = '77777777-7777-7777-7777-777777777777'
-where id = (select id from public.partners
-            where user_id is distinct from '22222222-2222-2222-2222-222222222222'
-            order by created_at limit 1);
+with two as (
+  select id, row_number() over (order by created_at, id) as n
+  from public.partners order by created_at, id limit 2
+)
+update public.partners p
+set name = case two.n when 1 then 'Ricardo' else 'Socio Dos' end,
+    share_percentage = 50, is_active = true,
+    user_id = case two.n when 1 then '77777777-7777-7777-7777-777777777777'::uuid
+                         else '22222222-2222-2222-2222-222222222222'::uuid end
+from two where p.id = two.id;
 update public.partners set is_active = false where name not in ('Ricardo', 'Socio Dos');
+insert into public.user_roles (user_id, role) values ('22222222-2222-2222-2222-222222222222', 'partner')
+on conflict do nothing;
 
 -- Catálogo propio de los tests: el de DEV lo editan los socios.
 insert into public.membership_plans (name, kind, duration_months, duration_days, class_count, price)
@@ -835,6 +841,94 @@ do $$ begin
   end;
 end $$;
 reset role;
+
+-- =====================================================================
+-- ASOCIAR LA CUENTA DE UN SOCIO (0026)
+-- =====================================================================
+-- Al final: cambia las cuentas de los socios y le quita el rol a socio2.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, created_at, updated_at)
+values ('00000000-0000-0000-0000-000000000000', '99999999-9999-9999-9999-999999999999',
+        'authenticated', 'authenticated', 'ricardo.real@rokbox.co', '', now(), now());
+
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.assign_partner_account((select val::uuid from zz_tests.ctx where key = 'p_ricardo'),
+                                        '99999999-9999-9999-9999-999999999999');
+  insert into zz_tests.results (name, ok, detail) values ('cuenta de socio: el coach no puede asociar', false, 'no falló');
+exception when insufficient_privilege then
+  insert into zz_tests.results (name, ok) values ('cuenta de socio: el coach no puede asociar', true);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  -- El socio Ricardo ya tiene cuenta (7777…): pasa a la cuenta nueva.
+  perform public.assign_partner_account((select val::uuid from zz_tests.ctx where key = 'p_ricardo'),
+                                        '99999999-9999-9999-9999-999999999999');
+  insert into zz_tests.results (name, ok) values ('cuenta de socio: se puede asociar un socio que ya tenía cuenta', true);
+
+  begin
+    perform public.assign_partner_account((select val::uuid from zz_tests.ctx where key = 'p_socio2'),
+                                          '88888888-8888-8888-8888-888888888888');
+    insert into zz_tests.results (name, ok, detail) values ('cuenta de socio: no pasa su propio socio a otra cuenta', false, 'no falló');
+  exception when invalid_parameter_value then
+    insert into zz_tests.results (name, ok, detail) values ('cuenta de socio: no pasa su propio socio a otra cuenta', sqlerrm like '%propio socio%', sqlerrm);
+  end;
+end $$;
+reset role;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'cuenta de socio: la cuenta nueva queda como socio',
+         p.user_id = '99999999-9999-9999-9999-999999999999'
+         and exists (select 1 from public.user_roles where user_id = p.user_id and role = 'partner'),
+         p.user_id::text
+  from public.partners p where p.id = (select val::uuid from zz_tests.ctx where key = 'p_ricardo');
+  insert into zz_tests.results (name, ok, detail)
+  select 'cuenta de socio: la cuenta anterior deja de ser socio', count(*) = 0, count(*)::text
+  from public.user_roles where user_id = '77777777-7777-7777-7777-777777777777' and role = 'partner';
+end $$;
+
+-- Una cuenta no puede ser de dos socios.
+select set_config('request.jwt.claims', '{"sub":"99999999-9999-9999-9999-999999999999","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.assign_partner_account((select val::uuid from zz_tests.ctx where key = 'p_socio2'),
+                                        '99999999-9999-9999-9999-999999999999');
+  insert into zz_tests.results (name, ok, detail) values ('cuenta de socio: una cuenta no es de dos socios', false, 'no falló');
+exception when invalid_parameter_value then
+  insert into zz_tests.results (name, ok, detail) values ('cuenta de socio: una cuenta no es de dos socios', sqlerrm like '%ya es del socio Ricardo%', sqlerrm);
+end $$;
+
+-- Quitar el rol de socio libera su socio.
+do $$ begin
+  perform public.set_user_role('99999999-9999-9999-9999-999999999999', 'partner', true);
+  perform public.set_user_role('22222222-2222-2222-2222-222222222222', 'partner', false);
+end $$;
+reset role;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'cuenta de socio: quitar el rol libera el socio', user_id is null, user_id::text
+  from public.partners where id = (select val::uuid from zz_tests.ctx where key = 'p_socio2');
+end $$;
+
+-- Una invitación con socio también reemplaza la cuenta anterior.
+insert into public.role_invites (email, roles, partner_id)
+values ('socio.nuevo@rokbox.co', array['partner'], (select val::uuid from zz_tests.ctx where key = 'p_ricardo'));
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, created_at, updated_at)
+values ('00000000-0000-0000-0000-000000000000', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        'authenticated', 'authenticated', 'socio.nuevo@rokbox.co', '', now(), now());
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'cuenta de socio: la invitación reemplaza la cuenta anterior',
+         p.user_id = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+         and not exists (select 1 from public.user_roles
+                         where user_id = '99999999-9999-9999-9999-999999999999' and role = 'partner'),
+         p.user_id::text
+  from public.partners p where p.id = (select val::uuid from zz_tests.ctx where key = 'p_ricardo');
+end $$;
 
 -- =====================================================================
 -- RESULTADO

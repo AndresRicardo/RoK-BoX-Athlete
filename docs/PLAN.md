@@ -66,6 +66,7 @@ Las migraciones `0015`–`0020` **nunca se aplicaron en producción** (AUDITORIA
 | `0023_push_dispatch.sql` | Envío push (F5): trigger y cron que llaman a `send-push` por `pg_net` con un secreto de Vault, `claim_push_batch` (solo `service_role`) y `register_push_subscription`. |
 | `0024_debt_reminders.sql` | Recordatorio de deuda por WhatsApp (D41): `app_settings` (plantilla del box), `debt_reminders` (registro), `log_debt_reminder` y la vista `debtor_summary`. |
 | `0025_manual_settlements.sql` | Cuadre manual (D42): `settlements.is_manual`, cálculo común `private.settlement_result`, `calculate_manual_settlement`, `save_manual_settlement` y `settlement_list` sin alerta de movimientos para los manuales. |
+| `0026_partner_accounts.sql` | Cuenta de cada socio (D43): `assign_partner_account` (da el rol y reemplaza la cuenta anterior del socio), `set_user_role` libera el socio al quitar el rol y las invitaciones con socio reemplazan la cuenta anterior. |
 | `supabase/tests/*.sql` | Tests de RLS por rol (atleta, coach, socio, bridge, anónimo), de los RPC y de la fórmula del cuadre. |
 
 ### Reglas de seguridad (RLS)

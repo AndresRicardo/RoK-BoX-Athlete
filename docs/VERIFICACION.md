@@ -22,7 +22,7 @@ Lista de pruebas que debe pasar la app antes del paso a producción (F7 y F8 en 
 | ID | Prueba | Esperado | Auto | ✔ |
 |---|---|---|---|---|
 | 0.1 | `npm run build` en `develop` | Compila sin errores | ✅ | [ ] |
-| 0.2 | Tests SQL (`supabase/tests/management_test.sql`) | 86/86 en verde | ✅ | [ ] |
+| 0.2 | Tests SQL (`supabase/tests/management_test.sql`) | 94/94 en verde | ✅ | [ ] |
 | 0.3 | Pruebas E2E en Chrome (Gestión, recordatorio por WhatsApp, deudas por persona y cuadre manual) y unitarias (celulares y autocompletar) | Todas en verde. **Ojo:** hoy esos scripts viven fuera del repo; antes de producción hay que traerlos a `tests/` para poder repetirlos | ✅ | [ ] |
 | 0.4 | El preview de Vercel abre y muestra la versión del último commit de `develop` | Carga sin pantalla en blanco | | [ ] |
 | 0.5 | El bridge corre en modo continuo en el PC de desarrollo | Ajustes → Estado del bridge muestra "Última señal" de hace menos de 5 min | | [ ] |
@@ -38,6 +38,7 @@ Lista de pruebas que debe pasar la app antes del paso a producción (F7 y F8 en 
 | 1.4 | S1 invita por email a la cuenta N como coach (Ajustes → Roles e invitaciones) | La invitación aparece en la lista | | [ ] |
 | 1.5 | N inicia sesión | Ya tiene rol coach y ve la pestaña Gestión, sin que nadie haga nada más | ✅ | [ ] |
 | 1.6 | S1 le quita el rol a N | N vuelve a ser atleta y deja de ver Gestión al recargar | | [ ] |
+| 1.6b | S1 da el rol de socio a una cuenta que ya usa la app, eligiendo un socio que ya tiene otra cuenta | Avisa a qué cuenta está asociado; al confirmar, la nueva queda como ese socio y la anterior deja de ser socio. Su caja y sus cuadres no cambian. El socio propio sale deshabilitado ("eres tú") | ✅ | [ ] |
 | 1.7 | Pestañas del atleta (A) | 5 pestañas, sin Gestión; escribir `/manage` en la dirección lo devuelve al inicio | ✅ | [ ] |
 | 1.8 | Pestañas del coach (C) | Ve Gestión con Miembros, Deudas y Pendientes; no ve Caja, Cuadres ni Ajustes | ✅ | [ ] |
 | 1.9 | El coach intenta abrir `/manage/cash`, `/manage/settlements` y `/manage/settings` escribiendo la dirección | No le deja entrar | ✅ | [ ] |

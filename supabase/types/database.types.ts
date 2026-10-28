@@ -1954,6 +1954,10 @@ export type Database = {
       }
     }
     Functions: {
+      assign_partner_account: {
+        Args: { p_partner_id: string; p_user_id: string }
+        Returns: undefined
+      }
       bridge_heartbeat: {
         Args: {
           p_agent_version?: string
