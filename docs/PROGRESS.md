@@ -68,7 +68,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - [x] F5.2 `0023_push_dispatch.sql` (trigger por sentencia + cron de respaldo cada minuto vía `pg_net`, secreto en Vault, `claim_push_batch`, `register_push_subscription`) y Edge Function `send-push` versionada en el repo (la v6 vieja de DEV dependía de un trigger que ya no existía). La cola es `notifications.pushed_at`; no hizo falta una tabla outbox aparte
 
 ## F6 — Verificación integral en DEV
-- [ ] F6.1 Checklist E2E (`VERIFICACION.md`)
+- [~] F6.1 Checklist escrito en [`VERIFICACION.md`](VERIFICACION.md) (13 secciones, ~140 pruebas, con lo ya cubierto por tests automáticos marcado); falta ejecutarlo en teléfonos reales y traer al repo los scripts E2E y unitarios
 - [x] Extra (pedido del dueño): recordatorio de deuda por WhatsApp (D41, `0024_debt_reminders.sql`). Deudas → "Recordar por WhatsApp" (lista "Por recordar" / "Todos" / "Sin celular" con "Siguiente" para recorrer la lista), botón "Recordar" en la ficha del miembro y Ajustes → "Mensaje de cobro por WhatsApp"
 - [ ] F6.2 Semana de uso real de los socios en el preview
 
