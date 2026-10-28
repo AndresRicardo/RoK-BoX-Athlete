@@ -51,6 +51,7 @@ insert into public.expense_categories (name) values ('ZZTEST Otros');
 insert into zz_tests.ctx values
   ('p_ricardo', (select id::text from public.partners where name = 'Ricardo')),
   ('p_socio2',  (select id::text from public.partners where name = 'Socio Dos')),
+  ('n_partners', (select count(*)::text from public.partners)),
   ('plan_mensual', (select id::text from public.membership_plans where name = 'ZZTEST Mensual')),
   ('prod_bebida', (select id::text from public.products where name = 'ZZTEST Bebida')),
   ('cat_otros', (select id::text from public.expense_categories where name = 'ZZTEST Otros'));
@@ -151,7 +152,9 @@ do $$ begin
   insert into zz_tests.results (name, ok, detail)
   select 'coach no ve gastos ni cuadres', (select count(*) from public.expenses) + (select count(*) from public.settlements) = 0, null;
   insert into zz_tests.results (name, ok, detail)
-  select 'coach ve socios (para elegir quién recibe)', count(*) = 2, count(*)::text from public.partners;
+  select 'coach ve socios (para elegir quién recibe)',
+         count(*) filter (where is_active) = 2 and count(*) = (select val::int from zz_tests.ctx where key = 'n_partners'),
+         count(*)::text from public.partners;
 end $$;
 
 -- Renovar un vencido: vigencia nueva desde hoy, ingreso para el socio elegido.

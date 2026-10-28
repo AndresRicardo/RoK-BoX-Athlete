@@ -97,6 +97,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - Cuadre manual → "Autocompletar" por socio: despeja el dato que falte (p. ej. los ingresos a partir de gastos BOX, personales y efectivo), lo marca como "calculado" y avisa si faltan datos o si el resultado sería negativo (`src/utils/settlementManual.js`, 10 pruebas unitarias). E2E del cuadre manual: 25/25.
 - Checklist de verificación antes de producción en `docs/VERIFICACION.md` (F6.1, falta ejecutarlo).
 - Arreglo: "Dar rol → Socio" no ofrecía opciones cuando todos los socios ya tenían cuenta (en DEV, Gabriel estaba asociado a la cuenta de prueba). Ahora lista todos los socios activos, avisa si el elegido ya tiene cuenta y la reemplaza (D43, `0026_partner_accounts.sql`). Tests SQL 94/94 (8 nuevos; los socios de prueba ya no dependen de qué cuenta tenga cada socio en DEV). E2E 16/16 con un socio temporal ZZTEST.
+- Socios en DEV (configurados por el dueño): Gabriel (cuenta real de Gabriel), Ricardo, "Socio de prueba" (cuenta de prueba `socio2.dev`, la que usan los E2E) y "Socio de prueba 2" (sin cuenta); 33/33/33/1 %. Los tests SQL y el E2E del cuadre manual ya no suponen dos socios al 50 %: SQL 94/94; E2E Gestión, recordatorios 34/34, deudas 15/15, cuadre manual 24/24 y cuentas de socio 16/16.
 - El bridge corre en modo continuo en el PC de desarrollo (venv creado en `rokbox-bridge/.venv`).
 
 ### 2026-10-23 (3) — Claude Code
