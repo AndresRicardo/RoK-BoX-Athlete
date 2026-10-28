@@ -1049,6 +1049,8 @@ export type Database = {
           created_by: string | null
           discount: number
           discount_reason: string | null
+          duration_days: number | null
+          duration_months: number | null
           id: string
           list_price: number | null
           member_id: string
@@ -1076,6 +1078,8 @@ export type Database = {
           created_by?: string | null
           discount?: number
           discount_reason?: string | null
+          duration_days?: number | null
+          duration_months?: number | null
           id?: string
           list_price?: number | null
           member_id: string
@@ -1103,6 +1107,8 @@ export type Database = {
           created_by?: string | null
           discount?: number
           discount_reason?: string | null
+          duration_days?: number | null
+          duration_months?: number | null
           id?: string
           list_price?: number | null
           member_id?: string
@@ -2070,6 +2076,8 @@ export type Database = {
           created_by: string | null
           discount: number
           discount_reason: string | null
+          duration_days: number | null
+          duration_months: number | null
           id: string
           list_price: number | null
           member_id: string
@@ -2257,6 +2265,8 @@ export type Database = {
           created_by: string | null
           discount: number
           discount_reason: string | null
+          duration_days: number | null
+          duration_months: number | null
           id: string
           list_price: number | null
           member_id: string
@@ -2576,6 +2586,8 @@ export type Database = {
           created_by: string | null
           discount: number
           discount_reason: string | null
+          duration_days: number | null
+          duration_months: number | null
           id: string
           list_price: number | null
           member_id: string

@@ -393,8 +393,8 @@ export default function MemberDetail() {
         }}
       />
       <p className="text-[10px] text-gray-500 text-center">
-        Anular la última renovación anula su ingreso y deja la membresía como estaba antes (plan, vigencia y clases).
-        Si después hubo otra renovación, solo se anula el ingreso: corrige la vigencia con "Fechas".
+        Anular una renovación anula su ingreso y recalcula la membresía sin ella (plan, vigencia y clases).
+        Si después se corrigieron fechas a mano, revísalas con "Fechas".
       </p>
     </div>
   );

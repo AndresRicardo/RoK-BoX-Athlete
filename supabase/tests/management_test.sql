@@ -225,7 +225,7 @@ begin
   end;
 end $$;
 
--- Anular renovaciones devuelve la membresía a como estaba (D44). Lo hace un socio.
+-- Anular renovaciones recalcula la membresía sin ellas (D44, D45). Lo hace un socio.
 reset role;
 insert into public.membership_plans (name, kind, duration_months, duration_days, class_count, price)
 values ('ZZTEST Tiquetera', 'class_pack', 3, 0, 10, 100000);
@@ -233,7 +233,8 @@ insert into zz_tests.ctx values
   ('plan_tiquetera', (select id::text from public.membership_plans where name = 'ZZTEST Tiquetera'));
 insert into public.members (id, full_name) values
   ('b0000000-0000-0000-0000-0000000000b1', 'ZZTEST Anular 1'),
-  ('b0000000-0000-0000-0000-0000000000b2', 'ZZTEST Anular 2');
+  ('b0000000-0000-0000-0000-0000000000b2', 'ZZTEST Anular 2'),
+  ('b0000000-0000-0000-0000-0000000000b4', 'ZZTEST Anular 4');
 insert into public.members (id, full_name, hik_person_id) values
   ('b0000000-0000-0000-0000-0000000000b3', 'ZZTEST Anular 3', 'zztest-hik-b3');
 
@@ -283,19 +284,19 @@ begin
   perform public.use_class('b0000000-0000-0000-0000-0000000000b2');
 end $$;
 
--- b1: anular R1 no cambia nada (R2 sigue activa); anular R2 lo deja sin plan, como estaba
--- antes de R1, y deshace las clases.
+-- b1: anular R1 (con R2 activa) rehace R2 sin ella: la tiquetera empieza hoy en vez de
+-- continuar desde el mensual. Anular R2 lo deja sin plan y deshace las clases.
 do $$
 declare v_ms public.memberships;
 begin
   perform public.void_renewal((select val::uuid from zz_tests.ctx where key = 'b1_r1'), 'Prueba');
   select * into v_ms from public.memberships where member_id = 'b0000000-0000-0000-0000-0000000000b1';
   insert into zz_tests.results (name, ok, detail)
-  values ('anular con una renovación activa posterior no cambia la membresía',
+  values ('anular una renovación con otra posterior la rehace sin la anulada',
           v_ms.plan_kind = 'class_pack' and v_ms.classes_total = 10 and v_ms.classes_used = 2
-          and v_ms.valid_until = (select period_end from public.membership_renewals
-                                  where id = (select val::uuid from zz_tests.ctx where key = 'b1_r2')),
-          v_ms.plan_kind || ' ' || v_ms.classes_used || '/' || v_ms.classes_total);
+          and v_ms.valid_until = private.period_end((now() at time zone 'America/Bogota')::date, 3, 0),
+          v_ms.plan_kind || ' ' || v_ms.classes_used || '/' || v_ms.classes_total
+            || ' hasta ' || v_ms.valid_until::text);
 
   perform public.void_renewal((select val::uuid from zz_tests.ctx where key = 'b1_r2'), 'Prueba');
   select * into v_ms from public.memberships where member_id = 'b0000000-0000-0000-0000-0000000000b1';
@@ -323,6 +324,78 @@ begin
           and (select count(*) from public.class_usages
                where member_id = v_ms.member_id and undone_at is null) = 5,
           v_ms.classes_used || '/' || v_ms.classes_total);
+end $$;
+
+-- b4: tres tiqueteras de 10 (R1 hace 3 h, 1 clase hace 2,5 h, R2 hace 2 h, R3 ahora) = 29.
+-- Anular R2 (intermedia) quita sus 10 clases: 19. Anular luego R1 deja solo R3: 10, y la
+-- clase usada antes de R3 se deshace porque no hay tiquetera que la cubra.
+do $$
+declare v_r public.membership_renewals;
+begin
+  v_r := public.renew_membership('b0000000-0000-0000-0000-0000000000b4',
+    (select val::uuid from zz_tests.ctx where key = 'plan_tiquetera'), 'cash',
+    (select val::uuid from zz_tests.ctx where key = 'p_ricardo'));
+  insert into zz_tests.ctx values ('b4_r1', v_r.id::text);
+end $$;
+reset role;
+update public.membership_renewals set created_at = created_at - interval '3 hours'
+where member_id = 'b0000000-0000-0000-0000-0000000000b4';
+set local role authenticated;
+
+do $$ begin
+  perform public.use_class('b0000000-0000-0000-0000-0000000000b4');
+end $$;
+reset role;
+update public.class_usages set used_at = used_at - interval '150 minutes'
+where member_id = 'b0000000-0000-0000-0000-0000000000b4';
+set local role authenticated;
+
+do $$
+declare v_r public.membership_renewals;
+begin
+  v_r := public.renew_membership('b0000000-0000-0000-0000-0000000000b4',
+    (select val::uuid from zz_tests.ctx where key = 'plan_tiquetera'), 'cash',
+    (select val::uuid from zz_tests.ctx where key = 'p_ricardo'));
+  insert into zz_tests.ctx values ('b4_r2', v_r.id::text);
+end $$;
+reset role;
+update public.membership_renewals set created_at = created_at - interval '2 hours'
+where id = (select val::uuid from zz_tests.ctx where key = 'b4_r2');
+set local role authenticated;
+
+do $$
+declare
+  v_r  public.membership_renewals;
+  v_ms public.memberships;
+  v_r1_end timestamptz;
+begin
+  v_r := public.renew_membership('b0000000-0000-0000-0000-0000000000b4',
+    (select val::uuid from zz_tests.ctx where key = 'plan_tiquetera'), 'cash',
+    (select val::uuid from zz_tests.ctx where key = 'p_ricardo'));
+  select * into v_ms from public.memberships where member_id = 'b0000000-0000-0000-0000-0000000000b4';
+  insert into zz_tests.results (name, ok, detail)
+  values ('tres tiqueteras suman sus clases', v_ms.classes_total - v_ms.classes_used = 29,
+          v_ms.classes_used || '/' || v_ms.classes_total);
+
+  perform public.void_renewal((select val::uuid from zz_tests.ctx where key = 'b4_r2'), 'Prueba');
+  select period_end into v_r1_end from public.membership_renewals
+  where id = (select val::uuid from zz_tests.ctx where key = 'b4_r1');
+  select * into v_ms from public.memberships where member_id = 'b0000000-0000-0000-0000-0000000000b4';
+  insert into zz_tests.results (name, ok, detail)
+  values ('anular una tiquetera intermedia quita sus clases',
+          v_ms.classes_total = 19 and v_ms.classes_used = 0
+          and v_ms.valid_until = private.period_end((v_r1_end at time zone 'America/Bogota')::date, 3, 0),
+          v_ms.classes_used || '/' || v_ms.classes_total || ' hasta ' || v_ms.valid_until::text);
+
+  perform public.void_renewal((select val::uuid from zz_tests.ctx where key = 'b4_r1'), 'Prueba');
+  select * into v_ms from public.memberships where member_id = 'b0000000-0000-0000-0000-0000000000b4';
+  insert into zz_tests.results (name, ok, detail)
+  values ('anular la primera tiquetera deja solo la que sigue activa',
+          v_ms.classes_total = 10 and v_ms.classes_used = 0
+          and v_ms.valid_until = private.period_end((now() at time zone 'America/Bogota')::date, 3, 0)
+          and not exists (select 1 from public.class_usages
+                          where member_id = v_ms.member_id and undone_at is null),
+          v_ms.classes_used || '/' || v_ms.classes_total || ' hasta ' || v_ms.valid_until::text);
 end $$;
 
 -- Persona en HCAC sin membresía previa: anular su única renovación cierra el acceso en HCAC.
