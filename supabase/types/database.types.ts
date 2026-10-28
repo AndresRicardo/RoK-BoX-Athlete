@@ -1061,6 +1061,7 @@ export type Database = {
           period_start: string
           plan_id: string | null
           plan_name: string
+          prev_membership: Json | null
           received_by_partner: string | null
           updated_at: string
           void_reason: string | null
@@ -1087,6 +1088,7 @@ export type Database = {
           period_start: string
           plan_id?: string | null
           plan_name: string
+          prev_membership?: Json | null
           received_by_partner?: string | null
           updated_at?: string
           void_reason?: string | null
@@ -1113,6 +1115,7 @@ export type Database = {
           period_start?: string
           plan_id?: string | null
           plan_name?: string
+          prev_membership?: Json | null
           received_by_partner?: string | null
           updated_at?: string
           void_reason?: string | null
@@ -2079,6 +2082,7 @@ export type Database = {
           period_start: string
           plan_id: string | null
           plan_name: string
+          prev_membership: Json | null
           received_by_partner: string | null
           updated_at: string
           void_reason: string | null
@@ -2265,6 +2269,7 @@ export type Database = {
           period_start: string
           plan_id: string | null
           plan_name: string
+          prev_membership: Json | null
           received_by_partner: string | null
           updated_at: string
           void_reason: string | null
@@ -2583,6 +2588,7 @@ export type Database = {
           period_start: string
           plan_id: string | null
           plan_name: string
+          prev_membership: Json | null
           received_by_partner: string | null
           updated_at: string
           void_reason: string | null
