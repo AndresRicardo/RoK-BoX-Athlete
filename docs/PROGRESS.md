@@ -87,7 +87,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ## Bitácora
 
 ### 2026-10-28 — Claude Code
-- Bug: al anular una tiquetera en Gestión → Miembros seguían la barra de clases y "Descontar clase", porque `void_renewal` solo anulaba el ingreso (D34-d). Arreglo D44, `0027_void_renewal_restores.sql`: la renovación guarda la membresía anterior y anularla la restaura. Tests SQL 99/99 (5 nuevos; sin la migración fallan 4), ejecutados en una transacción revertida. **Falta `supabase db push` a DEV** (no se pudo aplicar desde la sesión). El miembro de DEV con sus 3 renovaciones anuladas antes de `0027` no tiene foto y hay que corregirlo a mano.
+- Bug: al anular una tiquetera en Gestión → Miembros seguían la barra de clases y "Descontar clase", porque `void_renewal` solo anulaba el ingreso (D34-d). Arreglo D44, `0027_void_renewal_restores.sql`: la renovación guarda la membresía anterior y anularla la restaura. Tests SQL 99/99 (5 nuevos; sin la migración fallan 4), aplicada en DEV. El miembro de DEV con sus 3 renovaciones anuladas antes de `0027` (sin foto) se dejó "Sin plan" a mano, con sus 2 clases deshechas; sigue bloqueado y su vigencia en HCAC ya había terminado.
 
 ### 2026-10-27 — Claude Code
 - Recordatorio de deuda por WhatsApp (D41): enlace `wa.me` con el mensaje listo y editable, registro de quién recordó y cuándo, celular editable desde la misma hoja y plantilla del box en Ajustes.
