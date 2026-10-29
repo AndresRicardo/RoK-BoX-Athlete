@@ -3,9 +3,9 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F6 — Verificación integral en DEV |
-| **Próximo paso** | F6.1: checklist completo de pruebas de toda la app (`docs/VERIFICACION.md`) |
-| **Bloqueos** | Acceso de la CLI al proyecto de producción (necesario recién en F7) |
+| **Fase actual** | F7 — Preparación del paso a producción |
+| **Próximo paso** | F8 según [`RUNBOOK_PRODUCCION.md`](RUNBOOK_PRODUCCION.md), cuando el dueño dé la orden |
+| **Bloqueos** | Acceso de la CLI al proyecto de producción (R1 del runbook) |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
@@ -74,7 +74,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## F7 — Ensayo del paso a producción
 - [ ] F7.1 Restaurar el backup de producción en un entorno temporal y aplicar las migraciones
-- [ ] F7.2 Runbook y plan de reversa
+- [x] F7.2 Runbook y plan de reversa: [`RUNBOOK_PRODUCCION.md`](RUNBOOK_PRODUCCION.md) y scripts `supabase/scripts/prod/01`–`04` (probados en DEV sin guardar cambios)
 
 ## F8 — Producción ⏸ (requiere orden explícita)
 - [ ] F8.1 Backup, migraciones, usuarios y configuración
@@ -85,6 +85,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-10-29 — Claude Code
+- Decisión D46 (arranque desde cero; deudas y tiqueteras a mano; cada atleta pide su vínculo).
+- Runbook del paso a producción y scripts `supabase/scripts/prod/`: prechequeo y poschequeo (solo lectura, una fila sin datos personales, porque la CLI muestra solo el último resultado), correcciones E17/E18 (la de peso no se repite y se niega si el promedio ya parece estar en kilos; E18 usa `translate` porque `unaccent` no está instalada) y plantilla de alta de socios y bridge. Probados en DEV con `rollback`: DEV quedó igual.
+- `src/supabase/client.js`: un build sin `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` ahora falla en vez de usar DEV en silencio (en `main` ya era así); `vite dev` sigue usando DEV.
+- F7.1 (ensayo restaurando producción) no se hizo: falta el acceso a producción (R1) y Docker abierto (R2).
 
 ### 2026-10-28 — Claude Code
 - Bug: al anular una tiquetera en Gestión → Miembros seguían la barra de clases y "Descontar clase", porque `void_renewal` solo anulaba el ingreso (D34-d). Arreglo D44, `0027_void_renewal_restores.sql`: la renovación guarda la membresía anterior y anularla la restaura. Tests SQL 99/99 (5 nuevos; sin la migración fallan 4), aplicada en DEV. El miembro de DEV con sus 3 renovaciones anuladas antes de `0027` (sin foto) se dejó "Sin plan" a mano, con sus 2 clases deshechas; sigue bloqueado y su vigencia en HCAC ya había terminado.

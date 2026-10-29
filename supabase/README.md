@@ -6,6 +6,7 @@
 | `migrations/0015`–`0026` | Gestión: roles, socios, miembros, membresías, bridge, deudas, finanzas, auditoría, notificaciones, realtime, endurecimiento, envío push, recordatorios de deuda por WhatsApp, cuadre manual y cuenta de cada socio. |
 | `functions/send-push` | Edge Function que envía los avisos como Web Push (F5). |
 | `scripts/configure-push.mjs` | Configura el secreto entre la base y `send-push` (Vault + secreto de la función). |
+| `scripts/prod/` | Paso a producción: prechequeo, correcciones de datos (E17/E18), alta de socios y poschequeo. Se usan según [`docs/RUNBOOK_PRODUCCION.md`](../docs/RUNBOOK_PRODUCCION.md). |
 | `seed.sql` | Datos de prueba **solo para DEV** (usuarios `*.dev@rokbox.co`, planes, catálogo, categorías y miembros `ZZTEST`). |
 | `tests/management_test.sql` | Tests de RLS, RPC, cuadre, bridge, invitaciones y trabajos programados. Corren en una transacción que se revierte al final. |
 | `types/database.types.ts` | Tipos generados (referencia). |
@@ -58,4 +59,4 @@ Para revisar las llamadas: `select status_code, content from net._http_response 
 ## Producción
 - Solo con orden explícita y un backup del día (ver [`AGENTS.md`](../AGENTS.md)).
 - Las migraciones `0015`+ se aplican con `supabase db push` contra el proyecto de producción. **Nunca** `db reset`.
-- El seed **no** se aplica en producción. Los socios, planes, catálogo y categorías reales se cargan según el runbook de F7.
+- El seed **no** se aplica en producción. Los socios, planes, catálogo y categorías reales se cargan según [`docs/RUNBOOK_PRODUCCION.md`](../docs/RUNBOOK_PRODUCCION.md).
