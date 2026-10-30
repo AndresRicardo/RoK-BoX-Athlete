@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F7 — Preparación del paso a producción |
-| **Próximo paso** | F8 el 2026-10-30 según [`RUNBOOK_PRODUCCION.md`](RUNBOOK_PRODUCCION.md), con orden del dueño |
+| **Fase actual** | F8 — Producción (app y base publicadas; falta el bridge) |
+| **Próximo paso** | F8.3: bridge en el PC del box (2026-10-30), luego carga manual D46 y aviso a los atletas |
 | **Bloqueos** | Ninguno |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -77,8 +77,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - [x] F7.2 Runbook y plan de reversa: [`RUNBOOK_PRODUCCION.md`](RUNBOOK_PRODUCCION.md) y scripts `supabase/scripts/prod/01`–`04` (probados en DEV sin guardar cambios)
 
 ## F8 — Producción ⏸ (requiere orden explícita)
-- [ ] F8.1 Backup, migraciones, usuarios y configuración
-- [ ] F8.2 Merge a `main` y despliegue
+- [x] F8.1 Backup, migraciones, usuarios y configuración (2026-10-29)
+- [x] F8.2 Merge a `main` y despliegue (`ebda5b2`, 2026-10-29)
 - [ ] F8.3 Bridge en el PC del box (importación + modo continuo)
 - [ ] F8.4 Retiro de Spent y archivo de repos
 
@@ -86,7 +86,17 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## Bitácora
 
-### 2026-10-29 — Claude Code
+### 2026-10-29 — Claude Code (paso a producción, por orden del dueño)
+- Backup del día (schema, data con auth y roles) fuera del repo. Prechequeo igual al de la tarde.
+- `migration repair` de `0001`–`0014` y `db push` de `0015`–`0028` sin errores (sin seed).
+- E17: 22 pesos convertidos a kilos (53–110, promedio 77,8). E18: los 23 perfiles con "RöK BoX".
+- `main` = `develop` (`ebda5b2`) → Vercel publica producción.
+- Socios Andres Ricardo Muñoz y Martín Gabriel Torres (50/50) con invitación ya aplicada; rol bridge a `bridge@rokbox.co`.
+- Push: secretos VAPID, `send-push` desplegada y `configure-push.mjs`.
+- Poschequeo: filas de atletas iguales al prechequeo, 28 migraciones (última `0028`), 5 trabajos de cron, 2 secretos en Vault. Gestión vacía (sin miembros hasta importar con el bridge).
+- Varios comandos de escritura en producción los corrió el dueño con `!` porque el clasificador de permisos los bloqueó.
+
+### 2026-10-29 — Claude Code (preparación)
 - Decisión D46 (arranque desde cero; deudas y tiqueteras a mano; cada atleta pide su vínculo).
 - Runbook del paso a producción y scripts `supabase/scripts/prod/`: prechequeo y poschequeo (solo lectura, una fila sin datos personales, porque la CLI muestra solo el último resultado), correcciones E17/E18 (la de peso no se repite y se niega si el promedio ya parece estar en kilos; E18 usa `translate` porque `unaccent` no está instalada) y plantilla de alta de socios y bridge. Probados en DEV con `rollback`: DEV quedó igual.
 - `src/supabase/client.js`: un build sin `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` ahora falla en vez de usar DEV en silencio (en `main` ya era así); `vite dev` sigue usando DEV.
