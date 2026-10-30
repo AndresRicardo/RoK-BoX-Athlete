@@ -3,8 +3,8 @@
 | Campo | Valor |
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
-| **Fase actual** | F8 — Producción (app y base publicadas; falta el bridge) |
-| **Próximo paso** | F8.3: bridge en el PC del box (2026-10-30), luego carga manual D46 y aviso a los atletas |
+| **Fase actual** | F8 — Producción (app, base y bridge funcionando) |
+| **Próximo paso** | Carga manual D46 (tiqueteras y deudas), aviso a los atletas y primera semana del runbook (§4) |
 | **Bloqueos** | Ninguno |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -40,7 +40,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - [x] F2.2 Lectura paginada completa → `bridge_sync_persons` (sin ciclos, probado en SQL)
 - [x] F2.3 Solo `set_validity`; fechas en hora Bogotá; tras un fallo espera al siguiente ciclo
 - [x] F2.4 `--import` / `--import --dry-run`. Dry-run en vivo: 48 personas, 0 sin cédula, 0 sin vigencia
-- [~] F2.5 `install_service.ps1` heredado (NSSM / tarea programada); revisar en el PC del box (F8)
+- [x] F2.5 `install_service.ps1` probado en el PC del box (tarea programada, sin NSSM). Corregido el límite de 72 h de las tareas de Windows (`rokbox-bridge` `5141801`)
 - [x] F2.6 12 tests unitarios en verde. **En vivo contra el HCAC de desarrollo con la persona ZZTEST (ID 51):**
   - vinculación por el pull;
   - renovación desde la app (vigencia 22/nov → 22/dic 23:59 en HCAC);
@@ -79,12 +79,19 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ## F8 — Producción ⏸ (requiere orden explícita)
 - [x] F8.1 Backup, migraciones, usuarios y configuración (2026-10-29)
 - [x] F8.2 Merge a `main` y despliegue (`ebda5b2`, 2026-10-29)
-- [ ] F8.3 Bridge en el PC del box (importación + modo continuo)
+- [x] F8.3 Bridge en el PC del box (importación + modo continuo, 2026-10-30)
 - [ ] F8.4 Retiro de Spent y archivo de repos
 
 ---
 
 ## Bitácora
+
+### 2026-10-30 — Claude Code (bridge en producción)
+- `rokbox-bridge` `main` = `develop` (v3, `8ff807b`). Instalado en `C:okbox-bridge` del PC del box con su `.env` de producción.
+- Dry-run: 145 personas, 0 coincidencias, 123 sin "Cc", 0 sin vigencia. Importación real: 145 creadas. `--once` sin cambios ni comandos.
+- Producción: 145 miembros, todos con `hik_person_id`, 22 con cédula; 37 al día, 10 por vencer, 98 vencidos. Latido v3.0.0 desde la tarea programada `RokboxBridgeAgent` (SYSTEM, al iniciar).
+- La tarea se creó con el límite de 72 h por defecto de Windows: se quitó a mano (`ExecutionTimeLimit = PT0S`) y el instalador quedó corregido en `develop` del bridge.
+- Con 123 miembros sin cédula: antes de aprobar una vinculación que diga "No hay un miembro con la cédula…", escribir la cédula en el miembro importado (Editar datos); si no, se crea un duplicado sin HCAC.
 
 ### 2026-10-29 — Claude Code (paso a producción, por orden del dueño)
 - Backup del día (schema, data con auth y roles) fuera del repo. Prechequeo igual al de la tarde.
