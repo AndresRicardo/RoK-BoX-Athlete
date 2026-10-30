@@ -17,8 +17,13 @@ select jsonb_build_object(
     'feed_likes', (select count(*) from public.feed_likes),
     'feed_comments', (select count(*) from public.feed_comments),
     'notifications', (select count(*) from public.notifications)),
-  -- 2. Historial de migraciones: deben estar 0001–0014 y nada más.
-  'migraciones', (select jsonb_agg(version order by version) from supabase_migrations.schema_migrations),
+  -- 2. Historial de migraciones: deben estar 0001–0014 y nada más. Si 0001–0014 se aplicaron a
+  --    mano (sin la CLI), la tabla no existe: se marca con `migration repair` antes de `db push`.
+  'migraciones', (select case when to_regclass('supabase_migrations.schema_migrations') is null
+                    then '"sin historial"'::jsonb
+                    else (xpath('/row/v/text()', query_to_xml(
+                            'select jsonb_agg(version order by version) as v from supabase_migrations.schema_migrations',
+                            false, true, '')))[1]::text::jsonb end),
   -- 3. Peso (E17): en producción se guarda en libras (valores típicos 100–300).
   'peso', (select jsonb_build_object(
              'con_peso', count(weight_kg), 'min', min(weight_kg), 'max', max(weight_kg),

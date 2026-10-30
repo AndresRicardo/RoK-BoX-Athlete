@@ -32,7 +32,7 @@ update public.profiles set box_name = 'RöK BoX'
 where box_name is distinct from 'RöK BoX'
   and (box_name is null or trim(box_name) = ''
        or regexp_replace(lower(translate(box_name, 'öÖóÓòÒôÔ', 'oooooooo')), '[^a-z0-9]', '', 'g')
-          ~ 'ro(k|c|ck)box');
+          ~ 'ro(k|c|ck|l)box');
 
 commit;
 
