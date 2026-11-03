@@ -86,6 +86,9 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## Bitácora
 
+### 2026-11-03 — Claude Code
+- Icono de la app: todos los PNG se generan con `npm run icons` desde `isotipo limpio.svg` (antes tenían el logo "ATHLETE"). Sin el rectángulo negro de fondo del SVG, sobre `#0A0A0C` y sin canal alfa. Nuevos: favicon de 16 y 32 px y maskable de 192 px. El SVG original y `public/favicon.svg` no cambian.
+
 ### 2026-10-30 — Claude Code (bridge en producción)
 - `rokbox-bridge` `main` = `develop` (v3, `8ff807b`). Instalado en `C:okbox-bridge` del PC del box con su `.env` de producción.
 - Dry-run: 145 personas, 0 coincidencias, 123 sin "Cc", 0 sin vigencia. Importación real: 145 creadas. `--once` sin cambios ni comandos.
