@@ -82,7 +82,7 @@ function payloadFor(n: Notification): string {
     title: isSystem ? n.title : 'RöK BoX',
     body: isSystem ? (n.body || '') : `${who} ${socialText(n)}`,
     icon: '/pwa-192x192.png',
-    badge: '/pwa-192x192.png',
+    badge: '/badge-96x96.png',
     tag: `rokbox-${n.type}`,
     data: { url, notification_id: n.id },
   });

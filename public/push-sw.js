@@ -14,7 +14,7 @@ self.addEventListener('push', (event) => {
     self.registration.showNotification(data.title || 'RöK BoX', {
       body: data.body || '',
       icon: data.icon || '/pwa-192x192.png',
-      badge: data.badge || '/pwa-192x192.png',
+      badge: data.badge || '/badge-96x96.png',
       tag: data.tag,
       renotify: Boolean(data.tag),
       data: data.data || {},

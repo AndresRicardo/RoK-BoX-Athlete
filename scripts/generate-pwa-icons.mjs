@@ -23,6 +23,41 @@ const targets = [
   { file: 'pwa-512x512-maskable.png', size: 512, padding: 0.20 },
 ];
 
+// Badge de los avisos push: Android solo usa su transparencia, así que va blanco sobre transparente.
+// Lleva la mancuerna con el rayo y no el texto, que no se lee a este tamaño.
+async function generateBadge(logoBuffer) {
+  const size = 96;
+  const { data, info } = await sharp(logoBuffer).extractChannel('alpha').raw().toBuffer({ resolveWithObject: true });
+
+  // La primera fila vacía separa la mancuerna del texto.
+  let markHeight = info.height;
+  for (let y = 0; y < info.height; y += 1) {
+    if (data.subarray(y * info.width, (y + 1) * info.width).every((alpha) => alpha === 0)) {
+      markHeight = y;
+      break;
+    }
+  }
+
+  const markBuffer = await sharp(logoBuffer)
+    .extract({ left: 0, top: 0, width: info.width, height: markHeight })
+    .trim({ threshold: 1 })
+    .png()
+    .toBuffer();
+  const alpha = await sharp(markBuffer)
+    .resize(size - 16, size - 16, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .extend({ top: 8, bottom: 8, left: 8, right: 8, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .extractChannel('alpha')
+    .raw()
+    .toBuffer();
+
+  await sharp({ create: { width: size, height: size, channels: 3, background: '#FFFFFF' } })
+    .joinChannel(alpha, { raw: { width: size, height: size, channels: 1 } })
+    .png()
+    .toFile(join(publicDir, 'badge-96x96.png'));
+
+  console.log(`Generated: badge-96x96.png (${size}x${size}, ${markHeight} of ${info.height} source rows)`);
+}
+
 async function main() {
   await fs.mkdir(publicDir, { recursive: true });
 
@@ -60,6 +95,8 @@ async function main() {
 
     console.log(`Generated: ${file} (${size}x${size})`);
   }
+
+  await generateBadge(logoBuffer);
 
   console.log('All PWA icons generated successfully in public/');
 }

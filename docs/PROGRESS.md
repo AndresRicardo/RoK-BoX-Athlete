@@ -88,6 +88,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ### 2026-11-03 — Claude Code
 - Icono de la app: todos los PNG se generan con `npm run icons` desde `isotipo limpio.svg` (antes tenían el logo "ATHLETE"). Sin el rectángulo negro de fondo del SVG, sobre `#0A0A0C` y sin canal alfa. Nuevos: favicon de 16 y 32 px y maskable de 192 px. El SVG original y `public/favicon.svg` no cambian.
+- Badge de los avisos push: `public/badge-96x96.png` (mancuerna y rayo, blanco sobre transparente), porque Android solo usa la transparencia y el icono opaco salía como un cuadro blanco. Cambia `push-sw.js` y `send-push`, que se vuelve a publicar en cada entorno.
 
 ### 2026-10-30 — Claude Code (bridge en producción)
 - `rokbox-bridge` `main` = `develop` (v3, `8ff807b`). Instalado en `C:okbox-bridge` del PC del box con su `.env` de producción.
