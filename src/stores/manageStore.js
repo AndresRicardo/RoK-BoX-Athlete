@@ -277,10 +277,12 @@ const useManageStore = create((set, get) => ({
     };
   },
 
-  reviewLink: (requestId, approve, note) => rpc('review_member_link', {
+  // memberId: al aprobar, el miembro elegido recibe la cédula de la solicitud (y HikCentral también).
+  reviewLink: (requestId, approve, note, memberId) => rpc('review_member_link', {
     p_request_id: requestId,
     p_approve: approve,
     p_note: note || null,
+    p_member_id: memberId || null,
   }),
 
   // Resumen del inicio de Gestión.

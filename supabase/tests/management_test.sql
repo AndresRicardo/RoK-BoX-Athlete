@@ -1128,6 +1128,201 @@ do $$ begin
 end $$;
 
 -- =====================================================================
+-- CÉDULA HACIA HIKCENTRAL (0029, D48)
+-- =====================================================================
+-- Personas de HCAC sin "Cc": HIK-901 (para aprobar un vínculo eligiéndola) y HIK-902 (el bridge
+-- le completa la cédula después).
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_res jsonb;
+begin
+  v_res := public.bridge_sync_persons(jsonb_build_array(
+    jsonb_build_object('hik_person_id', 'HIK-901', 'person_code', '', 'full_name', 'ZZTEST Sin Cc',
+                       'valid_from', now() - interval '60 days', 'valid_until', now() - interval '30 days'),
+    jsonb_build_object('hik_person_id', 'HIK-902', 'person_code', '', 'full_name', 'ZZTEST Cc Después',
+                       'valid_from', now(), 'valid_until', now() + interval '30 days')), false);
+  v_res := public.bridge_sync_persons(jsonb_build_array(
+    jsonb_build_object('hik_person_id', 'HIK-902', 'person_code', '777000902', 'full_name', 'ZZTEST Cc Después',
+                       'valid_from', now(), 'valid_until', now() + interval '30 days')), false);
+end $$;
+reset role;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'cédula: la que llega de HCAC no se devuelve a HCAC',
+         m.document_id = '777000902' and not exists (
+           select 1 from public.access_commands c where c.member_id = m.id and c.command = 'update_person'),
+         m.document_id
+  from public.members m where m.hik_person_id = 'HIK-902';
+end $$;
+
+-- Atleta nuevo pide vínculo con una cédula que nadie tiene en la app.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, created_at, updated_at)
+values ('00000000-0000-0000-0000-000000000000', 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        'authenticated', 'authenticated', 'atleta.sincc@rokbox.co', '', now(), now());
+insert into public.profiles (id, first_name, last_name, display_name, discipline, box_name)
+values ('cccccccc-cccc-cccc-cccc-cccccccccccc', 'ZZTEST', 'Sin Cc', 'zztestsincc', 'rx', 'RöK BoX');
+
+select set_config('request.jwt.claims', '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_req public.member_link_requests;
+begin
+  v_req := public.request_member_link('777000901');
+  insert into zz_tests.ctx values ('req_sincc', v_req.id::text);
+end $$;
+reset role;
+
+-- Coach (staff) edita y aprueba.
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+
+do $$
+declare
+  v_m   public.members;
+  v_n   int;
+  v_pl  jsonb;
+begin
+  -- Editar la cédula de un miembro que está en HCAC encola update_person.
+  v_m := public.upsert_member('a0000000-0000-0000-0000-000000000003', null, '1234567890', null, null, null);
+  select count(*), max(payload::text)::jsonb into v_n, v_pl from public.access_commands
+  where member_id = v_m.id and command = 'update_person' and status = 'pending';
+  insert into zz_tests.results (name, ok, detail)
+  values ('cédula: editarla en un miembro de HCAC encola update_person',
+          v_n = 1 and v_pl->>'document_id' = '1234567890', v_n || ' ' || coalesce(v_pl::text, 'null'));
+
+  -- Otro cambio antes de que el bridge lo envíe: se actualiza el mismo comando.
+  v_m := public.upsert_member('a0000000-0000-0000-0000-000000000003', null, '1234567891', null, null, null);
+  select count(*), max(payload::text)::jsonb into v_n, v_pl from public.access_commands
+  where member_id = v_m.id and command = 'update_person' and status = 'pending';
+  insert into zz_tests.results (name, ok, detail)
+  values ('cédula: un segundo cambio pendiente no se duplica',
+          v_n = 1 and v_pl->>'document_id' = '1234567891', v_n || ' ' || coalesce(v_pl::text, 'null'));
+
+  -- Un miembro que no está en HCAC no genera comando.
+  v_m := public.upsert_member(null, 'ZZTEST Sin HCAC', '555000111', null, null, null);
+  insert into zz_tests.results (name, ok, detail)
+  select 'cédula: miembro fuera de HCAC no genera comando', count(*) = 0, count(*)::text
+  from public.access_commands where member_id = v_m.id;
+end $$;
+
+-- HCAC solo acepta números en "Cc".
+do $$ begin
+  perform public.upsert_member('a0000000-0000-0000-0000-000000000003', null, 'AB-12345', null, null, null);
+  insert into zz_tests.results (name, ok, detail) values ('cédula: con letras se rechaza si está en HCAC', false, 'no falló');
+exception when invalid_parameter_value then
+  insert into zz_tests.results (name, ok, detail)
+  values ('cédula: con letras se rechaza si está en HCAC', sqlerrm like '%solo puede tener números%', sqlerrm);
+end $$;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'cédula: el rechazo no cambia la cédula', document_id = '1234567891', document_id
+  from public.members where id = 'a0000000-0000-0000-0000-000000000003';
+end $$;
+
+-- Aprobar el vínculo eligiendo el miembro importado sin cédula.
+do $$
+declare
+  v_req public.member_link_requests;
+  v_m   public.members;
+begin
+  -- No se puede elegir un miembro que ya tiene otra cédula.
+  begin
+    perform public.review_member_link((select val::uuid from zz_tests.ctx where key = 'req_sincc'), true, null,
+                                      'a0000000-0000-0000-0000-000000000003');
+    insert into zz_tests.results (name, ok, detail) values ('vínculo: no se elige un miembro con otra cédula', false, 'no falló');
+  exception when invalid_parameter_value then
+    insert into zz_tests.results (name, ok, detail)
+    values ('vínculo: no se elige un miembro con otra cédula', sqlerrm like '%ya tiene la cédula%', sqlerrm);
+  end;
+
+  select * into v_m from public.members where hik_person_id = 'HIK-901';
+  v_req := public.review_member_link((select val::uuid from zz_tests.ctx where key = 'req_sincc'), true, null, v_m.id);
+  select * into v_m from public.members where id = v_m.id;
+  insert into zz_tests.results (name, ok, detail)
+  values ('vínculo: aprobar eligiendo el miembro le asigna cédula y cuenta',
+          v_req.status = 'approved' and v_req.member_id = v_m.id and v_m.document_id = '777000901'
+          and v_m.profile_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          v_m.document_id || ' ' || coalesce(v_m.profile_id::text, 'sin cuenta'));
+  insert into zz_tests.results (name, ok, detail)
+  select 'vínculo: la cédula asignada va a HCAC aunque esté vencido',
+         count(*) = 1 and bool_and(payload->>'document_id' = '777000901'), count(*)::text
+  from public.access_commands where member_id = v_m.id and command = 'update_person' and status = 'pending';
+  insert into zz_tests.results (name, ok, detail)
+  select 'vínculo: no se creó un miembro duplicado', count(*) = 1, count(*)::text
+  from public.members where document_id = '777000901';
+end $$;
+reset role;
+
+-- Reemplazar la vigencia pendiente no cancela el cambio de cédula.
+do $$ begin
+  update public.access_commands set status = 'cancelled', finished_at = now()
+  where member_id = 'a0000000-0000-0000-0000-000000000003' and status = 'pending';
+  insert into zz_tests.results (name, ok, detail)
+  select 'cédula: los barridos de vigencia no la cancelan', count(*) = 1, count(*)::text
+  from public.access_commands
+  where member_id = 'a0000000-0000-0000-0000-000000000003' and command = 'update_person' and status = 'pending';
+end $$;
+
+-- El bridge aplica los cambios de cédula: no tocan la vigencia confirmada.
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare
+  v_cmd    public.access_commands;
+  v_before timestamptz;
+  v_after  timestamptz;
+  v_ok     boolean := true;
+  v_n      int := 0;
+begin
+  loop
+    v_cmd := public.claim_next_access_command();
+    exit when v_cmd.id is null;
+    select hik_valid_until into v_before from public.memberships where member_id = v_cmd.member_id;
+    perform public.complete_access_command(v_cmd.id, true);
+    if v_cmd.command = 'update_person' then
+      v_n := v_n + 1;
+      select hik_valid_until into v_after from public.memberships where member_id = v_cmd.member_id;
+      v_ok := v_ok and v_before is not distinct from v_after;
+    end if;
+  end loop;
+  insert into zz_tests.results (name, ok, detail)
+  values ('cédula: completar update_person no cambia la vigencia confirmada', v_ok and v_n = 2, v_n::text);
+end $$;
+reset role;
+
+-- Si HCAC la rechaza 5 veces, los socios reciben un aviso que dice qué no llegó.
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.upsert_member('a0000000-0000-0000-0000-000000000003', null, '1234567892', null, null, null);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"55555555-5555-5555-5555-555555555555","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_cmd public.access_commands;
+begin
+  for i in 1..5 loop
+    v_cmd := public.claim_next_access_command();
+    v_cmd := public.complete_access_command(v_cmd.id, false, 'HikCentral rechazó la cédula');
+  end loop;
+  insert into zz_tests.results (name, ok, detail)
+  values ('cédula: tras 5 fallos queda failed', v_cmd.command = 'update_person' and v_cmd.status = 'failed', v_cmd.status);
+end $$;
+reset role;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'cédula: aviso de fallo dice qué no llegó', count(*) >= 1, max(body)
+  from public.notifications
+  where type = 'access_command_failed' and body like 'No llegó la cédula de ZZTEST Vencido%';
+end $$;
+
+-- =====================================================================
 -- RESULTADO
 -- =====================================================================
 select n, ok, name, detail from zz_tests.results

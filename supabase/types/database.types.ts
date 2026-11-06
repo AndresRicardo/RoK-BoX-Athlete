@@ -2314,7 +2314,12 @@ export type Database = {
         }
       }
       review_member_link: {
-        Args: { p_approve: boolean; p_note?: string; p_request_id: string }
+        Args: {
+          p_approve: boolean
+          p_member_id?: string
+          p_note?: string
+          p_request_id: string
+        }
         Returns: {
           created_at: string
           document_id: string

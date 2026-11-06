@@ -56,9 +56,9 @@ Referencia para la app y el bridge. Los tipos completos generados están en
 
 | RPC | Quién | Notas |
 |---|---|---|
-| `upsert_member(p_id?, p_full_name, p_document_id, p_phone, p_email, p_notes)` | staff | Sin `p_id` crea un miembro; con `p_id` edita solo los campos que se envíen. |
+| `upsert_member(p_id?, p_full_name, p_document_id, p_phone, p_email, p_notes)` | staff | Sin `p_id` crea un miembro; con `p_id` edita solo los campos que se envíen. Si el miembro está en HCAC, un cambio de cédula encola `update_person` (D48); allá solo se aceptan números, así que una cédula con letras falla con un mensaje claro. |
 | `request_member_link(p_document)` | atleta | Normaliza la cédula. Falla si la cuenta ya está vinculada. |
-| `review_member_link(p_request_id, p_approve, p_note?)` | staff | Falla con un mensaje claro si la cédula o la cuenta ya están vinculadas. Si la persona no existe, la crea. |
+| `review_member_link(p_request_id, p_approve, p_note?, p_member_id?)` | staff | Falla con un mensaje claro si la cédula o la cuenta ya están vinculadas. Con `p_member_id`, el miembro elegido recibe la cédula de la solicitud (y HCAC también, D48); falla si ya tiene otra cédula, otra cuenta o si la cédula es de otro miembro. Sin `p_member_id` y sin miembro con esa cédula, lo crea. |
 
 ## Membresías
 
@@ -117,7 +117,7 @@ Detalle de `calculate_settlement`:
 | RPC | Notas |
 |---|---|
 | `claim_next_access_command()` | Toma el comando pendiente más antiguo (`skip locked`). Devuelve una fila con `id` nulo si no hay. |
-| `complete_access_command(p_command_id, p_ok, p_error?)` | Con `p_ok`, registra el estado confirmado en HCAC (`hik_*`). Si falla, reintenta hasta 5 veces y luego queda `failed`, con aviso a los socios. |
+| `complete_access_command(p_command_id, p_ok, p_error?)` | Con `p_ok` y `set_validity`, registra el estado confirmado en HCAC (`hik_*`). Si falla, reintenta hasta 5 veces y luego queda `failed`, con aviso a los socios que dice qué no llegó. |
 | `bridge_heartbeat(p_agent_version?, p_hik_version?, p_persons_count?, p_error?)` | Señal de vida. |
 | `bridge_sync_persons(p_persons jsonb, p_full_snapshot=true)` | Recibe un arreglo de `{hik_person_id, person_code, full_name, phone, valid_from, valid_until}`. Devuelve `{created, adopted, extended, changed, skipped, deactivated}`. |
 
@@ -126,8 +126,11 @@ Payloads de los comandos que entrega `claim_next_access_command`:
 | `command` | `payload` |
 |---|---|
 | `set_validity` | `{valid_from, valid_until}` |
+| `update_person` | `{document_id}`: el bridge lo escribe en el campo personalizado "Cc" de la persona (D48). |
 
-Es el único comando. El bloqueo también se aplica como `set_validity`, con `valid_until` igual al momento del bloqueo (D35). La app no crea personas en HikCentral (D36): un miembro sin `hik_person_id` no genera comandos hasta que el pull lo vincule por cédula, y entonces se le envía la vigencia que tiene en la app.
+El bloqueo también se aplica como `set_validity`, con `valid_until` igual al momento del bloqueo (D35). La app no crea personas en HikCentral (D36): un miembro sin `hik_person_id` no genera comandos hasta que el pull lo vincule por cédula, y entonces se le envía la vigencia que tiene en la app.
+
+`update_person` se encola solo cuando staff cambia la cédula de un miembro con `hik_person_id` (la que el bridge trae de HCAC no se devuelve). Un cambio pendiente se actualiza en vez de duplicarse, y los barridos que reemplazan la vigencia pendiente no lo cancelan.
 
 ## Notificaciones push
 

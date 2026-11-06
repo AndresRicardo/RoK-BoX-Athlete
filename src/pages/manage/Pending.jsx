@@ -1,13 +1,126 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Fingerprint, Link2, AlertTriangle, Check, X } from 'lucide-react';
+import { Fingerprint, Link2, AlertTriangle, Check, X, UserSearch, UserPlus } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import useProfileStore from '../../stores/profileStore';
 import {
   ManageHeader, Card, SectionTitle, Button, ErrorBox, Loading, Field, Select, MoneyInput, TextArea,
-  PaymentMethodSelect, PartnerSelect, Sheet, ReasonSheet, useAction,
+  PaymentMethodSelect, PartnerSelect, Sheet, ReasonSheet, StatusBadge, TextInput, useAction,
 } from '../../components/manage/ui';
 import { formatDate, formatDateTime } from '../../utils/dates';
+
+const normalize = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+const FAILED_HINT = {
+  set_validity: 'Revisa la persona en HikCentral y vuelve a renovar o corregir las fechas.',
+  update_person: 'Revisa la cédula del miembro (solo números) y vuelve a guardarla.',
+};
+
+/**
+ * Aprobar un vínculo cuya cédula no tiene ningún miembro: se elige el miembro (normalmente
+ * importado de HikCentral sin "Cc") y recibe la cédula, también en HikCentral (D48).
+ */
+function ChooseMemberSheet({ open, link, onClose, onDone }) {
+  const { fetchMembers, reviewLink } = useManageStore();
+  const [members, setMembers] = useState(null);
+  const [search, setSearch] = useState('');
+  const { run, busy, error, setError } = useAction();
+
+  useEffect(() => {
+    if (!open || !link) return;
+    setSearch(link.profile?.full_name || '');
+    setError(null);
+    setMembers(null);
+    run(async () => setMembers(await fetchMembers()));
+  }, [open, link, fetchMembers, run, setError]);
+
+  // Sin cuenta vinculada, ordenados por cuántas palabras de la búsqueda coinciden.
+  const candidates = useMemo(() => {
+    if (!members) return [];
+    const tokens = normalize(search).split(/\s+/).filter((t) => t.length > 1);
+    return members
+      .filter((m) => m.is_active && !m.profile_id)
+      .map((m) => {
+        const name = normalize(m.full_name);
+        const score = tokens.filter((t) => name.includes(t) || (m.document_id || '').includes(t)).length;
+        return { m, score };
+      })
+      .filter(({ score }) => tokens.length === 0 || score > 0)
+      .sort((a, b) => b.score - a.score || a.m.full_name.localeCompare(b.m.full_name))
+      .slice(0, 30)
+      .map(({ m }) => m);
+  }, [members, search]);
+
+  if (!link) return null;
+  const who = link.profile?.full_name || 'esta cuenta';
+
+  const choose = (m) => run(async () => {
+    const where = m.hik_person_id ? ' y en HikCentral' : '';
+    if (!window.confirm(`¿Vincular a ${who} con ${m.full_name}? La cédula ${link.document_id} quedará en el miembro${where}.`)) return;
+    await reviewLink(link.id, true, null, m.member_id);
+    onDone?.();
+    onClose();
+  });
+
+  const createNew = () => run(async () => {
+    if (!window.confirm(`¿Crear un miembro nuevo con la cédula ${link.document_id} y vincularlo a ${who}? Hazlo solo si la persona aún no está en HikCentral.`)) return;
+    await reviewLink(link.id, true);
+    onDone?.();
+    onClose();
+  });
+
+  return (
+    <Sheet
+      open={open}
+      title="Elegir miembro"
+      onClose={onClose}
+      footer={(
+        <Button variant="secondary" className="w-full py-3" disabled={busy} onClick={createNew}>
+          <UserPlus className="w-4 h-4" /> No está: crear miembro nuevo
+        </Button>
+      )}
+    >
+      <div className="p-3 rounded-xl bg-[#0A0A0C] border border-white/5 text-xs text-gray-300">
+        <strong className="text-white">{who}</strong> pidió vincularse con la CC{' '}
+        <strong className="text-white">{link.document_id}</strong>, pero ningún miembro la tiene. Elige quién es:
+        la cédula se guarda en el miembro y en HikCentral, aunque su membresía esté vencida.
+      </div>
+      <Field label="Buscar por nombre o cédula">
+        <TextInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Nombre" />
+      </Field>
+      <ErrorBox error={error} />
+      {!members ? (
+        <Loading />
+      ) : candidates.length === 0 ? (
+        <p className="text-xs text-gray-400 text-center py-4">Sin coincidencias. Prueba con otra parte del nombre.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {candidates.map((m) => {
+            const otherDoc = m.document_id && m.document_id !== link.document_id;
+            return (
+              <button
+                key={m.member_id}
+                type="button"
+                disabled={busy || otherDoc}
+                onClick={() => choose(m)}
+                className="w-full text-left p-3 rounded-xl bg-[#0A0A0C] border border-white/5 flex items-center gap-3 tap-bounce disabled:opacity-50"
+              >
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm font-black text-white block truncate">{m.full_name}</span>
+                  <span className="text-[11px] text-gray-400 block">
+                    {otherDoc ? `Ya tiene la CC ${m.document_id}` : 'Sin cédula'}
+                    {m.hik_person_id ? ' · en HikCentral' : ' · no está en HikCentral'}
+                  </span>
+                </div>
+                <StatusBadge status={m.status} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </Sheet>
+  );
+}
 
 /** Registrar el pago de una renovación hecha en HikCentral (complete_pending_renewal). */
 function CompletePaymentSheet({ open, renewal, onClose, onDone }) {
@@ -102,6 +215,7 @@ export default function Pending() {
   const [paying, setPaying] = useState(null);
   const [voiding, setVoiding] = useState(null);
   const [rejecting, setRejecting] = useState(null);
+  const [choosing, setChoosing] = useState(null);
   const load = useAction();
   const action = useAction();
 
@@ -117,15 +231,19 @@ export default function Pending() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [refresh]);
 
-  const approve = (link) => action.run(async () => {
-    const who = link.profile?.full_name || 'esta cuenta';
-    const msg = link.member
-      ? `¿Vincular a ${who} con ${link.member.full_name} (CC ${link.document_id})?`
-      : `No hay un miembro con la cédula ${link.document_id}. ¿Crearlo y vincularlo a ${who}?`;
-    if (!window.confirm(msg)) return;
-    await reviewLink(link.id, true);
-    await refresh();
-  });
+  const approve = (link) => {
+    // Sin miembro con esa cédula: se elige el miembro (o se crea uno nuevo) en la hoja.
+    if (!link.member) {
+      setChoosing(link);
+      return;
+    }
+    action.run(async () => {
+      const who = link.profile?.full_name || 'esta cuenta';
+      if (!window.confirm(`¿Vincular a ${who} con ${link.member.full_name} (CC ${link.document_id})?`)) return;
+      await reviewLink(link.id, true);
+      await refresh();
+    });
+  };
 
   const total = data ? data.renewals.length + data.links.length + data.failed.length : 0;
 
@@ -194,7 +312,7 @@ export default function Pending() {
                       ? l.member.profile_id
                         ? `${l.member.full_name} ya tiene otra cuenta vinculada`
                         : `Coincide con ${l.member.full_name}`
-                      : 'No hay un miembro con esa cédula'}
+                      : 'Ningún miembro tiene esa cédula: elige quién es'}
                   </span>
                 </div>
               </div>
@@ -203,7 +321,9 @@ export default function Pending() {
                   <X className="w-4 h-4" /> Rechazar
                 </Button>
                 <Button onClick={() => approve(l)} disabled={action.busy}>
-                  <Check className="w-4 h-4" /> Aprobar
+                  {l.member
+                    ? <><Check className="w-4 h-4" /> Aprobar</>
+                    : <><UserSearch className="w-4 h-4" /> Elegir miembro</>}
                 </Button>
               </div>
             </Card>
@@ -222,7 +342,7 @@ export default function Pending() {
                   <span className="text-sm font-black text-white block truncate">{c.members?.full_name || 'Miembro'}</span>
                   <span className="text-[11px] text-red-300 block">{c.last_error || 'Error desconocido'}</span>
                   <span className="text-[10px] text-gray-500 block">
-                    {formatDateTime(c.created_at)} · {c.attempts} intentos. Revisa la persona en HikCentral y vuelve a renovar o corregir las fechas.
+                    {formatDateTime(c.created_at)} · {c.attempts} intentos. {FAILED_HINT[c.command] || FAILED_HINT.set_validity}
                   </span>
                 </div>
               </Card>
@@ -247,6 +367,12 @@ export default function Pending() {
           await voidRenewal(voiding.id, reason);
           await refresh();
         }}
+      />
+      <ChooseMemberSheet
+        open={!!choosing}
+        link={choosing}
+        onClose={() => setChoosing(null)}
+        onDone={() => action.run(refresh)}
       />
       <ReasonSheet
         open={!!rejecting}

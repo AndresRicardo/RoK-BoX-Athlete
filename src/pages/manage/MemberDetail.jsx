@@ -232,7 +232,7 @@ export default function MemberDetail() {
           ) : s.hik_sync_pending ? (
             <>
               <Clock3 className="w-4 h-4 text-amber-400 shrink-0" />
-              <span className="text-amber-300">Enviando el cambio al torniquete...</span>
+              <span className="text-amber-300">Enviando el cambio a HikCentral...</span>
             </>
           ) : lastCommand?.status === 'failed' ? (
             <>

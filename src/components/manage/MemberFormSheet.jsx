@@ -5,7 +5,8 @@ import { Sheet, Field, TextInput, TextArea, Button, ErrorBox, useAction } from '
 const EMPTY = { fullName: '', documentId: '', phone: '', email: '', notes: '' };
 
 // Crear o editar los datos de un miembro (upsert_member). La persona en HikCentral
-// se registra allá (huella o rostro); el bridge la vincula por la cédula (D36).
+// se registra allá (huella o rostro); el bridge la vincula por la cédula (D36). Si ya está
+// en HikCentral, un cambio de cédula se envía a su campo "Cc" (D48).
 export default function MemberFormSheet({ open, member, onClose, onSaved }) {
   const saveMember = useManageStore((state) => state.saveMember);
   const [form, setForm] = useState(EMPTY);
@@ -32,6 +33,9 @@ export default function MemberFormSheet({ open, member, onClose, onSaved }) {
     if (doc && !/^[0-9A-Za-z-]{5,20}$/.test(doc)) {
       throw new Error('La cédula debe tener de 5 a 20 caracteres, sin espacios ni puntos.');
     }
+    if (doc && member?.hik_person_id && doc !== member.document_id && !/^[0-9]+$/.test(doc)) {
+      throw new Error('En HikCentral la cédula solo puede tener números (sin letras ni guiones).');
+    }
     const saved = await saveMember({ ...form, id: member?.id, documentId: doc });
     onSaved?.(saved);
     onClose();
@@ -54,7 +58,7 @@ export default function MemberFormSheet({ open, member, onClose, onSaved }) {
       <Field
         label="Cédula"
         hint={member?.hik_person_id
-          ? 'Debe coincidir con el campo "Cc" de la persona en HikCentral.'
+          ? 'Al guardar, también se actualiza en HikCentral (campo "Cc"), aunque la membresía esté vencida. Solo números.'
           : 'Con la cédula, el PC del box lo vincula cuando lo registren en HikCentral.'}
       >
         <TextInput value={form.documentId} onChange={set('documentId')} inputMode="numeric" />

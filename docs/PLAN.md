@@ -121,6 +121,8 @@ Todos los RPC son `security definer`, con `set search_path = public` y validaci�
 4. **Conflictos:** gana el último cambio. Si hay un comando de la app pendiente para esa persona, se ignora la lectura de HCAC hasta que el comando termine.
 5. **Completar el pago pendiente:** un socio abre "Pendientes", ingresa el monto, el medio de pago y quién recibió el dinero. Se ejecuta `complete_pending_renewal` y se genera el ingreso.
 
+**Cédula de la app a HikCentral (D48):** si un socio o coach cambia la cédula de un miembro que ya está en HCAC (editar datos, o aprobar un vínculo eligiendo el miembro), se encola `update_person` y el bridge escribe el campo "Cc" por la API (`PUT …/Persons/{id}/CustomFields`), aunque la vigencia esté vencida. HCAC solo acepta números en ese campo.
+
 **Riesgo a validar en un spike (F2.1):** confirmar qué campos expone la API Bumblebee para distinguir "bloqueado" de "vencido", y si existe una fecha de última modificación.
 
 ### 4.3 Deudas y tienda (D12, D13, D14)

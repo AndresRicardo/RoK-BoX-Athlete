@@ -86,6 +86,14 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## Bitácora
 
+### 2026-11-06 (2) — Claude Code
+- D48: la cédula que se edita en la app llega a HikCentral. `0029_member_document_to_hik.sql` (aplicada en DEV): comando `update_person`, trigger en `members`, `review_member_link(…, p_member_id)`, `complete_access_command` solo registra vigencias para `set_validity` y aviso de fallo con el tipo de cambio. Tipos regenerados.
+- App: Pendientes → "Elegir miembro" (buscador, con "crear miembro nuevo" como segunda opción); el formulario del miembro avisa que la cédula va a HikCentral y rechaza letras si está allá.
+- `rokbox-bridge` `develop` v3.1.0 (clonado en `C:\Projectsokbox-bridge`): `set_custom_field` y el comando `update_person`.
+- Exploración de la API en el HCAC de desarrollo (solo ZZTEST 50 y 51, restaurados): el PUT de lista con `CustomFieldList` responde 0 pero no guarda; el endpoint de campos personalizados sí, aunque la persona esté vencida; letras → ErrorCode 3167. Nombre y teléfono solo se cambian reescribiendo todos los datos básicos (`PUT …/Persons/{id}`; el PUT parcial da 3053), por eso quedan fuera (D48).
+- Verificación: tests SQL **116/116** (13 nuevos), bridge **23/23** (8 nuevos), build OK. E2E en DEV con la cuenta socio2 (contraseña temporal ya invalidada): aprobar el vínculo de atleta2 eligiendo "ZZTEST Bridge Vivo" (vencido, sin cédula) → el bridge v3.1 escribió `Cc = 999000951` en la persona 51 de HCAC; luego editar la cédula a `999000901` desde la ficha (rechaza `AB12345`) → HCAC quedó con `999000901`. Sin errores de JS ni de red; el pull siguiente no detectó cambios. DEV quedó como estaba (atleta2 sin vincular).
+- **Para producción (pendiente, requiere orden):** primero instalar el bridge v3.1 en el PC del box (si no, el bridge v3.0 falla los `update_person` y retrasa los demás comandos unos minutos), luego backup del día + `db push` de `0029` y por último el merge a `main`.
+
 ### 2026-11-06 — Claude Code
 - README: la sección de variables de entorno ya no trae valores de DEV; remite a `.env.example` (`3747775`, también en `main`).
 - Sugerencia de instalar la app (D47, pedido del dueño): `src/stores/installStore.js` (captura `beforeinstallprompt` desde `main.jsx`, `appinstalled`, modo standalone, posponer 3 días), `src/components/InstallPrompt.jsx` (hoja global en `AppRoot` y tarjeta `InstallAppCard` en Perfil). El dueño la probó en su teléfono con el preview y se pasó a `main` por su orden.
@@ -96,7 +104,8 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - Badge de los avisos push: `public/badge-96x96.png` (mancuerna y rayo, blanco sobre transparente), porque Android solo usa la transparencia y el icono opaco salía como un cuadro blanco. Cambia `push-sw.js` y `send-push`, que se vuelve a publicar en cada entorno.
 
 ### 2026-10-30 — Claude Code (bridge en producción)
-- `rokbox-bridge` `main` = `develop` (v3, `8ff807b`). Instalado en `C:okbox-bridge` del PC del box con su `.env` de producción.
+- `rokbox-bridge` `main` = `develop` (v3, `8ff807b`). Instalado en `C:
+okbox-bridge` del PC del box con su `.env` de producción.
 - Dry-run: 145 personas, 0 coincidencias, 123 sin "Cc", 0 sin vigencia. Importación real: 145 creadas. `--once` sin cambios ni comandos.
 - Producción: 145 miembros, todos con `hik_person_id`, 22 con cédula; 37 al día, 10 por vencer, 98 vencidos. Latido v3.0.0 desde la tarea programada `RokboxBridgeAgent` (SYSTEM, al iniciar).
 - La tarea se creó con el límite de 72 h por defecto de Windows: se quitó a mano (`ExecutionTimeLimit = PT0S`) y el instalador quedó corregido en `develop` del bridge.
