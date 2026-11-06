@@ -21,6 +21,7 @@ import MembershipCard from '../components/MembershipCard';
 import DebtCard from '../components/DebtCard';
 import PaymentHistory from '../components/PaymentHistory';
 import PushSettings from '../components/PushSettings';
+import { InstallAppCard } from '../components/InstallPrompt';
 
 const DEFAULT_BOX = 'RöK BoX';
 const HANDLE_REGEX = /^[a-z0-9._]{3,20}$/;
@@ -547,6 +548,7 @@ export default function Profile() {
         <span className="text-xs font-bold text-[#A0A0A5] uppercase tracking-wider">
           Notificaciones
         </span>
+        <InstallAppCard />
         <PushSettings />
       </div>
 

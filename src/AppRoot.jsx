@@ -3,6 +3,7 @@ import { RouterProvider } from 'react-router-dom';
 import { router } from './routes';
 import useAuthStore from './stores/authStore';
 import useProfileStore from './stores/profileStore';
+import InstallPrompt from './components/InstallPrompt';
 
 export default function AppRoot() {
   const { initialize, user } = useAuthStore();
@@ -19,5 +20,10 @@ export default function AppRoot() {
     }
   }, [user?.id, user?.user_metadata?.avatar_url, syncAvatar]);
 
-  return <RouterProvider router={router} />;
+  return (
+    <>
+      <RouterProvider router={router} />
+      <InstallPrompt />
+    </>
+  );
 }

@@ -196,6 +196,7 @@ netBalance_i = grossShare_i − (personalExpenses_i + expectedCash_i)   ← usa 
 
 - Con 6 pestañas en la barra inferior, cada ítem sigue teniendo como mínimo 44 px de ancho táctil en 360 px. Si no cabe bien, Logros pasa a Perfil (se decide en F4 con un prototipo).
 - **Atleta:** el Dashboard y el Perfil muestran la membresía (plan, días o clases restantes y estado de acceso), las deudas con su detalle e historial de abonos, y el historial de pagos de mensualidad.
+- **Sugerencia de instalar la app (D47):** mientras la app no esté en la pantalla de inicio, una hoja inferior global (`InstallPrompt`, estado en `installStore`) la sugiere. En Android/Chrome/Edge usa `beforeinstallprompt` y el usuario solo confirma en el diálogo nativo; en iPhone/iPad muestra los pasos de Safari. También hay una tarjeta "Instala la app" en Perfil → Notificaciones.
 
 ## 5. Fases
 

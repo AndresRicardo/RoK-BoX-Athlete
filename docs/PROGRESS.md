@@ -86,6 +86,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## Bitácora
 
+### 2026-11-06 — Claude Code
+- README: la sección de variables de entorno ya no trae valores de DEV; remite a `.env.example` (`3747775`, también en `main`).
+- Sugerencia de instalar la app (D47, pedido del dueño): `src/stores/installStore.js` (captura `beforeinstallprompt` desde `main.jsx`, `appinstalled`, modo standalone, posponer 3 días), `src/components/InstallPrompt.jsx` (hoja global en `AppRoot` y tarjeta `InstallAppCard` en Perfil). Solo en `develop`.
+- Verificación: build OK y prueba en Chrome headless contra `vite preview` con `beforeinstallprompt` simulado, 21/21: Android (aparece a los 3 s, un toque llama `prompt()`, se cierra al aceptar, no vuelve tras `appinstalled`), "Ahora no" y cancelar el diálogo posponen 3 días aun al recargar, iPhone muestra los pasos, iPhone instalada y computador no la muestran, sin errores de JS. **Falta probar en teléfonos reales en el preview:** el diálogo nativo verdadero solo aparece en HTTPS con el manifiesto y el service worker válidos.
+
 ### 2026-11-03 — Claude Code
 - Icono de la app: todos los PNG se generan con `npm run icons` desde `isotipo limpio.svg` (antes tenían el logo "ATHLETE"). Sin el rectángulo negro de fondo del SVG, sobre `#0A0A0C` y sin canal alfa. Nuevos: favicon de 16 y 32 px y maskable de 192 px. El SVG original y `public/favicon.svg` no cambian.
 - Badge de los avisos push: `public/badge-96x96.png` (mancuerna y rayo, blanco sobre transparente), porque Android solo usa la transparencia y el icono opaco salía como un cuadro blanco. Cambia `push-sw.js` y `send-push`, que se vuelve a publicar en cada entorno.
