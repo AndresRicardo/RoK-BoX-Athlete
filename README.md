@@ -59,11 +59,17 @@ npm run icons    # Regenerar iconos PWA desde isotipo limpio.svg
 
 ## Variables de Entorno (.env)
 
-```env
-VITE_SUPABASE_URL=https://qsqrnfgcozvznkbdyozs.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_Q4QC6J6XxuLoKSu03sqQLg_O5rOkFqz
-VITE_VAPID_PUBLIC_KEY=BHbsQN1dMOrI9IV2AoGpDwKfcY9aE4VO2kS09fOk9qNOJmJyEDpc7sXoIrGeLY-Icwnce_X9WEiovtmgqoC3nYM
-```
+Copia [`.env.example`](.env.example) a `.env` y llena los valores:
+
+| Variable | Qué es |
+|---|---|
+| `VITE_SUPABASE_URL` | URL del proyecto Supabase. |
+| `VITE_SUPABASE_ANON_KEY` | Clave publicable (`sb_publishable_…`) del proyecto. |
+| `VITE_VAPID_PUBLIC_KEY` | Mitad pública del par VAPID para notificaciones push. |
+
+- **Local**: usa los valores del proyecto **DEV** (panel de Supabase → *Project Settings → API Keys*).
+- **Producción y preview**: los valores están configurados en Vercel, no en el repo.
+- Las tres son públicas (Vite las incluye en el bundle). Nunca pongas en `.env` del cliente la `service_role` ni la clave VAPID privada.
 
 ---
 
