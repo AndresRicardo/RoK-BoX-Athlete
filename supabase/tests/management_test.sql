@@ -1323,6 +1323,253 @@ do $$ begin
 end $$;
 
 -- =====================================================================
+-- COMUNICADOS (0030, D49)
+-- =====================================================================
+-- atleta 4444 con membresía al día; atleta2 6666 sin vincular y con los comunicados apagados;
+-- cccc vinculado a un miembro vencido (sección anterior). Los tests de cuentas de socio le
+-- quitaron el rol a 7777: aquí vuelve a ser socio.
+insert into public.user_roles (user_id, role) values ('77777777-7777-7777-7777-777777777777', 'partner')
+on conflict do nothing;
+update public.memberships set valid_until = now() + interval '20 days', access_enabled = true
+where member_id = 'a0000000-0000-0000-0000-000000000001';
+insert into public.notification_preferences (user_id, disabled_types)
+values ('66666666-6666-6666-6666-666666666666', array['announcement'])
+on conflict (user_id) do update set disabled_types = array['announcement'];
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.save_announcement(null, 'notice', 'Hackeo', 'no debería', null, null, 'all', null, true, false);
+  insert into zz_tests.results (name, ok, detail) values ('comunicados: atleta no puede publicar', false, 'no falló');
+exception when insufficient_privilege then
+  insert into zz_tests.results (name, ok) values ('comunicados: atleta no puede publicar', true);
+end $$;
+reset role;
+
+-- Coach publica para todos.
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_a public.announcements;
+begin
+  v_a := public.save_announcement(null, 'schedule', 'Sábado sin clase de 6:00',
+    'Este sábado no hay clase de las 6:00 a. m.', null, null, 'all', null, true, false);
+  insert into zz_tests.ctx values ('ann_all', v_a.id::text);
+  insert into zz_tests.results (name, ok, detail)
+  values ('comunicados: publicar ahora lo envía', v_a.published_at is not null and v_a.recipients_count > 0
+          and v_a.visible_until > now() + interval '6 days', coalesce(v_a.recipients_count::text, 'null'));
+
+  begin
+    perform public.save_announcement(null, 'event', 'Asado', 'Recuerden el asado', null, null, 'all', null, true, true);
+    insert into zz_tests.results (name, ok, detail) values ('comunicados: recordatorio sin fecha se rechaza', false, 'no falló');
+  exception when invalid_parameter_value then
+    insert into zz_tests.results (name, ok, detail) values ('comunicados: recordatorio sin fecha se rechaza', true, sqlerrm);
+  end;
+
+  begin
+    perform public.save_announcement(null, 'notice', 'Ok', 'título corto', null, null, 'all', null, true, false);
+    insert into zz_tests.results (name, ok, detail) values ('comunicados: título muy corto se rechaza', false, 'no falló');
+  exception when invalid_parameter_value then
+    insert into zz_tests.results (name, ok, detail) values ('comunicados: título muy corto se rechaza', true, sqlerrm);
+  end;
+end $$;
+reset role;
+
+do $$
+declare v_id text := (select val from zz_tests.ctx where key = 'ann_all');
+begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: llega a atletas y socios, no al autor ni al bridge',
+         bool_or(recipient_id = '44444444-4444-4444-4444-444444444444')
+         and bool_or(recipient_id = '77777777-7777-7777-7777-777777777777')
+         and bool_or(recipient_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc')
+         and not bool_or(recipient_id = '33333333-3333-3333-3333-333333333333')
+         and not bool_or(recipient_id = '55555555-5555-5555-5555-555555555555')
+         and bool_and(title = '🗓️ Sábado sin clase de 6:00' and link = '/announcements?id=' || v_id),
+         count(*)::text
+  from public.notifications where type = 'announcement' and data->>'announcement_id' = v_id;
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: quien los apagó no recibe el aviso', count(*) = 0, count(*)::text
+  from public.notifications
+  where type = 'announcement' and recipient_id = '66666666-6666-6666-6666-666666666666';
+end $$;
+
+-- Quien apagó los avisos igual lo ve en la app; marcarlo como visto cuenta una vez.
+select set_config('request.jwt.claims', '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_id uuid := (select val::uuid from zz_tests.ctx where key = 'ann_all');
+begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: atleta sin avisos igual lo ve en Inicio', count(*) = 1, count(*)::text
+  from public.announcements where id = v_id;
+  perform public.mark_announcements_seen(array[v_id]);
+  perform public.mark_announcements_seen(array[v_id]);
+end $$;
+reset role;
+
+-- Socio publica solo para membresías al día.
+select set_config('request.jwt.claims', '{"sub":"77777777-7777-7777-7777-777777777777","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_a public.announcements;
+begin
+  v_a := public.save_announcement(null, 'event', 'Asado del fin de semana', 'Recuerden el asado, traigan algo para compartir.',
+    now() + interval '3 days', null, 'active_members', null, true, true);
+  insert into zz_tests.ctx values ('ann_active', v_a.id::text);
+  insert into zz_tests.results (name, ok, detail)
+  values ('comunicados: recordatorio calculado antes del evento',
+          v_a.remind and v_a.remind_at < v_a.event_at and v_a.remind_at > now(), v_a.remind_at::text);
+end $$;
+reset role;
+
+do $$
+declare v_id text := (select val from zz_tests.ctx where key = 'ann_active');
+begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: "al día" llega al atleta al día y no al vencido',
+         bool_or(recipient_id = '44444444-4444-4444-4444-444444444444')
+         and not bool_or(recipient_id = 'cccccccc-cccc-cccc-cccc-cccccccccccc')
+         and bool_or(recipient_id = '33333333-3333-3333-3333-333333333333'),
+         count(*)::text
+  from public.notifications where type = 'announcement' and data->>'announcement_id' = v_id;
+end $$;
+
+select set_config('request.jwt.claims', '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_id uuid := (select val::uuid from zz_tests.ctx where key = 'ann_active');
+begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: el vencido no ve el de "al día"', count(*) = 0, count(*)::text
+  from public.announcements where id = v_id;
+  perform public.mark_announcements_seen(array[v_id]);
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_id uuid := (select val::uuid from zz_tests.ctx where key = 'ann_active');
+begin
+  perform public.mark_announcements_seen(array[v_id, (select val::uuid from zz_tests.ctx where key = 'ann_all')]);
+  begin
+    perform public.delete_announcement(v_id);
+    insert into zz_tests.results (name, ok, detail) values ('comunicados: atleta no puede borrar', false, 'no falló');
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('comunicados: atleta no puede borrar', true);
+  end;
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"77777777-7777-7777-7777-777777777777","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: "visto por" cuenta a cada atleta una vez',
+         max(seen_count) filter (where id = (select val::uuid from zz_tests.ctx where key = 'ann_all')) = 2
+         and max(seen_count) filter (where id = (select val::uuid from zz_tests.ctx where key = 'ann_active')) = 1,
+         string_agg(title || '=' || seen_count, ', ')
+  from public.announcement_list;
+end $$;
+
+-- Programado: no se envía ni se ve hasta su hora.
+do $$
+declare v_a public.announcements;
+begin
+  v_a := public.save_announcement(null, 'notice', 'Mañana cerramos temprano', 'El box cierra a las 7:00 p. m.',
+    null, null, 'all', now() + interval '2 hours', true, false);
+  insert into zz_tests.ctx values ('ann_sched', v_a.id::text);
+  insert into zz_tests.results (name, ok, detail)
+  values ('comunicados: programado no se envía antes de su hora',
+          v_a.published_at is null and not exists (
+            select 1 from public.notifications where data->>'announcement_id' = v_a.id::text),
+          coalesce(v_a.published_at::text, 'pendiente'));
+
+  -- Editar el ya enviado corrige el texto en la campana.
+  perform public.save_announcement((select val::uuid from zz_tests.ctx where key = 'ann_all'), 'schedule',
+    'Sábado sin clase de 6:00 ni 7:00', 'Este sábado no hay clase de las 6:00 ni de las 7:00 a. m.',
+    null, null, 'all', null, true, false);
+end $$;
+reset role;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: editar corrige la campana sin reenviar',
+         count(*) > 0 and bool_and(title = '🗓️ Sábado sin clase de 6:00 ni 7:00' and body like '%ni de las 7:00%'),
+         count(*)::text
+  from public.notifications
+  where type = 'announcement' and data->>'announcement_id' = (select val from zz_tests.ctx where key = 'ann_all');
+end $$;
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: atleta no ve el programado', count(*) = 0, count(*)::text
+  from public.announcements where id = (select val::uuid from zz_tests.ctx where key = 'ann_sched');
+end $$;
+reset role;
+
+-- Llega la hora del programado y del recordatorio: el trabajo los envía una sola vez.
+update public.announcements set publish_at = now() - interval '1 minute'
+where id = (select val::uuid from zz_tests.ctx where key = 'ann_sched');
+update public.announcements set remind_at = now() - interval '1 minute'
+where id = (select val::uuid from zz_tests.ctx where key = 'ann_active');
+select private.job_announcements();
+select private.job_announcements();
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: el trabajo publica el programado',
+         a.published_at is not null and (select count(*) from public.notifications n
+                                         where n.data->>'announcement_id' = a.id::text) > 0,
+         coalesce(a.published_at::text, 'pendiente')
+  from public.announcements a where a.id = (select val::uuid from zz_tests.ctx where key = 'ann_sched');
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: recordatorio del evento sale una vez',
+         count(*) filter (where recipient_id = '44444444-4444-4444-4444-444444444444') = 1
+         and bool_and(title like '⏰ %: Asado del fin de semana' and body like '%Recuerden el asado%'),
+         count(*)::text || ' ' || coalesce(max(title), '') || ' | ' || coalesce(max(body), '')
+  from public.notifications
+  where type = 'announcement' and (data->>'reminder')::boolean
+    and data->>'announcement_id' = (select val from zz_tests.ctx where key = 'ann_active');
+end $$;
+
+-- Borrar: sale de la campana y de la app.
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.delete_announcement((select val::uuid from zz_tests.ctx where key = 'ann_active'));
+end $$;
+reset role;
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: borrado sale de la campana y de Inicio',
+         (select count(*) from public.notifications
+          where data->>'announcement_id' = (select val from zz_tests.ctx where key = 'ann_active')) = 0
+         and (select count(*) from public.announcements
+              where id = (select val::uuid from zz_tests.ctx where key = 'ann_active')) = 0,
+         null;
+end $$;
+reset role;
+
+-- Vencido: deja de verse.
+update public.announcements set visible_until = now() - interval '1 minute'
+where id = (select val::uuid from zz_tests.ctx where key = 'ann_all');
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'comunicados: vencido ya no se ve', count(*) = 0, count(*)::text
+  from public.announcements where id = (select val::uuid from zz_tests.ctx where key = 'ann_all');
+end $$;
+reset role;
+
+-- =====================================================================
 -- RESULTADO
 -- =====================================================================
 select n, ok, name, detail from zz_tests.results

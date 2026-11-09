@@ -20,6 +20,8 @@ import Pending from '../pages/manage/Pending';
 import Cash from '../pages/manage/Cash';
 import Settlements from '../pages/manage/Settlements';
 import Settings from '../pages/manage/Settings';
+import Announcements from '../pages/Announcements';
+import ManageAnnouncements from '../pages/manage/Announcements';
 
 const staff = (element) => <StaffRoute>{element}</StaffRoute>;
 const partnerOnly = (element) => <StaffRoute partnerOnly>{element}</StaffRoute>;
@@ -85,6 +87,7 @@ export const router = createBrowserRouter([
         path: 'athletes/:id',
         element: <AthleteProfile />,
       },
+      { path: 'announcements', element: <Announcements /> },
       { path: 'staff', element: <Navigate to="/manage" replace /> },
       // Enlaces que guardan los avisos del servidor (0020_notifications).
       { path: 'gestion', element: <Navigate to="/manage" replace /> },
@@ -96,6 +99,7 @@ export const router = createBrowserRouter([
       { path: 'manage/debts', element: staff(<Debts />) },
       { path: 'manage/debts/reminders', element: staff(<DebtReminders />) },
       { path: 'manage/pending', element: staff(<Pending />) },
+      { path: 'manage/announcements', element: staff(<ManageAnnouncements />) },
       { path: 'manage/cash', element: partnerOnly(<Cash />) },
       { path: 'manage/settlements', element: partnerOnly(<Settlements />) },
       { path: 'manage/settings', element: partnerOnly(<Settings />) },

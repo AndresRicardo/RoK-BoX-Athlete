@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Bell, Check, Heart, MessageSquare, UserPlus, Trophy, X, Receipt, CalendarCheck, Ticket, Link2, WifiOff, AlertTriangle, Inbox,
+  Bell, Check, Heart, MessageSquare, UserPlus, Trophy, X, Receipt, CalendarCheck, Ticket, Link2, WifiOff, AlertTriangle, Inbox, Megaphone,
 } from 'lucide-react';
 import useNotificationStore from '../stores/notificationStore';
 import useAuthStore from '../stores/authStore';
@@ -81,6 +81,8 @@ export default function NotificationsBell() {
         return <WifiOff className="w-4 h-4 text-red-400" />;
       case 'access_command_failed':
         return <AlertTriangle className="w-4 h-4 text-red-400" />;
+      case 'announcement':
+        return <Megaphone className="w-4 h-4 text-[#FFC815]" />;
       default:
         return <Bell className="w-4 h-4 text-gray-400" />;
     }

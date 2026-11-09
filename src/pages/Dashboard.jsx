@@ -11,6 +11,7 @@ import useEngagementStore from '../stores/engagementStore';
 import MembershipCard from '../components/MembershipCard';
 import DebtCard from '../components/DebtCard';
 import FeedEventCard from '../components/FeedEventCard';
+import { AnnouncementsCard } from '../components/Announcements';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
@@ -65,6 +66,9 @@ export default function Dashboard() {
           </span>
         )}
       </div>
+
+      {/* 0) Comunicados del box (D49); no se muestra si no hay */}
+      <AnnouncementsCard />
 
       {/* 1) Estado de Membresía (HikCentral) */}
       <MembershipCard />

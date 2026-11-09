@@ -141,3 +141,13 @@ El bloqueo también se aplica como `set_validity`, con `valid_until` igual al mo
 | `notification_preferences (user_id, disabled_types[])` | el dueño | Tipos apagados: no se crean en la campana (avisos del sistema) y no se envían por push. Los sociales (`like`, `comment`, `follow`) siguen en la campana y solo se apaga su push. |
 | `claim_push_batch(p_limit)` | solo `service_role` (send-push) | Marca `pushed_at` y devuelve los avisos a enviar; descarta los de más de un día. |
 
+## Comunicados (D49)
+
+| RPC / tabla | Quién | Notas |
+|---|---|---|
+| `announcements` (select) | todos | La RLS devuelve los publicados y vigentes de la audiencia del usuario (`all`, o `active_members` si su membresía está vigente). A staff le devuelve todos (programados, vencidos y borrados); la app filtra. |
+| `announcement_list` (vista) | staff | Comunicados con `author_name`, `seen_count` y `status` (`scheduled`, `active`, `expired`, `deleted`). |
+| `save_announcement(p_id?, p_kind, p_title, p_body, p_event_at?, p_visible_until?, p_audience, p_publish_at?, p_notify, p_remind)` | staff | Sin `p_id` crea; con `p_id` edita. `p_kind`: `notice`, `event`, `schedule`. Título 3–80 y mensaje 1–500 caracteres. Si la hora de envío ya llegó, publica en el acto: avisos `announcement` a los destinatarios (menos el autor y el bridge; socios y coaches siempre). `p_visible_until` por defecto: fin del día del evento o 7 días. `p_remind` exige `p_event_at`. Editar uno enviado corrige el texto en la campana y no reenvía. |
+| `delete_announcement(p_id)` | staff | Borrado lógico; quita sus avisos de la campana de todos. |
+| `mark_announcements_seen(p_ids)` | cualquier usuario | Registra que los vio (una vez por usuario), solo los que puede ver. |
+

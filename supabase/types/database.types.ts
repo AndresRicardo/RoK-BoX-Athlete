@@ -176,6 +176,105 @@ export type Database = {
         }
         Relationships: []
       }
+      announcement_views: {
+        Row: {
+          announcement_id: string
+          seen_at: string
+          user_id: string
+        }
+        Insert: {
+          announcement_id: string
+          seen_at?: string
+          user_id: string
+        }
+        Update: {
+          announcement_id?: string
+          seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "announcement_views_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcement_list"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "announcement_views_announcement_id_fkey"
+            columns: ["announcement_id"]
+            isOneToOne: false
+            referencedRelation: "announcements"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      announcements: {
+        Row: {
+          audience: string
+          author_id: string | null
+          body: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          event_at: string | null
+          id: string
+          kind: string
+          notify: boolean
+          publish_at: string
+          published_at: string | null
+          recipients_count: number | null
+          remind: boolean
+          remind_at: string | null
+          reminded_at: string | null
+          title: string
+          updated_at: string
+          visible_until: string
+        }
+        Insert: {
+          audience?: string
+          author_id?: string | null
+          body: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          event_at?: string | null
+          id?: string
+          kind?: string
+          notify?: boolean
+          publish_at?: string
+          published_at?: string | null
+          recipients_count?: number | null
+          remind?: boolean
+          remind_at?: string | null
+          reminded_at?: string | null
+          title: string
+          updated_at?: string
+          visible_until: string
+        }
+        Update: {
+          audience?: string
+          author_id?: string | null
+          body?: string
+          created_at?: string
+          deleted_at?: string | null
+          deleted_by?: string | null
+          event_at?: string | null
+          id?: string
+          kind?: string
+          notify?: boolean
+          publish_at?: string
+          published_at?: string | null
+          recipients_count?: number | null
+          remind?: boolean
+          remind_at?: string | null
+          reminded_at?: string | null
+          title?: string
+          updated_at?: string
+          visible_until?: string
+        }
+        Relationships: []
+      }
       app_settings: {
         Row: {
           key: string
@@ -1741,6 +1840,33 @@ export type Database = {
       }
     }
     Views: {
+      announcement_list: {
+        Row: {
+          audience: string | null
+          author_id: string | null
+          author_name: string | null
+          body: string | null
+          created_at: string | null
+          deleted_at: string | null
+          deleted_by: string | null
+          event_at: string | null
+          id: string | null
+          kind: string | null
+          notify: boolean | null
+          publish_at: string | null
+          published_at: string | null
+          recipients_count: number | null
+          remind: boolean | null
+          remind_at: string | null
+          reminded_at: string | null
+          seen_count: number | null
+          status: string | null
+          title: string | null
+          updated_at: string | null
+          visible_until: string | null
+        }
+        Relationships: []
+      }
       athlete_directory: {
         Row: {
           avatar_url: string | null
@@ -2127,6 +2253,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      delete_announcement: { Args: { p_id: string }; Returns: undefined }
       delete_settlement: {
         Args: { p_settlement_id: string }
         Returns: undefined
@@ -2190,6 +2317,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      mark_announcements_seen: { Args: { p_ids: string[] }; Returns: undefined }
       register_push_subscription: {
         Args: {
           p_auth: string
@@ -2334,6 +2462,47 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "member_link_requests"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      save_announcement: {
+        Args: {
+          p_audience?: string
+          p_body: string
+          p_event_at?: string
+          p_id: string
+          p_kind: string
+          p_notify?: boolean
+          p_publish_at?: string
+          p_remind?: boolean
+          p_title: string
+          p_visible_until?: string
+        }
+        Returns: {
+          audience: string
+          author_id: string | null
+          body: string
+          created_at: string
+          deleted_at: string | null
+          deleted_by: string | null
+          event_at: string | null
+          id: string
+          kind: string
+          notify: boolean
+          publish_at: string
+          published_at: string | null
+          recipients_count: number | null
+          remind: boolean
+          remind_at: string | null
+          reminded_at: string | null
+          title: string
+          updated_at: string
+          visible_until: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "announcements"
           isOneToOne: true
           isSetofReturn: false
         }

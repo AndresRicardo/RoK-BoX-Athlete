@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  Users, Receipt, Inbox, Wallet, Scale, Settings, ChevronRight, Wifi, WifiOff,
+  Users, Receipt, Inbox, Wallet, Scale, Settings, ChevronRight, Wifi, WifiOff, Megaphone,
 } from 'lucide-react';
 import useProfileStore from '../../stores/profileStore';
 import useManageStore from '../../stores/manageStore';
@@ -12,6 +12,7 @@ const SECTIONS = [
   { to: '/manage/members', label: 'Miembros', desc: 'Renovar, tiquetera y acceso', icon: Users },
   { to: '/manage/debts', label: 'Deudas y ventas', desc: 'Cargos, abonos y ventas de contado', icon: Receipt },
   { to: '/manage/pending', label: 'Pendientes', desc: 'Pagos de HikCentral y vínculos', icon: Inbox, badge: 'pendingCount' },
+  { to: '/manage/announcements', label: 'Comunicados', desc: 'Avisos y eventos para los atletas', icon: Megaphone },
   { to: '/manage/cash', label: 'Caja', desc: 'Gastos, ingresos y entregas', icon: Wallet, partnerOnly: true },
   { to: '/manage/settlements', label: 'Cuadres', desc: 'Repartir utilidades entre socios', icon: Scale, partnerOnly: true },
   { to: '/manage/settings', label: 'Ajustes', desc: 'Socios, planes, catálogo y roles', icon: Settings, partnerOnly: true },

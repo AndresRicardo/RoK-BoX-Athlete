@@ -179,9 +179,13 @@ netBalance_i = grossShare_i − (personalExpenses_i + expectedCash_i)   ← usa 
 | Socios y coaches | Solicitud de vínculo por aprobar | Inmediato |
 | Socios | Bridge sin señal por más de 30 minutos | Revisión cada 10 minutos |
 | Socios | Resumen semanal: ingresos, gastos y membresías que vencen | Lunes 7:00 |
+| Todos o solo membresías al día | Comunicado del box (D49) | Al publicarlo o a la hora programada |
+| Los mismos | Recordatorio del evento del comunicado (D49) | 7:00 p. m. del día anterior si el evento es antes de las 10:00; si no, 8:00 a. m. del día |
 
 - Además del push, cada aviso queda en la campana de notificaciones existente.
 - Cada usuario puede desactivar tipos de aviso desde su perfil.
+
+**Comunicados del box (D49):** Gestión → Comunicados (socios y coaches). Tipo (aviso, evento, cambio de horario), título, mensaje, fecha del evento opcional con recordatorio automático, audiencia (todos o solo membresías al día), envío inmediato o programado y "visible hasta". Llegan como push y aviso en la campana (tipo `announcement`) y se ven en Inicio ("Del box") y en `/announcements` mientras estén vigentes, aunque el atleta haya apagado ese aviso. Gestión muestra "visto por N de M". Editar uno enviado corrige el texto en la app y la campana sin reenviar; borrarlo lo quita de ambos. Tabla `announcements` (`0030`), RPC `save_announcement`, `delete_announcement`, `mark_announcements_seen` y cron `rokbox-announcements` cada minuto.
 
 ### 4.7 Interfaz (D19, D29)
 - Se mantiene la estética de la v2 (paleta RöK BoX y modo oscuro) y la navegación inferior mobile-first.

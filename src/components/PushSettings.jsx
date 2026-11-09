@@ -11,6 +11,12 @@ import {
 // y del push; en los sociales (me gusta, comentarios, seguidores) solo se apaga el push.
 const GROUPS = [
   {
+    title: 'Del box',
+    types: [
+      ['announcement', 'Comunicados y recordatorios (siguen visibles en Inicio)'],
+    ],
+  },
+  {
     title: 'Membresía y pagos',
     types: [
       ['membership_expiring', 'Membresía por vencer'],

@@ -4,7 +4,8 @@
 |---|---|
 | `migrations/0001`–`0014` | Esquema de atletas, **ya aplicado en producción**. No se edita. |
 | `migrations/0015`–`0028` | Gestión: roles, socios, miembros, membresías, bridge, deudas, finanzas, auditoría, notificaciones, realtime, endurecimiento, envío push, recordatorios de deuda por WhatsApp, cuadre manual, cuenta de cada socio y anulación de renovaciones. Ya aplicadas en producción. |
-| `migrations/0029` | La cédula editada en la app llega a HikCentral (`update_person`, D48). Solo en DEV hasta el próximo paso a producción. |
+| `migrations/0029` | La cédula editada en la app llega a HikCentral (`update_person`, D48). Aplicada en producción el 2026-11-09. |
+| `migrations/0030` | Comunicados del box: tabla, RPC, aviso `announcement`, recordatorios y cron (D49). Solo en DEV hasta el próximo paso a producción. |
 | `functions/send-push` | Edge Function que envía los avisos como Web Push (F5). |
 | `scripts/configure-push.mjs` | Configura el secreto entre la base y `send-push` (Vault + secreto de la función). |
 | `scripts/prod/` | Paso a producción: prechequeo, correcciones de datos (E17/E18), alta de socios y poschequeo. Se usan según [`docs/RUNBOOK_PRODUCCION.md`](../docs/RUNBOOK_PRODUCCION.md). |

@@ -83,7 +83,8 @@ function payloadFor(n: Notification): string {
     body: isSystem ? (n.body || '') : `${who} ${socialText(n)}`,
     icon: '/pwa-192x192.png',
     badge: '/badge-96x96.png',
-    tag: `rokbox-${n.type}`,
+    // Cada comunicado es distinto: no debe reemplazar al anterior en el teléfono.
+    tag: n.type === 'announcement' ? `rokbox-announcement-${n.id}` : `rokbox-${n.type}`,
     data: { url, notification_id: n.id },
   });
 }
