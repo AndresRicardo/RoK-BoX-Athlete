@@ -86,13 +86,18 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## Bitácora
 
+### 2026-11-09 — Claude Code (D48 a producción, por orden del dueño)
+- `rokbox-bridge` `main` = `develop` (v3.1.0, `5326ade`). **Falta instalarlo en el PC del box** (`git pull` en `C:\rokbox-bridge` y reiniciar la tarea `RokboxBridgeAgent`); hasta entonces el latido dice 3.0.0 y los cambios de cédula de miembros con HCAC fallan con "Comando desconocido".
+- Backup del día (schema, data y roles) fuera del repo. `db push` solo de `0029` (verificado con `--dry-run`), sin errores. Poschequeo: filas de atletas intactas, 29 migraciones (última `0029`), 5 trabajos de cron, 2 secretos en Vault; constraint y triggers nuevos presentes. CLI de vuelta en DEV.
+- `main` = `develop` → Vercel publica producción.
+
 ### 2026-11-06 (2) — Claude Code
 - D48: la cédula que se edita en la app llega a HikCentral. `0029_member_document_to_hik.sql` (aplicada en DEV): comando `update_person`, trigger en `members`, `review_member_link(…, p_member_id)`, `complete_access_command` solo registra vigencias para `set_validity` y aviso de fallo con el tipo de cambio. Tipos regenerados.
 - App: Pendientes → "Elegir miembro" (buscador, con "crear miembro nuevo" como segunda opción); el formulario del miembro avisa que la cédula va a HikCentral y rechaza letras si está allá.
 - `rokbox-bridge` `develop` v3.1.0 (clonado en `C:\Projectsokbox-bridge`): `set_custom_field` y el comando `update_person`.
 - Exploración de la API en el HCAC de desarrollo (solo ZZTEST 50 y 51, restaurados): el PUT de lista con `CustomFieldList` responde 0 pero no guarda; el endpoint de campos personalizados sí, aunque la persona esté vencida; letras → ErrorCode 3167. Nombre y teléfono solo se cambian reescribiendo todos los datos básicos (`PUT …/Persons/{id}`; el PUT parcial da 3053), por eso quedan fuera (D48).
 - Verificación: tests SQL **116/116** (13 nuevos), bridge **23/23** (8 nuevos), build OK. E2E en DEV con la cuenta socio2 (contraseña temporal ya invalidada): aprobar el vínculo de atleta2 eligiendo "ZZTEST Bridge Vivo" (vencido, sin cédula) → el bridge v3.1 escribió `Cc = 999000951` en la persona 51 de HCAC; luego editar la cédula a `999000901` desde la ficha (rechaza `AB12345`) → HCAC quedó con `999000901`. Sin errores de JS ni de red; el pull siguiente no detectó cambios. DEV quedó como estaba (atleta2 sin vincular).
-- **Para producción (pendiente, requiere orden):** primero instalar el bridge v3.1 en el PC del box (si no, el bridge v3.0 falla los `update_person` y retrasa los demás comandos unos minutos), luego backup del día + `db push` de `0029` y por último el merge a `main`.
+- Paso a producción: ver la entrada del 2026-11-09.
 
 ### 2026-11-06 — Claude Code
 - README: la sección de variables de entorno ya no trae valores de DEV; remite a `.env.example` (`3747775`, también en `main`).
