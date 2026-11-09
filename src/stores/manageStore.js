@@ -295,6 +295,7 @@ const useManageStore = create((set, get) => ({
     ]);
     const count = (status) => members.filter((m) => m.is_active && m.status === status).length;
     return {
+      active: count('active'),
       expiringSoon: count('expiring_soon'),
       overdue: count('overdue'),
       noClasses: count('no_classes'),

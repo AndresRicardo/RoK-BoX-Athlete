@@ -90,6 +90,7 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 - `rokbox-bridge` `main` = `develop` (v3.1.0, `5326ade`). **Falta instalarlo en el PC del box** (`git pull` en `C:\rokbox-bridge` y reiniciar la tarea `RokboxBridgeAgent`); hasta entonces el latido dice 3.0.0 y los cambios de cédula de miembros con HCAC fallan con "Comando desconocido".
 - Backup del día (schema, data y roles) fuera del repo. `db push` solo de `0029` (verificado con `--dry-run`), sin errores. Poschequeo: filas de atletas intactas, 29 migraciones (última `0029`), 5 trabajos de cron, 2 secretos en Vault; constraint y triggers nuevos presentes. CLI de vuelta en DEV.
 - `main` = `develop` → Vercel publica producción.
+- Inicio de Gestión: tarjeta "Al día" (membresías con estado `active`, enlaza al filtro de Miembros); las cuatro tarjetas quedan en 2×2 para que quepan en teléfonos angostos. Build OK.
 
 ### 2026-11-06 (2) — Claude Code
 - D48: la cédula que se edita en la app llega a HikCentral. `0029_member_document_to_hik.sql` (aplicada en DEV): comando `update_person`, trigger en `members`, `review_member_link(…, p_member_id)`, `complete_access_command` solo registra vigencias para `set_validity` y aviso de fallo con el tipo de cambio. Tipos regenerados.

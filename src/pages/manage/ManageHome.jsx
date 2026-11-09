@@ -52,7 +52,13 @@ export default function ManageHome() {
 
       <ErrorBox error={error} />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <StatTile
+          to="/manage/members?status=active"
+          label="Al día"
+          value={overview ? overview.active : '—'}
+          tone="text-emerald-400"
+        />
         <StatTile
           to="/manage/members?status=expiring_soon"
           label="Por vencer"
