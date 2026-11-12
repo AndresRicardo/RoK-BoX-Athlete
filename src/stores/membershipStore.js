@@ -118,7 +118,13 @@ export const useMembershipStore = create((set, get) => ({
       p_document: clean,
     });
 
-    if (error) throw error;
+    if (error) {
+      // 23503: la cuenta todavía no tiene perfil (member_link_requests.profile_id → profiles).
+      if (error.code === '23503') {
+        throw new Error('Primero completa tu perfil en la pestaña Perfil y vuelve a enviar la solicitud.');
+      }
+      throw error;
+    }
 
     const { data: sessionData } = await supabase.auth.getSession();
     const uid = sessionData?.session?.user?.id;

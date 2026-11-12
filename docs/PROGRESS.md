@@ -86,6 +86,11 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## Bitácora
 
+### 2026-11-12 — Claude Code (vínculo de cédula sin perfil)
+- Error en producción: un atleta pidió el vínculo desde la tarjeta de Inicio y vio `member_link_requests_profile_id_fkey`. Causa: la cuenta (Google) no tenía fila en `profiles` y la solicitud cuelga del perfil; como el `insert` falló, no hubo solicitud ni aviso a los socios. En producción, 15 de 45 cuentas no tienen perfil (consulta de solo lectura).
+- Arreglo solo en la app, sin migración: sin perfil, la tarjeta pide completarlo y lleva a Perfil con el formulario abierto en la cédula (al guardar se crea el perfil y después la solicitud). Si aun así llega el 23503, se muestra "Primero completa tu perfil…" en vez del error de la base.
+- Verificación: build OK; E2E en Chrome contra DEV con una cuenta temporal sin perfil **11/11** (reproduce el 23503 por RPC, Inicio → Perfil, cédula enfocada, guardar, solicitud pendiente y 5 avisos al staff). La cuenta, sus avisos y la contraseña temporal se borraron.
+
 ### 2026-11-09 (2) — Claude Code (comunicados, D49)
 - `0030_announcements.sql` (aplicada en DEV): tablas `announcements` y `announcement_views`, vista `announcement_list`, RPC `save_announcement`, `delete_announcement` y `mark_announcements_seen`, aviso `announcement`, recordatorio del evento, envío programado y cron `rokbox-announcements` (cada minuto). Tipos regenerados.
 - `send-push`: cada comunicado usa su propia etiqueta para no reemplazar al anterior en el teléfono. Desplegada en DEV; **falta desplegarla en producción** junto con `0030`.

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   User,
   Fingerprint,
@@ -86,6 +87,9 @@ export default function Profile() {
     fetchNetwork,
   } = useFollowStore();
 
+  const location = useLocation();
+  const focusDocument = Boolean(location.state?.focusDocument);
+
   const followersCount = followers?.length ?? network?.followers?.length ?? 0;
   const followingCount = following?.length ?? network?.following?.length ?? 0;
 
@@ -117,6 +121,14 @@ export default function Profile() {
       fetchNetwork(user.id);
     }
   }, [user?.id]);
+
+  // Viene de "Solicitar vínculo" en Inicio sin perfil: abrir el formulario en la cédula.
+  useEffect(() => {
+    if (!focusDocument) return undefined;
+    setIsEditing(true);
+    const t = setTimeout(() => document.getElementById('documentIdInput')?.focus(), 200);
+    return () => clearTimeout(t);
+  }, [focusDocument]);
 
   // Mantener sincronizada la cédula con member o linkRequest
   useEffect(() => {

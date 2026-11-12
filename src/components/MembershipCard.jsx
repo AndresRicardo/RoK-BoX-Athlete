@@ -1,11 +1,17 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Calendar, Fingerprint, AlertCircle, CheckCircle2, Clock, Lock, RefreshCw, ChevronRight, X, Clock3, Ban, Ticket, Info } from 'lucide-react';
 import useMembershipStore from '../stores/membershipStore';
 import useAuthStore from '../stores/authStore';
+import useProfileStore from '../stores/profileStore';
 
 export default function MembershipCard({ onEnterDocument }) {
+  const navigate = useNavigate();
   const { user } = useAuthStore();
+  const { profile, rolesLoaded } = useProfileStore();
   const { member, membership, classUsages, linkRequest, loading, fetchMembership, requestLink } = useMembershipStore();
+  // La solicitud de vínculo cuelga del perfil: sin perfil hay que completarlo primero.
+  const needsProfile = rolesLoaded && !profile;
   const [refreshing, setRefreshing] = useState(false);
 
   // Modal para solicitar vinculación de cédula
@@ -23,6 +29,11 @@ export default function MembershipCard({ onEnterDocument }) {
   const handleOpenDocModal = () => {
     if (typeof onEnterDocument === 'function') {
       onEnterDocument();
+      return;
+    }
+    if (needsProfile) {
+      // El formulario de Perfil guarda el perfil y luego envía la solicitud.
+      navigate('/profile', { state: { focusDocument: true } });
       return;
     }
     setDocInput(linkRequest?.document_id || member?.document_id || '');
@@ -145,7 +156,9 @@ export default function MembershipCard({ onEnterDocument }) {
             <div className="flex-1">
               <h4 className="text-sm font-bold text-white">Vincular con Acceso del Box</h4>
               <p className="text-xs text-[#A0A0A5] mt-1 leading-relaxed">
-                Registra tu número de cédula para consultar la vigencia de tu mensualidad y verificar tu acceso en el torniquete y huellero HikCentral.
+                {needsProfile
+                  ? 'Completa tu perfil e ingresa tu cédula para consultar la vigencia de tu mensualidad y verificar tu acceso en el torniquete y huellero HikCentral.'
+                  : 'Registra tu número de cédula para consultar la vigencia de tu mensualidad y verificar tu acceso en el torniquete y huellero HikCentral.'}
               </p>
               <button
                 type="button"
