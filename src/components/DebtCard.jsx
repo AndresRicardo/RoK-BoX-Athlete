@@ -3,11 +3,13 @@ import { ShoppingBag, AlertTriangle, CheckCircle, ChevronRight, X, Receipt, Pack
 import useDebtStore from '../stores/debtStore';
 import { formatCOP, paymentMethodLabel } from '../utils/currency';
 import PaySheet from './PaySheet';
+import usePaymentStore from '../stores/paymentStore';
 
 export default function DebtCard() {
   const { debts, totalPending, loading } = useDebtStore();
   const [showDetail, setShowDetail] = useState(false);
   const [paying, setPaying] = useState(false);
+  const reviewing = usePaymentStore((state) => state.reports.some((r) => r.status === 'pending' && r.covers_debt));
 
   const pendingDebts = debts.filter((d) => d.status === 'pending' || d.status === 'partial');
 
@@ -74,6 +76,9 @@ export default function DebtCard() {
           >
             <Wallet className="w-4 h-4" /> Pagar {formatCOP(totalPending)}
           </button>
+        )}
+        {hasDebt && reviewing && (
+          <p className="mt-1.5 text-[11px] text-sky-300 text-center">Reportaste un pago: el box lo está revisando.</p>
         )}
       </div>
 

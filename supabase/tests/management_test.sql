@@ -1782,6 +1782,196 @@ end $$;
 reset role;
 
 -- =====================================================================
+-- PAGOS REPORTADOS POR EL ATLETA (0032, D52)
+-- =====================================================================
+-- Comprobantes ya subidos (el bucket los crea al subir; aquí se insertan directo).
+insert into storage.objects (bucket_id, name, owner) values
+  ('payment-receipts', '44444444-4444-4444-4444-444444444444/zz-1.png', '44444444-4444-4444-4444-444444444444'),
+  ('payment-receipts', '44444444-4444-4444-4444-444444444444/zz-2.png', '44444444-4444-4444-4444-444444444444'),
+  ('payment-receipts', '44444444-4444-4444-4444-444444444444/zz-3.png', '44444444-4444-4444-4444-444444444444'),
+  ('payment-receipts', '33333333-3333-3333-3333-333333333333/ajeno.png', '33333333-3333-3333-3333-333333333333');
+-- El atleta debe algo (para abonar) y la vigencia de partida se guarda para comparar.
+insert into zz_tests.ctx values
+  ('rep_debt_before', (select coalesce(sum(balance), 0)::text from public.debts
+                       where member_id = 'a0000000-0000-0000-0000-000000000001' and voided_at is null)),
+  ('rep_until_before', (select valid_until::text from public.memberships
+                        where member_id = 'a0000000-0000-0000-0000-000000000001'));
+
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare
+  v_rep public.payment_reports;
+begin
+  v_rep := public.report_payment(93000, true, true, 'nequi',
+    (select id from public.payment_accounts where label = 'ZZTEST Nequi'),
+    '44444444-4444-4444-4444-444444444444/zz-1.png', 'Pagué por Nequi');
+  insert into zz_tests.ctx values ('rep_1', v_rep.id::text);
+  insert into zz_tests.results (name, ok, detail)
+  values ('pago reportado: el atleta lo reporta', v_rep.status = 'pending' and v_rep.account_label = 'ZZTEST Nequi'
+          and v_rep.member_id = 'a0000000-0000-0000-0000-000000000001', v_rep.status);
+
+  v_rep := public.report_payment(5000, false, true, 'transfer', null,
+    '44444444-4444-4444-4444-444444444444/zz-2.png', null);
+  insert into zz_tests.ctx values ('rep_2', v_rep.id::text);
+  v_rep := public.report_payment(7000, true, false, 'bre_b', null,
+    '44444444-4444-4444-4444-444444444444/zz-3.png', null);
+  insert into zz_tests.ctx values ('rep_3', v_rep.id::text);
+
+  begin
+    perform public.report_payment(1000, true, false, 'nequi', null,
+      '33333333-3333-3333-3333-333333333333/ajeno.png', null);
+    insert into zz_tests.results (name, ok, detail) values ('pago reportado: comprobante ajeno se rechaza', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('pago reportado: comprobante ajeno se rechaza', true);
+  end;
+  begin
+    perform public.report_payment(1000, true, false, 'nequi', null,
+      '44444444-4444-4444-4444-444444444444/zz-1.png', null);
+    insert into zz_tests.results (name, ok, detail) values ('pago reportado: un comprobante sirve una vez', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('pago reportado: un comprobante sirve una vez', true);
+  end;
+  begin
+    perform public.report_payment(1000, true, false, 'cash', null,
+      '44444444-4444-4444-4444-444444444444/zz-1.png', null);
+    insert into zz_tests.results (name, ok, detail) values ('pago reportado: efectivo no se reporta', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('pago reportado: efectivo no se reporta', true);
+  end;
+  begin
+    perform public.report_payment(1000, true, false, 'nequi', null,
+      '44444444-4444-4444-4444-444444444444/no-existe.png', null);
+    insert into zz_tests.results (name, ok, detail) values ('pago reportado: sin comprobante subido se rechaza', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('pago reportado: sin comprobante subido se rechaza', true);
+  end;
+  begin
+    perform public.approve_payment_report((select val::uuid from zz_tests.ctx where key = 'rep_1'),
+      (select val::uuid from zz_tests.ctx where key = 'p_socio2'), 'nequi', null, null, 1000, null);
+    insert into zz_tests.results (name, ok, detail) values ('pago reportado: el atleta no se lo aprueba', false, 'no falló');
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('pago reportado: el atleta no se lo aprueba', true);
+  end;
+  insert into zz_tests.results (name, ok, detail)
+  select 'pago reportado: el atleta ve sus reportes', count(*) = 3, count(*)::text from public.payment_reports;
+end $$;
+reset role;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'pago reportado: avisa a socios y coaches',
+         bool_or(recipient_id = '33333333-3333-3333-3333-333333333333')
+         and bool_or(recipient_id = '22222222-2222-2222-2222-222222222222')
+         and not bool_or(recipient_id = '44444444-4444-4444-4444-444444444444')
+         and bool_and(link = '/manage/pending'),
+         count(*)::text
+  from public.notifications
+  where type = 'payment_reported' and data->>'report_id' = (select val from zz_tests.ctx where key = 'rep_1');
+end $$;
+
+-- Cuenta sin vínculo: no reporta.
+select set_config('request.jwt.claims', '{"sub":"abababab-abab-abab-abab-abababababab","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.report_payment(1000, true, false, 'nequi', null, 'abababab-abab-abab-abab-abababababab/x.png', null);
+  insert into zz_tests.results (name, ok, detail) values ('pago reportado: sin vínculo no reporta', false, 'no falló');
+exception when insufficient_privilege then
+  insert into zz_tests.results (name, ok, detail) values ('pago reportado: sin vínculo no reporta', true, null);
+end $$;
+reset role;
+
+-- Coach: confirma el primero (renueva por 90.000 y abona 3.000), rechaza el segundo.
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare
+  v_rep public.payment_reports;
+  v_ren public.membership_renewals;
+begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'pago reportado: el coach ve los pendientes', count(*) >= 3, count(*)::text
+  from public.payment_reports where status = 'pending';
+
+  v_rep := public.approve_payment_report((select val::uuid from zz_tests.ctx where key = 'rep_1'),
+    (select val::uuid from zz_tests.ctx where key = 'p_socio2'), 'nequi',
+    (select val::uuid from zz_tests.ctx where key = 'plan_mensual'), 90000, 3000, null);
+  select * into v_ren from public.membership_renewals where id = v_rep.renewal_id;
+  insert into zz_tests.results (name, ok, detail)
+  values ('pago reportado: confirmar renueva con el valor pagado',
+          v_rep.status = 'approved' and v_ren.amount = 90000 and v_ren.discount = 60000
+          and v_ren.payment_method = 'nequi' and v_ren.received_by_partner = (select val::uuid from zz_tests.ctx where key = 'p_socio2')
+          and v_ren.note = 'Pago reportado en la app',
+          coalesce(v_ren.amount::text, 'sin renovación') || ' / ' || coalesce(v_ren.discount::text, '-'));
+  insert into zz_tests.results (name, ok, detail)
+  select 'pago reportado: confirmar abona a las deudas',
+         coalesce(sum(balance), 0) = (select val::numeric from zz_tests.ctx where key = 'rep_debt_before') - 3000
+         and v_rep.debt_amount = 3000,
+         coalesce(sum(balance), 0)::text
+  from public.debts where member_id = 'a0000000-0000-0000-0000-000000000001' and voided_at is null;
+  insert into zz_tests.results (name, ok, detail)
+  select 'pago reportado: la vigencia se extiende',
+         valid_until > (select val::timestamptz from zz_tests.ctx where key = 'rep_until_before'), valid_until::text
+  from public.memberships where member_id = 'a0000000-0000-0000-0000-000000000001';
+
+  begin
+    perform public.approve_payment_report(v_rep.id, (select val::uuid from zz_tests.ctx where key = 'p_socio2'),
+      'nequi', null, null, 1000, null);
+    insert into zz_tests.results (name, ok, detail) values ('pago reportado: no se confirma dos veces', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('pago reportado: no se confirma dos veces', true);
+  end;
+
+  begin
+    perform public.approve_payment_report((select val::uuid from zz_tests.ctx where key = 'rep_2'),
+      (select val::uuid from zz_tests.ctx where key = 'p_socio2'), 'transfer', null, null, 99999999, null);
+    insert into zz_tests.results (name, ok, detail) values ('pago reportado: abono mayor al saldo se rechaza', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('pago reportado: abono mayor al saldo se rechaza', true);
+  end;
+
+  v_rep := public.reject_payment_report((select val::uuid from zz_tests.ctx where key = 'rep_2'), 'No vemos la transferencia');
+  insert into zz_tests.results (name, ok, detail)
+  values ('pago reportado: rechazar guarda el motivo', v_rep.status = 'rejected' and v_rep.review_note = 'No vemos la transferencia', v_rep.status);
+end $$;
+reset role;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'pago reportado: el rechazo avisa al atleta', count(*) = 1 and bool_and(body like '%No vemos la transferencia'),
+         count(*)::text
+  from public.notifications
+  where type = 'payment_reviewed' and recipient_id = '44444444-4444-4444-4444-444444444444'
+    and data->>'report_id' = (select val from zz_tests.ctx where key = 'rep_2');
+end $$;
+
+-- El atleta cancela el tercero; nadie más puede cancelarlo.
+select set_config('request.jwt.claims', '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  perform public.cancel_payment_report((select val::uuid from zz_tests.ctx where key = 'rep_3'));
+  insert into zz_tests.results (name, ok, detail) values ('pago reportado: otro no lo cancela', false, 'no falló');
+exception when sqlstate '22023' then
+  insert into zz_tests.results (name, ok) values ('pago reportado: otro no lo cancela', true);
+end $$;
+reset role;
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare v_rep public.payment_reports;
+begin
+  v_rep := public.cancel_payment_report((select val::uuid from zz_tests.ctx where key = 'rep_3'));
+  insert into zz_tests.results (name, ok, detail) values ('pago reportado: el atleta cancela el suyo', v_rep.status = 'cancelled', v_rep.status);
+  begin
+    update public.payment_reports set status = 'approved' where id = v_rep.id;
+    insert into zz_tests.results (name, ok, detail)
+    select 'pago reportado: el atleta no cambia el estado a mano', status = 'cancelled', status
+    from public.payment_reports where id = v_rep.id;
+  end;
+end $$;
+reset role;
+
+-- =====================================================================
 -- RESULTADO
 -- =====================================================================
 select n, ok, name, detail from zz_tests.results

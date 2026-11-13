@@ -5,6 +5,7 @@ import useMembershipStore from '../stores/membershipStore';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
 import PaySheet, { PAYABLE_MEMBERSHIP } from './PaySheet';
+import usePaymentStore from '../stores/paymentStore';
 
 export default function MembershipCard({ onEnterDocument }) {
   const navigate = useNavigate();
@@ -15,6 +16,7 @@ export default function MembershipCard({ onEnterDocument }) {
   const needsProfile = rolesLoaded && !profile;
   const [refreshing, setRefreshing] = useState(false);
   const [paying, setPaying] = useState(false);
+  const reviewing = usePaymentStore((state) => state.reports.some((r) => r.status === 'pending' && r.covers_membership));
 
   // Modal para solicitar vinculación de cédula
   const [modalOpen, setModalOpen] = useState(false);
@@ -377,6 +379,9 @@ export default function MembershipCard({ onEnterDocument }) {
           <Wallet className="w-4 h-4" />
           {isExpiringSoon ? 'Renovar y pagar' : 'Pagar mensualidad'}
         </button>
+      )}
+      {PAYABLE_MEMBERSHIP.includes(status) && reviewing && (
+        <p className="mt-1.5 text-[11px] text-sky-300 text-center">Reportaste un pago: el box lo está revisando.</p>
       )}
       <PaySheet open={paying} onClose={() => setPaying(false)} />
 

@@ -8,6 +8,7 @@ import {
   PaymentMethodSelect, PartnerSelect, Sheet, ReasonSheet, StatusBadge, TextInput, useAction,
 } from '../../components/manage/ui';
 import { formatDate, formatDateTime } from '../../utils/dates';
+import { PaymentReportCard, ApproveReportSheet } from '../../components/manage/PaymentReportSheets';
 
 const normalize = (text) => (text || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 
@@ -209,13 +210,15 @@ function CompletePaymentSheet({ open, renewal, onClose, onDone }) {
 }
 
 export default function Pending() {
-  const { fetchPending, loadCatalogs, reviewLink, voidRenewal } = useManageStore();
+  const { fetchPending, loadCatalogs, reviewLink, voidRenewal, rejectPaymentReport } = useManageStore();
   const isPartner = useProfileStore((state) => state.isPartner);
   const [data, setData] = useState(null);
   const [paying, setPaying] = useState(null);
   const [voiding, setVoiding] = useState(null);
   const [rejecting, setRejecting] = useState(null);
   const [choosing, setChoosing] = useState(null);
+  const [confirmingReport, setConfirmingReport] = useState(null);
+  const [rejectingReport, setRejectingReport] = useState(null);
   const load = useAction();
   const action = useAction();
 
@@ -245,7 +248,7 @@ export default function Pending() {
     });
   };
 
-  const total = data ? data.renewals.length + data.links.length + data.failed.length : 0;
+  const total = data ? data.renewals.length + data.links.length + data.failed.length + data.reports.length : 0;
 
   return (
     <div className="flex flex-col gap-4 pb-8">
@@ -258,9 +261,21 @@ export default function Pending() {
         <Card className="text-center py-8">
           <Check className="w-8 h-8 text-emerald-400 mx-auto mb-2" />
           <p className="text-sm font-black text-white">Todo al día</p>
-          <p className="text-xs text-[#A0A0A5] mt-1">No hay pagos ni vínculos pendientes.</p>
+          <p className="text-xs text-[#A0A0A5] mt-1">No hay pagos reportados, pagos ni vínculos pendientes.</p>
         </Card>
       ) : null}
+
+      {data && data.reports.length > 0 && (
+        <>
+          <SectionTitle>Pagos reportados por atletas</SectionTitle>
+          <p className="text-[11px] text-gray-400 -mt-2">
+            Revisa que el dinero haya llegado a la cuenta y confirma: se renueva la mensualidad o se abona la deuda.
+          </p>
+          {data.reports.map((r) => (
+            <PaymentReportCard key={r.id} report={r} onApprove={setConfirmingReport} onReject={setRejectingReport} />
+          ))}
+        </>
+      )}
 
       {data && isPartner && data.renewals.length > 0 && (
         <>
@@ -382,6 +397,22 @@ export default function Pending() {
         onClose={() => setRejecting(null)}
         onConfirm={async (reason) => {
           await reviewLink(rejecting.id, false, reason);
+          await refresh();
+        }}
+      />
+      <ApproveReportSheet
+        report={confirmingReport}
+        onClose={() => setConfirmingReport(null)}
+        onDone={() => load.run(refresh)}
+      />
+      <ReasonSheet
+        open={!!rejectingReport}
+        title="Rechazar pago reportado"
+        label="Motivo (lo verá el atleta; ej. no vemos la transferencia)"
+        confirmLabel="Rechazar"
+        onClose={() => setRejectingReport(null)}
+        onConfirm={async (reason) => {
+          await rejectPaymentReport(rejectingReport.id, reason);
           await refresh();
         }}
       />

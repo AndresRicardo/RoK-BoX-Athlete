@@ -298,7 +298,7 @@ const useManageStore = create((set, get) => ({
   // Pendientes
   // ---------------------------------------------------------------------
   fetchPending: async ({ isPartner }) => {
-    const [renewals, links, failed] = await Promise.all([
+    const [renewals, links, failed, reports] = await Promise.all([
       isPartner
         ? query(
             supabase.from('membership_renewals').select('*, members(full_name, document_id)')
@@ -314,6 +314,11 @@ const useManageStore = create((set, get) => ({
               .eq('status', 'failed').order('created_at', { ascending: false }).limit(20),
           )
         : [],
+      // Pagos reportados por atletas (D52): los confirma cualquier staff.
+      query(
+        supabase.from('payment_reports').select('*, members(full_name, document_id)')
+          .eq('status', 'pending').order('created_at'),
+      ),
     ]);
 
     // Nombre y cuenta de quien pide el vínculo, y si ya existe un miembro con esa cédula.
@@ -334,8 +339,27 @@ const useManageStore = create((set, get) => ({
       renewals,
       links: links.map((l) => ({ ...l, profile: profileById[l.profile_id], member: memberByDoc[l.document_id] })),
       failed,
+      reports,
     };
   },
+
+  // Confirmar un pago reportado: renueva (plan y valor) y/o abona a las deudas.
+  approvePaymentReport: ({ reportId, partnerId, paymentMethod, planId, membershipAmount, debtAmount, note }) =>
+    rpc('approve_payment_report', {
+      p_report_id: reportId,
+      p_received_by_partner: partnerId || null,
+      p_payment_method: paymentMethod,
+      p_plan_id: planId || null,
+      p_membership_amount: planId ? membershipAmount : null,
+      p_debt_amount: debtAmount || 0,
+      p_note: note || null,
+    }),
+
+  rejectPaymentReport: (reportId, reason) => rpc('reject_payment_report', { p_report_id: reportId, p_reason: reason }),
+
+  fetchMemberStatus: async (memberId) => (
+    await query(supabase.from('membership_status').select('*').eq('member_id', memberId))
+  )[0] || null,
 
   // memberId: al aprobar, el miembro elegido recibe la cédula de la solicitud (y HikCentral también).
   reviewLink: (requestId, approve, note, memberId) => rpc('review_member_link', {
@@ -361,7 +385,7 @@ const useManageStore = create((set, get) => ({
       noClasses: count('no_classes'),
       debtTotal: debts.reduce((sum, d) => sum + Number(d.balance || 0), 0),
       debtorsCount: debts.length,
-      pendingCount: pending.renewals.length + pending.links.length + pending.failed.length,
+      pendingCount: pending.renewals.length + pending.links.length + pending.failed.length + pending.reports.length,
       bridge: bridge[0] || null,
     };
   },

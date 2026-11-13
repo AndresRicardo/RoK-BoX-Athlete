@@ -67,6 +67,8 @@ export default function NotificationsBell() {
       case 'debt_charged':
       case 'debt_payment':
       case 'debt_reminder':
+      case 'payment_reported':
+      case 'payment_reviewed':
         return <Receipt className="w-4 h-4 text-amber-400" />;
       case 'membership_expiring':
       case 'membership_renewed':

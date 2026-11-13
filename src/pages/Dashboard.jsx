@@ -13,6 +13,7 @@ import DebtCard from '../components/DebtCard';
 import FeedEventCard from '../components/FeedEventCard';
 import { AnnouncementsCard } from '../components/Announcements';
 import PaySheet from '../components/PaySheet';
+import usePaymentStore from '../stores/paymentStore';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
@@ -22,6 +23,7 @@ export default function Dashboard() {
   const { events, fetchFeed } = useFeedStore();
   const { prs, fetchPRs } = usePRStore();
   const { fetchEngagement } = useEngagementStore();
+  const { fetchMyReports, subscribeReports } = usePaymentStore();
   // Los avisos de membresía por vencer y de saldo abren /?pay=membership o /?pay=debt (D51).
   const [searchParams, setSearchParams] = useSearchParams();
   const payOpen = searchParams.has('pay');
@@ -43,6 +45,8 @@ export default function Dashboard() {
 
       subscribeMembership(user.id);
       subscribeDebts(user.id);
+      fetchMyReports();
+      subscribeReports(user.id);
     }
   }, [user?.id]);
 

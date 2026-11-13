@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
-  Copy, Check, MessageCircle, Landmark, Download, CalendarClock, ShoppingBag, Info, X,
+  Copy, Check, MessageCircle, Landmark, Download, CalendarClock, ShoppingBag, Info, X, Receipt, Clock3,
+  CheckCircle2, XCircle,
 } from 'lucide-react';
 import { Sheet, Loading, ErrorBox } from './manage/ui';
 import { supabase } from '../supabase/client';
@@ -11,6 +12,8 @@ import usePaymentStore from '../stores/paymentStore';
 import { formatCOP } from '../utils/currency';
 import { formatDate } from '../utils/dates';
 import { dueText, whatsappPhone, whatsappUrl } from '../utils/whatsapp';
+import { timeAgo } from '../utils/time';
+import ReportPaymentSheet from './ReportPaymentSheet';
 
 // Estados de la membresía en los que el atleta ve "Pagar" (D51).
 export const PAYABLE_MEMBERSHIP = ['overdue', 'expiring_soon', 'no_classes'];
@@ -131,10 +134,64 @@ function AccountCard({ account, onZoom }) {
   );
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function reportConcept(r) {
+  if (r.covers_membership && r.covers_debt) return 'mensualidad y saldo';
+  return r.covers_membership ? 'mensualidad' : 'saldo pendiente';
+}
+
+/** Pagos reportados: en revisión, y los revisados en los últimos días. */
+function MyReports({ reports, onCancel, busyId }) {
+  const now = Date.now();
+  const visible = reports.filter((r) => r.status === 'pending'
+    || (r.status === 'rejected' && now - new Date(r.reviewed_at).getTime() < 14 * DAY_MS)
+    || (r.status === 'approved' && now - new Date(r.reviewed_at).getTime() < 3 * DAY_MS));
+  if (visible.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1.5">
+      {visible.map((r) => (
+        <div
+          key={r.id}
+          className={`p-3 rounded-2xl border flex items-start gap-2.5 ${
+            r.status === 'pending' ? 'bg-sky-500/10 border-sky-500/30'
+              : r.status === 'approved' ? 'bg-emerald-500/10 border-emerald-500/30'
+                : 'bg-red-500/10 border-red-500/30'
+          }`}
+        >
+          {r.status === 'pending' ? <Clock3 className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
+            : r.status === 'approved' ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              : <XCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />}
+          <div className="flex-1 min-w-0 text-[11px]">
+            <span className="font-black text-white block">
+              {r.status === 'pending' ? 'Pago en revisión' : r.status === 'approved' ? 'Pago confirmado' : 'Pago no confirmado'}
+              {' · '}{formatCOP(r.amount)}
+            </span>
+            <span className="text-gray-300 block">
+              {reportConcept(r)}{r.account_label ? ` · ${r.account_label}` : ''} · reportado {timeAgo(r.created_at)}
+            </span>
+            {r.status === 'rejected' && r.review_note && <span className="text-red-300 block">Motivo: {r.review_note}</span>}
+          </div>
+          {r.status === 'pending' && (
+            <button
+              type="button"
+              disabled={busyId === r.id}
+              onClick={() => onCancel(r)}
+              className="text-[10px] font-black text-gray-400 shrink-0 disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /**
  * "Pagar" del atleta (D51): qué debe y los medios de pago del box (cuenta, llave o QR).
- * El pago se registra cuando el staff lo confirma; desde aquí el atleta puede enviar
- * el comprobante por WhatsApp.
+ * "Ya pagué" reporta el pago con el comprobante (D52) y el staff lo confirma desde
+ * Pendientes; el WhatsApp del box queda como alternativa.
  */
 export default function PaySheet({ open, onClose }) {
   const { membership, membershipDue, debtDue, totalPending } = usePayables();
@@ -145,15 +202,36 @@ export default function PaySheet({ open, onClose }) {
   const debtsLoading = useDebtStore((state) => state.loading);
   const loadingOwed = membershipLoading || debtsLoading;
   const profile = useProfileStore((state) => state.profile);
-  const { info, loading, error, fetchPaymentInfo } = usePaymentStore();
+  const {
+    info, loading, error, fetchPaymentInfo, reports, fetchMyReports, cancelReport,
+  } = usePaymentStore();
   const [planPrice, setPlanPrice] = useState(null);
   const [zoom, setZoom] = useState(null);
+  const [reporting, setReporting] = useState(false);
+  const [cancelling, setCancelling] = useState(null);
+  const [cancelError, setCancelError] = useState(null);
 
   useEffect(() => {
     if (!open) return;
     fetchPaymentInfo();
+    fetchMyReports();
     setZoom(null);
-  }, [open, fetchPaymentInfo]);
+    setReporting(false);
+    setCancelError(null);
+  }, [open, fetchPaymentInfo, fetchMyReports]);
+
+  const cancel = async (report) => {
+    if (!window.confirm(`¿Cancelar el reporte de ${formatCOP(report.amount)}? El box ya no lo revisará.`)) return;
+    setCancelling(report.id);
+    setCancelError(null);
+    try {
+      await cancelReport(report.id);
+    } catch (err) {
+      setCancelError(err.message);
+    } finally {
+      setCancelling(null);
+    }
+  };
 
   // Precio de lista del plan actual (si sigue disponible), como referencia.
   useEffect(() => {
@@ -184,20 +262,33 @@ export default function PaySheet({ open, onClose }) {
   ].join(' ');
   const proofPhone = whatsappPhone(info?.whatsapp);
 
-  const footer = proofPhone && (
-    <a
-      href={whatsappUrl(proofPhone, proofText)}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="w-full py-3 rounded-xl bg-[#25D366] text-black font-black text-xs flex items-center justify-center gap-1.5 tap-bounce"
-    >
-      <MessageCircle className="w-4 h-4" /> Ya pagué: enviar comprobante por WhatsApp
-    </a>
+  const footer = (
+    <div className="flex flex-col gap-2">
+      <button
+        type="button"
+        onClick={() => setReporting(true)}
+        className="w-full py-3 rounded-xl bg-[#FFC815] text-black font-black text-xs flex items-center justify-center gap-1.5 tap-bounce"
+      >
+        <Receipt className="w-4 h-4" /> Ya pagué: reportar pago
+      </button>
+      {proofPhone && (
+        <a
+          href={whatsappUrl(proofPhone, proofText)}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] font-bold text-[#25D366] flex items-center justify-center gap-1"
+        >
+          <MessageCircle className="w-3.5 h-3.5" /> o envía el comprobante por WhatsApp
+        </a>
+      )}
+    </div>
   );
 
   return (
     <>
       <Sheet open={open} title="Pagar" onClose={onClose} footer={footer}>
+        <MyReports reports={reports} onCancel={cancel} busyId={cancelling} />
+        <ErrorBox error={cancelError} />
         {/* Qué paga */}
         <div className="flex flex-col gap-2">
           {membershipDue && (
@@ -262,9 +353,21 @@ export default function PaySheet({ open, onClose }) {
           </div>
         )}
         <p className="text-[10px] text-gray-500">
-          Tu pago aparece en la app cuando el box lo registra. También puedes pagar en efectivo en el box.
+          Después de pagar, toca "Ya pagué" y adjunta el comprobante: tu pago aparece en la app cuando el box lo
+          confirma. También puedes pagar en efectivo en el box.
         </p>
       </Sheet>
+      <ReportPaymentSheet
+        open={open && reporting}
+        onClose={() => {
+          setReporting(false);
+          fetchMyReports();
+        }}
+        accounts={info?.accounts || []}
+        membershipDue={membershipDue}
+        debtDue={debtDue}
+        suggestedAmount={totalKnown ? total : (debtDue ? totalPending : 0)}
+      />
       {open && zoom && (
         <div
           className="fixed inset-0 z-[60] bg-black/95 flex flex-col items-center justify-center gap-4 p-6"

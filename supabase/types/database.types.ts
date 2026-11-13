@@ -1749,6 +1749,115 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_reports: {
+        Row: {
+          account_label: string | null
+          amount: number
+          covers_debt: boolean
+          covers_membership: boolean
+          created_at: string
+          debt_amount: number | null
+          id: string
+          member_id: string
+          membership_amount: number | null
+          note: string | null
+          payment_account_id: string | null
+          payment_method: string
+          profile_id: string
+          receipt_path: string
+          renewal_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        Insert: {
+          account_label?: string | null
+          amount: number
+          covers_debt?: boolean
+          covers_membership?: boolean
+          created_at?: string
+          debt_amount?: number | null
+          id?: string
+          member_id: string
+          membership_amount?: number | null
+          note?: string | null
+          payment_account_id?: string | null
+          payment_method: string
+          profile_id: string
+          receipt_path: string
+          renewal_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Update: {
+          account_label?: string | null
+          amount?: number
+          covers_debt?: boolean
+          covers_membership?: boolean
+          created_at?: string
+          debt_amount?: number | null
+          id?: string
+          member_id?: string
+          membership_amount?: number | null
+          note?: string | null
+          payment_account_id?: string | null
+          payment_method?: string
+          profile_id?: string
+          receipt_path?: string
+          renewal_id?: string | null
+          review_note?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "debtor_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "payment_reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "payment_reports_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "membership_status"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "payment_reports_payment_account_id_fkey"
+            columns: ["payment_account_id"]
+            isOneToOne: false
+            referencedRelation: "payment_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_reports_renewal_id_fkey"
+            columns: ["renewal_id"]
+            isOneToOne: false
+            referencedRelation: "membership_renewals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       products: {
         Row: {
           category: string
@@ -2336,6 +2445,44 @@ export type Database = {
       }
     }
     Functions: {
+      approve_payment_report: {
+        Args: {
+          p_debt_amount?: number
+          p_membership_amount?: number
+          p_note?: string
+          p_payment_method: unknown
+          p_plan_id?: string
+          p_received_by_partner: string
+          p_report_id: string
+        }
+        Returns: {
+          account_label: string | null
+          amount: number
+          covers_debt: boolean
+          covers_membership: boolean
+          created_at: string
+          debt_amount: number | null
+          id: string
+          member_id: string
+          membership_amount: number | null
+          note: string | null
+          payment_account_id: string | null
+          payment_method: string
+          profile_id: string
+          receipt_path: string
+          renewal_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_reports"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       assign_partner_account: {
         Args: { p_partner_id: string; p_user_id: string }
         Returns: undefined
@@ -2370,6 +2517,36 @@ export type Database = {
           p_start: string
         }
         Returns: Json
+      }
+      cancel_payment_report: {
+        Args: { p_report_id: string }
+        Returns: {
+          account_label: string | null
+          amount: number
+          covers_debt: boolean
+          covers_membership: boolean
+          created_at: string
+          debt_amount: number | null
+          id: string
+          member_id: string
+          membership_amount: number | null
+          note: string | null
+          payment_account_id: string | null
+          payment_method: string
+          profile_id: string
+          receipt_path: string
+          renewal_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_reports"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       claim_next_access_command: {
         Args: never
@@ -2639,6 +2816,36 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reject_payment_report: {
+        Args: { p_reason: string; p_report_id: string }
+        Returns: {
+          account_label: string | null
+          amount: number
+          covers_debt: boolean
+          covers_membership: boolean
+          created_at: string
+          debt_amount: number | null
+          id: string
+          member_id: string
+          membership_amount: number | null
+          note: string | null
+          payment_account_id: string | null
+          payment_method: string
+          profile_id: string
+          receipt_path: string
+          renewal_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_reports"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       renew_membership: {
         Args: {
           p_discount?: number
@@ -2681,6 +2888,44 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "membership_renewals"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      report_payment: {
+        Args: {
+          p_amount: number
+          p_covers_debt: boolean
+          p_covers_membership: boolean
+          p_note?: string
+          p_payment_account_id: string
+          p_payment_method: unknown
+          p_receipt_path: string
+        }
+        Returns: {
+          account_label: string | null
+          amount: number
+          covers_debt: boolean
+          covers_membership: boolean
+          created_at: string
+          debt_amount: number | null
+          id: string
+          member_id: string
+          membership_amount: number | null
+          note: string | null
+          payment_account_id: string | null
+          payment_method: string
+          profile_id: string
+          receipt_path: string
+          renewal_id: string | null
+          review_note: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "payment_reports"
           isOneToOne: true
           isSetofReturn: false
         }

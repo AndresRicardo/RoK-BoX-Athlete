@@ -26,6 +26,7 @@ const GROUPS = [
       ['debt_payment', 'Abono registrado'],
       ['debt_reminder', 'Recordatorio semanal de saldo'],
       ['link_reviewed', 'Respuesta a mi solicitud de vínculo'],
+      ['payment_reviewed', 'Pago reportado que no se pudo confirmar'],
     ],
   },
   {
@@ -41,6 +42,7 @@ const GROUPS = [
     staffOnly: true,
     types: [
       ['link_request', 'Solicitudes de vínculo por aprobar'],
+      ['payment_reported', 'Pagos reportados por atletas'],
       ['renewal_pending', 'Renovaciones en HikCentral sin pago', true],
       ['access_command_failed', 'Cambios que no llegaron a HikCentral', true],
       ['bridge_offline', 'PC del box sin conexión', true],

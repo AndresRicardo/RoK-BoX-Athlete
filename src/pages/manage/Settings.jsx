@@ -911,11 +911,11 @@ function PaymentAccountSheet({ account, onClose, onSaved }) {
   );
 }
 
-const DEFAULT_PAYMENT_INSTRUCTIONS = 'Después de pagar, envía el comprobante por WhatsApp para registrar tu pago.';
+const DEFAULT_PAYMENT_INSTRUCTIONS = 'Después de pagar, toca "Ya pagué" y adjunta el comprobante para que el box lo confirme.';
 
 function PaymentsSection() {
   const { fetchPaymentAccounts, fetchSettings, saveSetting } = useManageStore();
-  const resetPaymentInfo = usePaymentStore((state) => state.reset);
+  const resetPaymentInfo = usePaymentStore((state) => state.invalidateInfo);
   const [accounts, setAccounts] = useState(null);
   const [form, setForm] = useState(null); // { whatsapp, instructions }
   const [edit, setEdit] = useState(null);
