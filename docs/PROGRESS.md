@@ -4,7 +4,7 @@
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
 | **Fase actual** | F8 — Producción (app, base y bridge funcionando) |
-| **Próximo paso** | Revisar D50/D51 en el preview y, con orden del dueño, pasar `0031` a producción; carga manual D46 y primera semana del runbook (§4) |
+| **Próximo paso** | Revisar D50–D52 en el preview y, con orden del dueño, pasar `0031` y `0032` a producción; carga manual D46 y primera semana del runbook (§4) |
 | **Bloqueos** | Ninguno |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -85,6 +85,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-11-13 (2) — Claude Code (pago reportado por el atleta, D52)
+- `0032_payment_reports.sql` (aplicada **solo en DEV**): `payment_reports` (auditada, en Realtime), bucket privado `payment-receipts` (cada atleta sube a su carpeta; borra solo sus archivos sin reporte), `report_payment`, `cancel_payment_report`, `approve_payment_report`, `reject_payment_report` y avisos `payment_reported` y `payment_reviewed`. Tipos regenerados.
+- App: "Ya pagué: reportar pago" en "Pagar" (`ReportPaymentSheet`, comprobante reducido en el teléfono con `utils/images.js`), estado de los reportes en "Pagar" y en las tarjetas de Inicio, Pendientes → "Pagos reportados por atletas" con `ApproveReportSheet` (renovar con valor cobrado y/o abonar) y rechazo con motivo; interruptores nuevos en Perfil → Notificaciones.
+- Tests SQL **175/175** (20 nuevos). Build OK. Asesor de seguridad: solo el aviso habitual de RPC `security definer`.
+- E2E en Chrome headless contra DEV con socio2 y atleta (contraseñas temporales ya invalidadas) **19/19**: reporte con comprobante (exige el archivo, sugiere $114.500), "en revisión" en la hoja y la tarjeta, aviso a socios, comprobante visible en Pendientes, confirmar (renovación de $110.000 + abono de $4.500, membresía al día y sin saldo), "Pago confirmado", segundo reporte rechazado y el motivo llega en vivo. Limpieza: renovación anulada (queda anulada en el historial de ZZTEST Atleta Dev), abono anulado, reportes, comprobantes y cuenta borrados, vigencia restaurada y el comando a HCAC que dejó la anulación, cancelado.
+- **Falta para producción:** junto con `0031`: backup del día y `db push` de `0031` y `0032`.
 
 ### 2026-11-13 — Claude Code (mensualidad por vencer y botón Pagar, D50 y D51)
 - `0031_membership_reminders_payments.sql` (aplicada **solo en DEV**): `job_membership_expiring` avisa al entrar en "por vencer" y el día que vence, una vez por vigencia (`membership_expiry_notices`), con enlace `/?pay=membership`; `job_debt_reminders` enlaza a `/?pay=debt`; `membership_reminders`, `log_membership_reminder` y la vista `membership_reminder_summary`; `payment_accounts` (auditada) y bucket privado `payment-qr`; claves nuevas de `app_settings` y lectura de las de pago para atletas vinculados (`private.is_linked_member`). Tipos regenerados.

@@ -68,7 +68,8 @@ Las migraciones `0015`–`0020` **nunca se aplicaron en producción** (AUDITORIA
 | `0025_manual_settlements.sql` | Cuadre manual (D42): `settlements.is_manual`, cálculo común `private.settlement_result`, `calculate_manual_settlement`, `save_manual_settlement` y `settlement_list` sin alerta de movimientos para los manuales. |
 | `0026_partner_accounts.sql` | Cuenta de cada socio (D43): `assign_partner_account` (da el rol y reemplaza la cuenta anterior del socio), `set_user_role` libera el socio al quitar el rol y las invitaciones con socio reemplazan la cuenta anterior. |
 | `0031_membership_reminders_payments.sql` | Aviso push al entrar en "por vencer" (`membership_expiry_notices`), recordatorio de mensualidad por WhatsApp (`membership_reminders`, `log_membership_reminder`, vista `membership_reminder_summary`), medios de pago (`payment_accounts`, bucket privado `payment-qr`) y claves nuevas de `app_settings` (D50, D51). |
-| `0026_partner_accounts.sql` | Tests de RLS por rol (atleta, coach, socio, bridge, anónimo), de los RPC y de la fórmula del cuadre. |
+| `0032_payment_reports.sql` | Pagos reportados por el atleta (D52): `payment_reports`, bucket privado `payment-receipts`, `report_payment`, `cancel_payment_report`, `approve_payment_report` (renueva y/o abona), `reject_payment_report` y los avisos `payment_reported` y `payment_reviewed`. |
+| `supabase/tests/*.sql` | Tests de RLS por rol (atleta, coach, socio, bridge, anónimo), de los RPC y de la fórmula del cuadre. |
 
 ### Reglas de seguridad (RLS)
 
@@ -181,6 +182,8 @@ netBalance_i = grossShare_i − (personalExpenses_i + expectedCash_i)   ← usa 
 | Socios | Bridge sin señal por más de 30 minutos | Revisión cada 10 minutos |
 | Socios | Resumen semanal: ingresos, gastos y membresías que vencen | Lunes 7:00 |
 | Todos o solo membresías al día | Comunicado del box (D49) | Al publicarlo o a la hora programada |
+| Socios y coaches | Pago reportado por un atleta (D52) | Inmediato |
+| Atleta | Pago reportado no confirmado, con el motivo (D52) | Inmediato |
 | Los mismos | Recordatorio del evento del comunicado (D49) | 7:00 p. m. del día anterior si el evento es antes de las 10:00; si no, 8:00 a. m. del día |
 
 - Además del push, cada aviso queda en la campana de notificaciones existente.
@@ -203,7 +206,7 @@ netBalance_i = grossShare_i − (personalExpenses_i + expectedCash_i)   ← usa 
 
 - Con 6 pestañas en la barra inferior, cada ítem sigue teniendo como mínimo 44 px de ancho táctil en 360 px. Si no cabe bien, Logros pasa a Perfil (se decide en F4 con un prototipo).
 - **Atleta:** el Dashboard y el Perfil muestran la membresía (plan, días o clases restantes y estado de acceso), las deudas con su detalle e historial de abonos, y el historial de pagos de mensualidad.
-- **Pagar (D51):** con deuda o mensualidad vencida, sin clases o por vencer, Inicio muestra "Pagar": qué debe, los medios de pago del box (número para copiar y QR) y "Ya pagué" para enviar el comprobante por WhatsApp. Se configuran en Ajustes → Medios de pago. Gestión → Miembros → "Recordar por WhatsApp" recuerda la mensualidad por vencer o vencida (D50).
+- **Pagar (D51):** con deuda o mensualidad vencida, sin clases o por vencer, Inicio muestra "Pagar": qué debe, los medios de pago del box (número para copiar y QR) y "Ya pagué" para reportar el pago con el comprobante (D52), que el staff confirma desde Pendientes; el WhatsApp del box queda como alternativa. Se configuran en Ajustes → Medios de pago. Gestión → Miembros → "Recordar por WhatsApp" recuerda la mensualidad por vencer o vencida (D50).
 - **Sugerencia de instalar la app (D47):** mientras la app no esté en la pantalla de inicio, una hoja inferior global (`InstallPrompt`, estado en `installStore`) la sugiere. En Android/Chrome/Edge usa `beforeinstallprompt` y el usuario solo confirma en el diálogo nativo; en iPhone/iPad muestra los pasos de Safari. También hay una tarjeta "Instala la app" en Perfil → Notificaciones.
 
 ## 5. Fases
