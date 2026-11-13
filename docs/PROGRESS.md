@@ -4,7 +4,7 @@
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
 | **Fase actual** | F8 — Producción (app, base y bridge funcionando) |
-| **Próximo paso** | Revisar D50–D52 en el preview y, con orden del dueño, pasar `0031` y `0032` a producción; carga manual D46 y primera semana del runbook (§4) |
+| **Próximo paso** | Cargar los medios de pago (con el QR) en Ajustes → Medios de pago de producción; carga manual D46 y primera semana del runbook (§4) |
 | **Bloqueos** | Ninguno |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -85,6 +85,12 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-11-13 (4) — Claude Code (D50–D52 a producción, por orden del dueño)
+- Backup del día (schema, data y roles) fuera del repo, con el prechequeo guardado al lado. `db push` solo de `0031` y `0032` (verificado con `--dry-run`), sin errores.
+- Poschequeo: filas de atletas iguales al prechequeo, 32 migraciones (última `0032`), 6 trabajos de cron activos, 2 secretos en Vault, últimas llamadas push en 200; buckets `payment-qr` y `payment-receipts`, RPC nuevos, trabajo de "por vencer" nuevo y tipos de aviso nuevos presentes. CLI de vuelta en DEV.
+- `main` = `develop` → Vercel publica producción. `send-push` no cambia.
+- **Pendiente del dueño:** cargar en producción los medios de pago con el QR y el WhatsApp de comprobantes (Ajustes → Medios de pago); hasta entonces el atleta ve "puedes pagar directamente en el box".
 
 ### 2026-11-13 (3) — Claude Code (comprobante desde la galería)
 - Reporte del dueño en Android: "Toca para adjuntar" solo ofrecía Cámara y Archivos. Causa: con `accept` que mezcla imágenes y PDF, Android no abre la galería ni apps como Google Fotos. Ahora hay dos botones: "Elegir la captura de la galería" (`accept="image/*"`) y "Adjuntar un PDF u otro archivo". Las imágenes de formatos no admitidos (GIF, AVIF…) se convierten a JPEG en el teléfono. El QR de Ajustes → Medios de pago también usa `image/*`.
