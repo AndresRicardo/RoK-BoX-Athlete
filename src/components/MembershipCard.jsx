@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Calendar, Fingerprint, AlertCircle, CheckCircle2, Clock, Lock, RefreshCw, ChevronRight, X, Clock3, Ban, Ticket, Info } from 'lucide-react';
+import { Calendar, Fingerprint, AlertCircle, CheckCircle2, Clock, Lock, RefreshCw, ChevronRight, X, Clock3, Ban, Ticket, Info, Wallet } from 'lucide-react';
 import useMembershipStore from '../stores/membershipStore';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
+import PaySheet, { PAYABLE_MEMBERSHIP } from './PaySheet';
 
 export default function MembershipCard({ onEnterDocument }) {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export default function MembershipCard({ onEnterDocument }) {
   // La solicitud de vínculo cuelga del perfil: sin perfil hay que completarlo primero.
   const needsProfile = rolesLoaded && !profile;
   const [refreshing, setRefreshing] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   // Modal para solicitar vinculación de cédula
   const [modalOpen, setModalOpen] = useState(false);
@@ -360,6 +362,23 @@ export default function MembershipCard({ onEnterDocument }) {
           )}
         </div>
       )}
+
+      {/* Pagar (D51): vencida, por vencer o tiquetera sin clases */}
+      {PAYABLE_MEMBERSHIP.includes(status) && (
+        <button
+          type="button"
+          onClick={() => setPaying(true)}
+          className={`mt-3 w-full py-2.5 rounded-xl font-black text-xs flex items-center justify-center gap-1.5 tap-bounce ${
+            isExpiringSoon
+              ? 'bg-amber-400/15 border border-amber-400/40 text-amber-300'
+              : 'bg-[#FFC815] text-black shadow-md'
+          }`}
+        >
+          <Wallet className="w-4 h-4" />
+          {isExpiringSoon ? 'Renovar y pagar' : 'Pagar mensualidad'}
+        </button>
+      )}
+      <PaySheet open={paying} onClose={() => setPaying(false)} />
 
       {/* Aún no registrado en el huellero */}
       {!membership.hik_person_id && (

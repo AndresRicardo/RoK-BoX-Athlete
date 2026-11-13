@@ -16,6 +16,7 @@ import Members from '../pages/manage/Members';
 import MemberDetail from '../pages/manage/MemberDetail';
 import Debts from '../pages/manage/Debts';
 import DebtReminders from '../pages/manage/DebtReminders';
+import MembershipReminders from '../pages/manage/MembershipReminders';
 import Pending from '../pages/manage/Pending';
 import Cash from '../pages/manage/Cash';
 import Settlements from '../pages/manage/Settlements';
@@ -95,6 +96,7 @@ export const router = createBrowserRouter([
       { path: 'gestion/ajustes', element: <Navigate to="/manage/settings/bridge" replace /> },
       { path: 'manage', element: staff(<ManageHome />) },
       { path: 'manage/members', element: staff(<Members />) },
+      { path: 'manage/members/reminders', element: staff(<MembershipReminders />) },
       { path: 'manage/members/:id', element: staff(<MemberDetail />) },
       { path: 'manage/debts', element: staff(<Debts />) },
       { path: 'manage/debts/reminders', element: staff(<DebtReminders />) },

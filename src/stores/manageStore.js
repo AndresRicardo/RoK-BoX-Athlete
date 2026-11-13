@@ -24,6 +24,16 @@ function groupBy(rows, key) {
   }, {});
 }
 
+// Agrega el nombre de quien envió el último recordatorio (last_reminder_by).
+async function withSenderNames(rows) {
+  const senderIds = [...new Set(rows.map((r) => r.last_reminder_by).filter(Boolean))];
+  const senders = senderIds.length
+    ? await query(supabase.from('athlete_directory').select('id, full_name, display_name').in('id', senderIds))
+    : [];
+  const senderById = Object.fromEntries(senders.map((s) => [s.id, s]));
+  return rows.map((r) => ({ ...r, lastReminderByName: senderById[r.last_reminder_by]?.full_name || null }));
+}
+
 const useManageStore = create((set, get) => ({
   plans: [],
   partners: [],
@@ -211,28 +221,78 @@ const useManageStore = create((set, get) => ({
   fetchDebtors: async ({ memberId } = {}) => {
     let req = supabase.from('debtor_summary').select('*').order('balance', { ascending: false });
     if (memberId) req = req.eq('member_id', memberId);
-    const rows = await query(req);
-    const senderIds = [...new Set(rows.map((r) => r.last_reminder_by).filter(Boolean))];
-    const senders = senderIds.length
-      ? await query(supabase.from('athlete_directory').select('id, full_name, display_name').in('id', senderIds))
-      : [];
-    const senderById = Object.fromEntries(senders.map((s) => [s.id, s]));
-    return rows.map((r) => ({ ...r, lastReminderByName: senderById[r.last_reminder_by]?.full_name || null }));
+    return withSenderNames(await query(req));
   },
 
   // Plantilla del box; null = usar la plantilla por defecto.
-  fetchReminderTemplate: async () => {
-    const rows = await query(
-      supabase.from('app_settings').select('value').eq('key', 'debt_reminder_template'),
-    );
+  fetchReminderTemplate: () => get().fetchSetting('debt_reminder_template'),
+  saveReminderTemplate: (value) => get().saveSetting('debt_reminder_template', value),
+
+  // Ajustes del box (app_settings). null o vacío = sin valor guardado (se usa el de la app).
+  fetchSetting: async (key) => {
+    const rows = await query(supabase.from('app_settings').select('value').eq('key', key));
     return rows[0]?.value || null;
   },
 
-  saveReminderTemplate: (value) => (value
-    ? query(supabase.from('app_settings').upsert({ key: 'debt_reminder_template', value }).select())
-    : query(supabase.from('app_settings').delete().eq('key', 'debt_reminder_template').select())),
+  fetchSettings: async (keys) => {
+    const rows = await query(supabase.from('app_settings').select('key, value').in('key', keys));
+    return Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  },
+
+  saveSetting: (key, value) => (value?.trim()
+    ? query(supabase.from('app_settings').upsert({ key, value: value.trim() }).select())
+    : query(supabase.from('app_settings').delete().eq('key', key).select())),
 
   logDebtReminder: (memberId) => rpc('log_debt_reminder', { p_member_id: memberId }),
+
+  // ---------------------------------------------------------------------
+  // Recordatorios de mensualidad por WhatsApp (D50)
+  // ---------------------------------------------------------------------
+  // Membresías por vencer o vencidas, con el último recordatorio y si ya llegó el push.
+  fetchMembershipReminders: async ({ memberId } = {}) => {
+    let req = supabase.from('membership_reminder_summary').select('*').order('valid_until', { ascending: false });
+    if (memberId) req = req.eq('member_id', memberId);
+    return withSenderNames(await query(req));
+  },
+
+  logMembershipReminder: (memberId) => rpc('log_membership_reminder', { p_member_id: memberId }),
+
+  // ---------------------------------------------------------------------
+  // Medios de pago del box (D51; solo socios escriben, la RLS lo hace cumplir)
+  // ---------------------------------------------------------------------
+  fetchPaymentAccounts: () => query(
+    supabase.from('payment_accounts').select('*').order('sort_order').order('created_at'),
+  ),
+
+  savePaymentAccount: async ({ id, ...fields }) => {
+    const req = id
+      ? supabase.from('payment_accounts').update(fields).eq('id', id).select()
+      : supabase.from('payment_accounts').insert(fields).select();
+    return (await query(req))[0];
+  },
+
+  deletePaymentAccount: async (account) => {
+    await query(supabase.from('payment_accounts').delete().eq('id', account.id).select());
+    if (account.qr_path) await get().removePaymentQr(account.qr_path);
+  },
+
+  // Sube la imagen del QR y devuelve su ruta en el bucket privado payment-qr.
+  uploadPaymentQr: async (file) => {
+    const types = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' };
+    if (!types[file?.type]) throw new Error('El QR debe ser una imagen PNG, JPG o WebP.');
+    if (file.size > 2 * 1024 * 1024) throw new Error('La imagen pesa más de 2 MB. Usa una captura más liviana.');
+    const path = `qr-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${types[file.type]}`;
+    const { error } = await supabase.storage.from('payment-qr').upload(path, file, { contentType: file.type });
+    if (error) throw new Error(error.message);
+    return path;
+  },
+
+  // Borrar el archivo viejo es limpieza: si falla, no se interrumpe al usuario.
+  removePaymentQr: async (path) => {
+    if (!path) return;
+    const { error } = await supabase.storage.from('payment-qr').remove([path]);
+    if (error) console.warn('No se pudo borrar el QR anterior:', error.message);
+  },
 
   // ---------------------------------------------------------------------
   // Pendientes

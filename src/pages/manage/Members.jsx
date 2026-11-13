@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, UserPlus, ChevronRight, Fingerprint, Smartphone } from 'lucide-react';
+import { Search, UserPlus, ChevronRight, Fingerprint, Smartphone, MessageCircle } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import {
   ManageHeader, Chips, StatusBadge, ErrorBox, Empty, Loading, Button, useAction,
@@ -90,6 +90,15 @@ export default function Members() {
         value={filter}
         onChange={(key) => setSearchParams(key === 'all' ? {} : { status: key }, { replace: true })}
       />
+
+      {['expiring_soon', 'overdue'].includes(filter) && (
+        <Link
+          to={`/manage/members/reminders?list=${filter === 'overdue' ? 'overdue' : 'due'}`}
+          className="py-3 rounded-xl bg-[#25D366]/15 border border-[#25D366]/30 text-[#25D366] font-black text-xs flex items-center justify-center gap-1.5 tap-bounce"
+        >
+          <MessageCircle className="w-4 h-4" /> Recordar por WhatsApp
+        </Link>
+      )}
 
       <ErrorBox error={error} />
 

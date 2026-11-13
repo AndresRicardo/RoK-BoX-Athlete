@@ -98,6 +98,13 @@ export type Database = {
             foreignKeyName: "access_commands_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "access_commands_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "membership_status"
             referencedColumns: ["member_id"]
           },
@@ -145,6 +152,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
           },
           {
             foreignKeyName: "access_events_member_id_fkey"
@@ -442,6 +456,13 @@ export type Database = {
             foreignKeyName: "class_usages_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "class_usages_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "membership_status"
             referencedColumns: ["member_id"]
           },
@@ -622,6 +643,13 @@ export type Database = {
             foreignKeyName: "debt_reminders_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "debt_reminders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "membership_status"
             referencedColumns: ["member_id"]
           },
@@ -684,6 +712,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "members"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "debts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
           },
           {
             foreignKeyName: "debts_member_id_fkey"
@@ -1015,6 +1050,13 @@ export type Database = {
             foreignKeyName: "member_link_requests_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "member_link_requests_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "membership_status"
             referencedColumns: ["member_id"]
           },
@@ -1097,6 +1139,56 @@ export type Database = {
           },
         ]
       }
+      membership_expiry_notices: {
+        Row: {
+          kind: string
+          member_id: string
+          sent_at: string
+          valid_until: string
+        }
+        Insert: {
+          kind: string
+          member_id: string
+          sent_at?: string
+          valid_until: string
+        }
+        Update: {
+          kind?: string
+          member_id?: string
+          sent_at?: string
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_expiry_notices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "debtor_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "membership_expiry_notices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_expiry_notices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "membership_expiry_notices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "membership_status"
+            referencedColumns: ["member_id"]
+          },
+        ]
+      }
       membership_plans: {
         Row: {
           class_count: number | null
@@ -1138,6 +1230,62 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      membership_reminders: {
+        Row: {
+          channel: string
+          id: string
+          member_id: string
+          sent_at: string
+          sent_by: string | null
+          valid_until: string
+        }
+        Insert: {
+          channel?: string
+          id?: string
+          member_id: string
+          sent_at?: string
+          sent_by?: string | null
+          valid_until: string
+        }
+        Update: {
+          channel?: string
+          id?: string
+          member_id?: string
+          sent_at?: string
+          sent_by?: string | null
+          valid_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "membership_reminders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "debtor_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "membership_reminders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "membership_reminders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "membership_reminders_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "membership_status"
+            referencedColumns: ["member_id"]
+          },
+        ]
       }
       membership_renewals: {
         Row: {
@@ -1246,6 +1394,13 @@ export type Database = {
             foreignKeyName: "membership_renewals_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "membership_renewals_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "membership_status"
             referencedColumns: ["member_id"]
           },
@@ -1331,6 +1486,13 @@ export type Database = {
             isOneToOne: true
             referencedRelation: "members"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "memberships_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
           },
           {
             foreignKeyName: "memberships_member_id_fkey"
@@ -1542,6 +1704,48 @@ export type Database = {
           share_percentage?: number
           updated_at?: string
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      payment_accounts: {
+        Row: {
+          account_number: string | null
+          created_at: string
+          holder_document: string | null
+          holder_name: string | null
+          id: string
+          is_active: boolean
+          label: string
+          notes: string | null
+          qr_path: string | null
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          account_number?: string | null
+          created_at?: string
+          holder_document?: string | null
+          holder_name?: string | null
+          id?: string
+          is_active?: boolean
+          label: string
+          notes?: string | null
+          qr_path?: string | null
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          account_number?: string | null
+          created_at?: string
+          holder_document?: string | null
+          holder_name?: string | null
+          id?: string
+          is_active?: boolean
+          label?: string
+          notes?: string | null
+          qr_path?: string | null
+          sort_order?: number
+          updated_at?: string
         }
         Relationships: []
       }
@@ -1939,6 +2143,13 @@ export type Database = {
             foreignKeyName: "debts_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
+            referencedRelation: "membership_reminder_summary"
+            referencedColumns: ["member_id"]
+          },
+          {
+            foreignKeyName: "debts_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
             referencedRelation: "membership_status"
             referencedColumns: ["member_id"]
           },
@@ -1957,6 +2168,42 @@ export type Database = {
           phone: string | null
           profile_id: string | null
           reminders_count: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "athlete_directory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "members_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      membership_reminder_summary: {
+        Row: {
+          access_enabled: boolean | null
+          days_left: number | null
+          debt_balance: number | null
+          full_name: string | null
+          is_active: boolean | null
+          last_reminder_at: string | null
+          last_reminder_by: string | null
+          member_id: string | null
+          phone: string | null
+          plan_kind: string | null
+          plan_name: string | null
+          profile_id: string | null
+          push_sent_at: string | null
+          reminded_this_period: boolean | null
+          status: string | null
+          valid_until: string | null
         }
         Relationships: [
           {
@@ -2313,6 +2560,23 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "debt_reminders"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      log_membership_reminder: {
+        Args: { p_member_id: string }
+        Returns: {
+          channel: string
+          id: string
+          member_id: string
+          sent_at: string
+          sent_by: string | null
+          valid_until: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "membership_reminders"
           isOneToOne: true
           isSetofReturn: false
         }

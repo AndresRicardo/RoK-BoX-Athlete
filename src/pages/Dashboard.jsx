@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Zap, Timer, Trophy, Flame, ChevronRight, Activity } from 'lucide-react';
 import useAuthStore from '../stores/authStore';
 import useProfileStore from '../stores/profileStore';
@@ -12,6 +12,7 @@ import MembershipCard from '../components/MembershipCard';
 import DebtCard from '../components/DebtCard';
 import FeedEventCard from '../components/FeedEventCard';
 import { AnnouncementsCard } from '../components/Announcements';
+import PaySheet from '../components/PaySheet';
 
 export default function Dashboard() {
   const { user } = useAuthStore();
@@ -21,6 +22,13 @@ export default function Dashboard() {
   const { events, fetchFeed } = useFeedStore();
   const { prs, fetchPRs } = usePRStore();
   const { fetchEngagement } = useEngagementStore();
+  // Los avisos de membresía por vencer y de saldo abren /?pay=membership o /?pay=debt (D51).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const payOpen = searchParams.has('pay');
+  const closePay = () => setSearchParams((params) => {
+    params.delete('pay');
+    return params;
+  }, { replace: true });
 
   useEffect(() => {
     if (user?.id) {
@@ -75,6 +83,7 @@ export default function Dashboard() {
 
       {/* 2) Deudas de Suplementos / Tienda */}
       <DebtCard />
+      <PaySheet open={payOpen} onClose={closePay} />
 
       {/* 3) Accesos Rápidos de Entrenamiento */}
       <div className="grid grid-cols-3 gap-2.5">

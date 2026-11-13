@@ -1,7 +1,7 @@
 import { formatCOP } from './currency';
 
-// Recordatorio de deuda por WhatsApp (D41): se abre WhatsApp en el teléfono de quien
-// cobra con el mensaje listo (enlace wa.me); no hay envío automático.
+// Recordatorios por WhatsApp (deuda D41, mensualidad D50): se abre WhatsApp en el teléfono
+// de quien cobra con el mensaje listo (enlace wa.me); no hay envío automático.
 
 export const DEFAULT_DEBT_TEMPLATE = `¡Hola, {nombre}! 👋 Te saludamos de RöK BoX.
 
@@ -139,6 +139,69 @@ export function buildDebtReminder({ template, fullName, total, debts }) {
   };
   return (template?.trim() ? template : DEFAULT_DEBT_TEMPLATE)
     .replace(/\{(nombre|total|detalle)\}/g, (_, key) => values[key])
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+// ---------------------------------------------------------------------
+// Recordatorio de mensualidad (D50): por vencer o vencida.
+// ---------------------------------------------------------------------
+export const DEFAULT_MEMBERSHIP_TEMPLATE = `¡Hola, {nombre}! 👋 Te saludamos de RöK BoX.
+
+Te recordamos que tu {plan} {vence} (*{fecha}*). Renueva para seguir entrenando sin interrupciones 💪
+
+Puedes pagar en el box o por transferencia:
+{pago}
+
+Si ya renovaste, por favor ignora este mensaje 🙏 ¡Nos vemos en el box!`;
+
+export const MEMBERSHIP_PLACEHOLDERS = [
+  ['{nombre}', 'Primer nombre del miembro'],
+  ['{plan}', '"plan Mensual" (o "membresía" si no tiene plan registrado)'],
+  ['{vence}', '"vence mañana", "vence hoy", "venció hace 3 días"...'],
+  ['{fecha}', 'Fecha de vencimiento (ej. 15 de noviembre)'],
+  ['{pago}', 'Medios de pago del box, uno por línea (Ajustes → Medios de pago)'],
+];
+
+/** "vence hoy" / "vence mañana" / "vence en 2 días" / "venció ayer" / "venció hace 5 días". */
+export function dueText(daysLeft) {
+  const d = Number(daysLeft);
+  if (d === 0) return 'vence hoy';
+  if (d === 1) return 'vence mañana';
+  if (d > 1) return `vence en ${d} días`;
+  if (d === -1) return 'venció ayer';
+  return `venció hace ${Math.abs(d)} días`;
+}
+
+/** "15 de noviembre" en hora de Bogotá. */
+export function longDate(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('es-CO', { day: 'numeric', month: 'long', timeZone: 'America/Bogota' });
+}
+
+/** Una línea por medio de pago activo: "• Nequi: 3001234567 (Ana Pérez)". */
+export function paymentLines(accounts) {
+  const lines = (accounts || [])
+    .filter((a) => a.is_active !== false && a.account_number)
+    .map((a) => {
+      const holder = a.holder_name ? ` (${a.holder_name})` : '';
+      return `• ${a.label}: ${a.account_number}${holder}`;
+    });
+  return lines.length ? lines.join('\n') : '• Pregúntanos por los medios de pago disponibles';
+}
+
+const REAL_PLAN = (name) => name && name.trim() && name.trim().toLowerCase() !== 'sin plan';
+
+export function buildMembershipReminder({ template, fullName, planName, validUntil, daysLeft, accounts }) {
+  const values = {
+    nombre: firstName(fullName),
+    plan: REAL_PLAN(planName) ? `plan *${planName.trim()}*` : 'membresía',
+    vence: dueText(daysLeft),
+    fecha: longDate(validUntil),
+    pago: paymentLines(accounts),
+  };
+  return (template?.trim() ? template : DEFAULT_MEMBERSHIP_TEMPLATE)
+    .replace(/\{(nombre|plan|vence|fecha|pago)\}/g, (_, key) => values[key])
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

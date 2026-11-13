@@ -13,6 +13,7 @@ import useLeaderboardStore from './leaderboardStore';
 import useMembershipStore from './membershipStore';
 import useDebtStore from './debtStore';
 import useManageStore from './manageStore';
+import usePaymentStore from './paymentStore';
 import { forgetPushSubscription } from '../utils/push';
 
 const useAuthStore = create((set, get) => ({
@@ -96,6 +97,7 @@ const useAuthStore = create((set, get) => ({
     useMembershipStore.getState().reset();
     useDebtStore.getState().reset();
     useManageStore.getState().reset();
+    usePaymentStore.getState().reset();
 
     set({
       user: null,

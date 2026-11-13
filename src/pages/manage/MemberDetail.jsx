@@ -80,7 +80,7 @@ export default function MemberDetail() {
   const { fetchMemberDetail, loadCatalogs, consumeClass, undoClassUsage, setMemberAccess, voidRenewal, partners, fetchMembers } = useManageStore();
   const isPartner = useProfileStore((state) => state.isPartner);
   const [data, setData] = useState(null);
-  const [sheet, setSheet] = useState(null); // 'renew' | 'edit' | 'debt' | 'whatsapp' | 'validity' | 'void:<id>'
+  const [sheet, setSheet] = useState(null); // 'renew' | 'edit' | 'debt' | 'whatsapp' | 'whatsapp-membership' | 'validity' | 'void:<id>'
   const [selectedDebt, setSelectedDebt] = useState(null);
   const load = useAction();
   const action = useAction();
@@ -124,6 +124,9 @@ export default function MemberDetail() {
   const activeUsages = usages.filter((u) => !u.undone_at);
   const openDebts = debts.filter((d) => ['pending', 'partial'].includes(d.status));
   const partnerName = (pid) => partners.find((p) => p.id === pid)?.name || '—';
+  // Igual que log_membership_reminder: por vencer (menos de 3 días) o ya vencida.
+  const canRemindMembership = member.is_active && s.valid_until
+    && new Date(s.valid_until).getTime() < Date.now() + 3 * 24 * 60 * 60 * 1000;
 
   const doUseClass = () => action.run(async () => {
     await consumeClass(s.member_id);
@@ -208,6 +211,16 @@ export default function MemberDetail() {
             </Button>
           )}
         </div>
+
+        {canRemindMembership && (
+          <button
+            type="button"
+            onClick={() => setSheet('whatsapp-membership')}
+            className="py-2.5 rounded-xl bg-[#25D366]/15 border border-[#25D366]/30 text-[#25D366] font-black text-xs flex items-center justify-center gap-1.5 tap-bounce"
+          >
+            <MessageCircle className="w-4 h-4" /> Recordar mensualidad por WhatsApp
+          </button>
+        )}
 
         {isPartner && (
           <div className="grid grid-cols-2 gap-2">
@@ -370,6 +383,15 @@ export default function MemberDetail() {
       />
       <WhatsAppReminderSheet
         open={sheet === 'whatsapp'}
+        memberId={s.member_id}
+        onClose={() => {
+          setSheet(null);
+          refresh();
+        }}
+      />
+      <WhatsAppReminderSheet
+        open={sheet === 'whatsapp-membership'}
+        kind="membership"
         memberId={s.member_id}
         onClose={() => {
           setSheet(null);

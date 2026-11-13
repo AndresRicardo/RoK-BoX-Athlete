@@ -1,11 +1,13 @@
 import { useState } from 'react';
-import { ShoppingBag, AlertTriangle, CheckCircle, ChevronRight, X, Receipt, Package, ArrowDownLeft } from 'lucide-react';
+import { ShoppingBag, AlertTriangle, CheckCircle, ChevronRight, X, Receipt, Package, ArrowDownLeft, Wallet } from 'lucide-react';
 import useDebtStore from '../stores/debtStore';
 import { formatCOP, paymentMethodLabel } from '../utils/currency';
+import PaySheet from './PaySheet';
 
 export default function DebtCard() {
   const { debts, totalPending, loading } = useDebtStore();
   const [showDetail, setShowDetail] = useState(false);
+  const [paying, setPaying] = useState(false);
 
   const pendingDebts = debts.filter((d) => d.status === 'pending' || d.status === 'partial');
 
@@ -60,7 +62,22 @@ export default function DebtCard() {
             <ChevronRight className="w-4 h-4 text-[#FFC815]" />
           </div>
         </div>
+
+        {hasDebt && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPaying(true);
+            }}
+            className="mt-3 w-full py-2.5 rounded-xl bg-[#FFC815] text-black font-black text-xs flex items-center justify-center gap-1.5 tap-bounce shadow-md"
+          >
+            <Wallet className="w-4 h-4" /> Pagar {formatCOP(totalPending)}
+          </button>
+        )}
       </div>
+
+      <PaySheet open={paying} onClose={() => setPaying(false)} />
 
       {/* Modal / Bottom Sheet de Detalle de Deudas */}
       {showDetail && (
@@ -98,10 +115,6 @@ export default function DebtCard() {
                 <span className="text-2xl font-black text-[#FFC815] mt-0.5 block">
                   {formatCOP(totalPending)}
                 </span>
-              </div>
-              <div className="text-right">
-                <span className="text-[10px] text-gray-400 block">Pago presencial</span>
-                <span className="text-xs font-bold text-gray-200">Efectivo / Nequi / Datafono</span>
               </div>
             </div>
 
@@ -207,9 +220,21 @@ export default function DebtCard() {
             </div>
 
             {/* Footer */}
-            <div className="p-4 border-t border-white/10 bg-[#1C1C1E] text-center">
+            <div className="p-4 border-t border-white/10 bg-[#1C1C1E] text-center flex flex-col gap-2">
+              {hasDebt && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowDetail(false);
+                    setPaying(true);
+                  }}
+                  className="w-full py-3 rounded-xl bg-[#FFC815] text-black font-black text-xs flex items-center justify-center gap-1.5 tap-bounce"
+                >
+                  <Wallet className="w-4 h-4" /> Ver cómo pagar
+                </button>
+              )}
               <p className="text-xs text-[#A0A0A5]">
-                Para abonar o saldar tus cuentas, acércate a la recepción o con tu coach en el box.
+                También puedes abonar o saldar tus cuentas en la recepción o con tu coach en el box.
               </p>
             </div>
           </div>

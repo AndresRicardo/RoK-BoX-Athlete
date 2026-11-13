@@ -2,18 +2,22 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import {
   Users2, Tag, Package, FolderTree, ShieldCheck, Wifi, History, ChevronRight, Plus, Trash2, Mail, MessageCircle,
-  AlertTriangle,
+  AlertTriangle, Landmark, QrCode, Upload,
 } from 'lucide-react';
 import useManageStore from '../../stores/manageStore';
 import useAuthStore from '../../stores/authStore';
 import {
   ManageHeader, Card, SectionTitle, Button, ErrorBox, Loading, Empty, Field, Select, TextInput, MoneyInput,
-  Sheet, Money, Row, Badge, Chips, useAction, inputClass,
+  Sheet, Money, Row, Badge, Chips, Segmented, TextArea, useAction, inputClass,
 } from '../../components/manage/ui';
 import { planDuration } from '../../components/manage/RenewSheet';
 import { formatDateTime } from '../../utils/dates';
 import { timeAgo } from '../../utils/time';
-import { DEFAULT_DEBT_TEMPLATE, TEMPLATE_PLACEHOLDERS, buildDebtReminder } from '../../utils/whatsapp';
+import {
+  DEFAULT_DEBT_TEMPLATE, TEMPLATE_PLACEHOLDERS, buildDebtReminder,
+  DEFAULT_MEMBERSHIP_TEMPLATE, MEMBERSHIP_PLACEHOLDERS, buildMembershipReminder, whatsappPhone,
+} from '../../utils/whatsapp';
+import usePaymentStore, { paymentQrUrl } from '../../stores/paymentStore';
 
 const SECTIONS = [
   { key: 'partners', label: 'Socios y porcentajes', icon: Users2 },
@@ -21,7 +25,8 @@ const SECTIONS = [
   { key: 'products', label: 'Catálogo de productos', icon: Package },
   { key: 'categories', label: 'Categorías de gasto', icon: FolderTree },
   { key: 'roles', label: 'Roles e invitaciones', icon: ShieldCheck },
-  { key: 'whatsapp', label: 'Mensaje de cobro por WhatsApp', icon: MessageCircle },
+  { key: 'payments', label: 'Medios de pago', icon: Landmark },
+  { key: 'whatsapp', label: 'Mensajes de WhatsApp', icon: MessageCircle },
   { key: 'bridge', label: 'Conexión con HikCentral', icon: Wifi },
   { key: 'audit', label: 'Auditoría', icon: History },
 ];
@@ -621,31 +626,60 @@ function BridgeSection() {
 }
 
 // ---------------------------------------------------------------------
-// Mensaje de cobro por WhatsApp (D41)
+// Mensajes de WhatsApp: cobro de deuda (D41) y mensualidad (D50)
 // ---------------------------------------------------------------------
 const SAMPLE_DEBTS = [
   { concept: 'Mensualidad', items: [], balance: 70000, created_at: '2026-01-02' },
   { concept: 'Consumo', items: [{ name: 'Agua 600 ml', quantity: 2 }], balance: 5000, created_at: '2026-01-05' },
 ];
 
-function WhatsAppSection() {
-  const { fetchReminderTemplate, saveReminderTemplate } = useManageStore();
+const TEMPLATES = {
+  debt: {
+    key: 'debt_reminder_template',
+    fallback: DEFAULT_DEBT_TEMPLATE,
+    placeholders: TEMPLATE_PLACEHOLDERS,
+    intro: 'Es el texto base del recordatorio de deuda. Antes de enviarlo, quien cobra puede ajustarlo para cada persona.',
+    preview: (template) => buildDebtReminder({ template, fullName: 'JUAN PÉREZ', total: 75000, debts: SAMPLE_DEBTS }),
+  },
+  membership: {
+    key: 'membership_reminder_template',
+    fallback: DEFAULT_MEMBERSHIP_TEMPLATE,
+    placeholders: MEMBERSHIP_PLACEHOLDERS,
+    intro: 'Es el texto base del recordatorio de mensualidad (por vencer o vencida). Antes de enviarlo, quien lo envía puede ajustarlo.',
+    preview: (template, accounts) => buildMembershipReminder({
+      template,
+      fullName: 'JUAN PÉREZ',
+      planName: 'Mensual',
+      validUntil: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      daysLeft: 1,
+      accounts,
+    }),
+  },
+};
+
+function TemplateEditor({ config }) {
+  const { fetchSetting, saveSetting, fetchPaymentAccounts } = useManageStore();
   const [value, setValue] = useState(null);
+  const [accounts, setAccounts] = useState([]);
   const [saved, setSaved] = useState(false);
   const { run, busy, error } = useAction();
 
   useEffect(() => {
-    run(async () => setValue((await fetchReminderTemplate()) || DEFAULT_DEBT_TEMPLATE));
-  }, [fetchReminderTemplate, run]);
+    run(async () => {
+      const [stored, list] = await Promise.all([fetchSetting(config.key), fetchPaymentAccounts().catch(() => [])]);
+      setAccounts(list);
+      setValue(stored || config.fallback);
+    });
+  }, [config, fetchSetting, fetchPaymentAccounts, run]);
 
   if (value === null) return error ? <ErrorBox error={error} /> : <Loading />;
 
-  const isDefault = value.trim() === DEFAULT_DEBT_TEMPLATE;
+  const isDefault = value.trim() === config.fallback;
   const save = (text) => run(async () => {
     if (!text.trim()) throw new Error('El mensaje no puede quedar vacío.');
     if (text.length > 2000) throw new Error('El mensaje es muy largo (máximo 2.000 caracteres).');
     // Guardar el texto por defecto = no guardar nada (así recibe las mejoras futuras).
-    await saveReminderTemplate(text.trim() === DEFAULT_DEBT_TEMPLATE ? null : text.trim());
+    await saveSetting(config.key, text.trim() === config.fallback ? null : text.trim());
     setValue(text.trim());
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
@@ -653,13 +687,11 @@ function WhatsAppSection() {
 
   return (
     <>
-      <p className="text-[11px] text-[#A0A0A5]">
-        Es el texto base del recordatorio de deuda. Antes de enviarlo, quien cobra puede ajustarlo para cada persona.
-      </p>
+      <p className="text-[11px] text-[#A0A0A5]">{config.intro}</p>
       <Card className="flex flex-col gap-1.5">
-        {TEMPLATE_PLACEHOLDERS.map(([key, desc]) => (
+        {config.placeholders.map(([key, desc]) => (
           <div key={key} className="flex items-center gap-2 text-[11px]">
-            <code className="px-1.5 py-0.5 rounded bg-[#0A0A0C] text-[#FFC815] font-bold">{key}</code>
+            <code className="px-1.5 py-0.5 rounded bg-[#0A0A0C] text-[#FFC815] font-bold shrink-0">{key}</code>
             <span className="text-gray-300">{desc}</span>
           </div>
         ))}
@@ -675,17 +707,308 @@ function WhatsAppSection() {
       </Field>
       <SectionTitle>Así se verá</SectionTitle>
       <div className="p-3 rounded-2xl rounded-tr-sm bg-[#005C4B] text-[13px] text-white whitespace-pre-wrap break-words">
-        {buildDebtReminder({ template: value, fullName: 'JUAN PÉREZ', total: 75000, debts: SAMPLE_DEBTS })}
+        {config.preview(value, accounts)}
       </div>
       <ErrorBox error={error} />
       <div className="grid grid-cols-2 gap-2">
-        <Button variant="secondary" disabled={busy || isDefault} onClick={() => save(DEFAULT_DEBT_TEMPLATE)}>
+        <Button variant="secondary" disabled={busy || isDefault} onClick={() => save(config.fallback)}>
           Restaurar original
         </Button>
         <Button disabled={busy} onClick={() => save(value)}>
           {busy ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar'}
         </Button>
       </div>
+    </>
+  );
+}
+
+function WhatsAppSection() {
+  const [which, setWhich] = useState('debt');
+  return (
+    <>
+      <Segmented options={[['debt', 'Cobro de deuda'], ['membership', 'Mensualidad']]} value={which} onChange={setWhich} />
+      <TemplateEditor key={which} config={TEMPLATES[which]} />
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------
+// Medios de pago (D51): lo que ve el atleta al tocar "Pagar"
+// ---------------------------------------------------------------------
+const EMPTY_ACCOUNT = {
+  label: '', account_number: '', holder_name: '', holder_document: '', notes: '', qr_path: null, sort_order: 0, is_active: true,
+};
+
+/** Imagen del QR guardado (URL firmada) o del archivo recién elegido. */
+function QrPreview({ path, file, className = '' }) {
+  const [url, setUrl] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    let objectUrl = null;
+    if (file) {
+      objectUrl = URL.createObjectURL(file);
+      setUrl(objectUrl);
+    } else if (path) {
+      paymentQrUrl(path).then((u) => alive && setUrl(u));
+    } else {
+      setUrl(null);
+    }
+    return () => {
+      alive = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [path, file]);
+  if (!url) return null;
+  return <img src={url} alt="Código QR de pago" className={`rounded-xl bg-white object-contain ${className}`} />;
+}
+
+function PaymentAccountSheet({ account, onClose, onSaved }) {
+  const { savePaymentAccount, deletePaymentAccount, uploadPaymentQr, removePaymentQr } = useManageStore();
+  const [edit, setEdit] = useState(null);
+  const [file, setFile] = useState(null);
+  const { run, busy, error, setError } = useAction();
+
+  useEffect(() => {
+    if (!account) return;
+    setEdit({ ...EMPTY_ACCOUNT, ...account });
+    setFile(null);
+    setError(null);
+  }, [account, setError]);
+
+  const pickFile = (e) => {
+    const picked = e.target.files?.[0];
+    e.target.value = '';
+    if (!picked) return;
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(picked.type)) {
+      setError('El QR debe ser una imagen PNG, JPG o WebP.');
+      return;
+    }
+    if (picked.size > 2 * 1024 * 1024) {
+      setError('La imagen pesa más de 2 MB. Usa una captura más liviana.');
+      return;
+    }
+    setError(null);
+    setFile(picked);
+  };
+
+  const save = () => run(async () => {
+    const label = edit.label.trim();
+    const number = edit.account_number.trim();
+    if (!label) throw new Error('Escribe el nombre del medio de pago (ej. Nequi, Bancolombia ahorros).');
+    if (!number && !file && !edit.qr_path) throw new Error('Escribe el número, celular o llave, o sube el QR.');
+
+    const oldPath = account.qr_path || null;
+    const newPath = file ? await uploadPaymentQr(file) : edit.qr_path || null;
+    try {
+      await savePaymentAccount({
+        id: edit.id,
+        label,
+        account_number: number || null,
+        holder_name: edit.holder_name.trim() || null,
+        holder_document: edit.holder_document.trim() || null,
+        notes: edit.notes.trim() || null,
+        qr_path: newPath,
+        sort_order: Number(edit.sort_order || 0),
+        is_active: edit.is_active,
+      });
+    } catch (err) {
+      if (file) await removePaymentQr(newPath);
+      throw err;
+    }
+    if (oldPath && oldPath !== newPath) await removePaymentQr(oldPath);
+    onSaved();
+    onClose();
+  });
+
+  const remove = () => run(async () => {
+    if (!window.confirm(`¿Borrar "${account.label}"? Los atletas dejarán de verlo.`)) return;
+    await deletePaymentAccount(account);
+    onSaved();
+    onClose();
+  });
+
+  const set = (field) => (e) => setEdit({ ...edit, [field]: e.target.value });
+
+  return (
+    <Sheet
+      open={!!account}
+      title={account?.id ? 'Editar medio de pago' : 'Nuevo medio de pago'}
+      onClose={onClose}
+      footer={(
+        <div className="flex flex-col gap-2">
+          <Button className="w-full py-3" disabled={busy} onClick={save}>{busy ? 'Guardando...' : 'Guardar'}</Button>
+          {account?.id && (
+            <Button variant="danger" className="w-full" disabled={busy} onClick={remove}>
+              <Trash2 className="w-4 h-4" /> Borrar
+            </Button>
+          )}
+        </div>
+      )}
+    >
+      {edit && (
+        <>
+          <Field label="Nombre" hint="Así lo ve el atleta: Nequi, Daviplata, Bancolombia ahorros, Llave Bre-B...">
+            <TextInput value={edit.label} onChange={set('label')} maxLength={60} placeholder="Nequi" />
+          </Field>
+          <Field label="Número, celular o llave">
+            <TextInput value={edit.account_number} onChange={set('account_number')} maxLength={60} placeholder="300 123 4567" />
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Titular (opcional)">
+              <TextInput value={edit.holder_name} onChange={set('holder_name')} maxLength={100} />
+            </Field>
+            <Field label="Cédula o NIT (opcional)">
+              <TextInput value={edit.holder_document} onChange={set('holder_document')} maxLength={30} inputMode="numeric" />
+            </Field>
+          </div>
+          <Field label="Nota para el atleta (opcional)">
+            <TextInput value={edit.notes} onChange={set('notes')} maxLength={300} placeholder="Ej. escribe tu nombre en la descripción" />
+          </Field>
+          {/* No va dentro de Field (un <label>): tiene su propio label y un botón. */}
+          <div className="flex flex-col gap-1 min-w-0">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5]">Código QR (opcional)</span>
+            <div className="flex items-center gap-3">
+              {(file || edit.qr_path) ? (
+                <QrPreview path={edit.qr_path} file={file} className="w-24 h-24 p-1" />
+              ) : (
+                <div className="w-24 h-24 rounded-xl border border-dashed border-white/15 flex items-center justify-center text-gray-600">
+                  <QrCode className="w-8 h-8" />
+                </div>
+              )}
+              <div className="flex flex-col gap-2">
+                <label className="px-3 py-2 rounded-xl bg-[#292929] text-white text-xs font-black flex items-center gap-1.5 cursor-pointer tap-bounce">
+                  <Upload className="w-4 h-4" /> {file || edit.qr_path ? 'Cambiar imagen' : 'Subir imagen'}
+                  <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={pickFile} />
+                </label>
+                {(file || edit.qr_path) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null);
+                      setEdit({ ...edit, qr_path: null });
+                    }}
+                    className="text-[11px] font-black text-red-400 text-left"
+                  >
+                    Quitar QR
+                  </button>
+                )}
+              </div>
+            </div>
+            <span className="text-[10px] text-gray-500">Una captura del QR de tu banco o billetera. PNG o JPG de hasta 2 MB.</span>
+          </div>
+          <div className="grid grid-cols-2 gap-3 items-end">
+            <Field label="Orden">
+              <input type="number" value={edit.sort_order} onChange={set('sort_order')} className={inputClass} />
+            </Field>
+            <div className="pb-3">
+              <ActiveToggle value={edit.is_active} onChange={(v) => setEdit({ ...edit, is_active: v })} label="Visible para los atletas" />
+            </div>
+          </div>
+        </>
+      )}
+      <ErrorBox error={error} />
+    </Sheet>
+  );
+}
+
+const DEFAULT_PAYMENT_INSTRUCTIONS = 'Después de pagar, envía el comprobante por WhatsApp para registrar tu pago.';
+
+function PaymentsSection() {
+  const { fetchPaymentAccounts, fetchSettings, saveSetting } = useManageStore();
+  const resetPaymentInfo = usePaymentStore((state) => state.reset);
+  const [accounts, setAccounts] = useState(null);
+  const [form, setForm] = useState(null); // { whatsapp, instructions }
+  const [edit, setEdit] = useState(null);
+  const [saved, setSaved] = useState(false);
+  const load = useAction();
+  const action = useAction();
+
+  const refresh = useCallback(async () => {
+    setAccounts(await fetchPaymentAccounts());
+    resetPaymentInfo();
+  }, [fetchPaymentAccounts, resetPaymentInfo]);
+
+  useEffect(() => {
+    load.run(async () => {
+      const [, settings] = await Promise.all([refresh(), fetchSettings(['payment_whatsapp', 'payment_instructions'])]);
+      setForm({
+        whatsapp: settings.payment_whatsapp || '',
+        instructions: settings.payment_instructions || DEFAULT_PAYMENT_INSTRUCTIONS,
+      });
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const saveContact = () => action.run(async () => {
+    const phone = form.whatsapp.trim();
+    if (phone && !whatsappPhone(phone)) {
+      throw new Error('Revisa el celular: uno colombiano tiene 10 dígitos y empieza por 3 (ej. 3001234567).');
+    }
+    if (form.instructions.length > 2000) throw new Error('Las indicaciones son muy largas (máximo 2.000 caracteres).');
+    await Promise.all([
+      saveSetting('payment_whatsapp', phone || null),
+      saveSetting('payment_instructions', form.instructions.trim() === DEFAULT_PAYMENT_INSTRUCTIONS ? null : form.instructions),
+    ]);
+    resetPaymentInfo();
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2500);
+  });
+
+  if (!accounts || !form) return load.error ? <ErrorBox error={load.error} /> : <Loading />;
+
+  return (
+    <>
+      <p className="text-[11px] text-[#A0A0A5]">
+        Los atletas vinculados ven estos datos al tocar "Pagar" cuando tienen una deuda o su mensualidad está por vencer
+        o vencida. También salen en el recordatorio de mensualidad por WhatsApp.
+      </p>
+
+      {accounts.length === 0 && (
+        <Empty title="Aún no hay medios de pago">Agrega tu Nequi, cuenta o llave, con su QR si lo tienes.</Empty>
+      )}
+      {accounts.map((a) => (
+        <button key={a.id} type="button" onClick={() => setEdit(a)} className="text-left">
+          <Card className={`flex items-center gap-3 ${a.is_active ? '' : 'opacity-50'}`}>
+            {a.qr_path ? (
+              <QrPreview path={a.qr_path} className="w-12 h-12 p-0.5 shrink-0" />
+            ) : (
+              <div className="w-12 h-12 rounded-xl bg-[#FFC815]/10 text-[#FFC815] flex items-center justify-center shrink-0">
+                <Landmark className="w-5 h-5" />
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <span className="text-sm font-black text-white block truncate">{a.label}</span>
+              <span className="text-[11px] text-gray-400 block truncate">
+                {[a.account_number, a.holder_name].filter(Boolean).join(' · ') || 'Solo QR'}
+              </span>
+            </div>
+            {!a.is_active && <Badge className="bg-white/5 text-gray-400 border-white/10">Oculto</Badge>}
+          </Card>
+        </button>
+      ))}
+      <Button variant="secondary" onClick={() => setEdit({ ...EMPTY_ACCOUNT, sort_order: accounts.length + 1 })}>
+        <Plus className="w-4 h-4" /> Agregar medio de pago
+      </Button>
+
+      <SectionTitle>Comprobantes</SectionTitle>
+      <Field label="WhatsApp del box para recibir comprobantes" hint="Si lo dejas vacío, el atleta no ve el botón de enviar comprobante.">
+        <TextInput
+          type="tel"
+          inputMode="tel"
+          value={form.whatsapp}
+          onChange={(e) => setForm({ ...form, whatsapp: e.target.value })}
+          placeholder="3001234567"
+        />
+      </Field>
+      <Field label="Indicaciones para el atleta">
+        <TextArea rows={3} value={form.instructions} onChange={(e) => setForm({ ...form, instructions: e.target.value })} />
+      </Field>
+      <ErrorBox error={action.error} />
+      <Button disabled={action.busy} onClick={saveContact}>
+        {action.busy ? 'Guardando...' : saved ? '✓ Guardado' : 'Guardar'}
+      </Button>
+
+      <PaymentAccountSheet account={edit} onClose={() => setEdit(null)} onSaved={() => load.run(refresh)} />
     </>
   );
 }
@@ -711,6 +1034,7 @@ const TABLE_LABELS = {
   user_roles: 'Roles',
   expense_categories: 'Categorías',
   app_settings: 'Ajustes del box',
+  payment_accounts: 'Medios de pago',
 };
 const ACTION_LABELS = { INSERT: 'Creó', UPDATE: 'Modificó', DELETE: 'Borró' };
 const IGNORED_KEYS = new Set(['updated_at', 'hik_synced_at']);
@@ -777,6 +1101,7 @@ const SECTION_COMPONENTS = {
   products: ProductsSection,
   categories: CategoriesSection,
   roles: RolesSection,
+  payments: PaymentsSection,
   whatsapp: WhatsAppSection,
   bridge: BridgeSection,
   audit: AuditSection,

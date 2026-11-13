@@ -1391,7 +1391,8 @@ begin
   insert into zz_tests.results (name, ok, detail)
   select 'comunicados: quien los apagó no recibe el aviso', count(*) = 0, count(*)::text
   from public.notifications
-  where type = 'announcement' and recipient_id = '66666666-6666-6666-6666-666666666666';
+  where type = 'announcement' and recipient_id = '66666666-6666-6666-6666-666666666666'
+    and data->>'announcement_id' = v_id;
 end $$;
 
 -- Quien apagó los avisos igual lo ve en la app; marcarlo como visto cuenta una vez.
@@ -1566,6 +1567,217 @@ do $$ begin
   insert into zz_tests.results (name, ok, detail)
   select 'comunicados: vencido ya no se ve', count(*) = 0, count(*)::text
   from public.announcements where id = (select val::uuid from zz_tests.ctx where key = 'ann_all');
+end $$;
+reset role;
+
+-- =====================================================================
+-- AVISO "POR VENCER", RECORDATORIO DE MENSUALIDAD Y MEDIOS DE PAGO (0031)
+-- =====================================================================
+-- El atleta (a…01, cuenta 4444…) entra en "por vencer": vence en 2 días.
+update public.memberships
+set valid_until = private.period_end((now() at time zone 'America/Bogota')::date + 2, 0, 0),
+    access_enabled = true, classes_total = null, classes_used = 0
+where member_id = 'a0000000-0000-0000-0000-000000000001';
+update public.members set is_active = true where id = 'a0000000-0000-0000-0000-000000000001';
+delete from public.notification_preferences where user_id = '44444444-4444-4444-4444-444444444444';
+delete from public.notifications where type = 'membership_expiring';
+delete from public.membership_expiry_notices;
+
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'por vencer: la vista lo marca a 2 días', status = 'expiring_soon' and days_left = 2, status || ' ' || days_left
+  from public.membership_status where member_id = 'a0000000-0000-0000-0000-000000000001';
+
+  perform private.job_membership_expiring();
+  perform private.job_membership_expiring();
+  insert into zz_tests.results (name, ok, detail)
+  select 'por vencer: un solo push al entrar (aunque el trabajo corra dos veces)',
+         count(*) = 1 and bool_and(title = 'Tu membresía está por vencer' and link = '/?pay=membership'),
+         count(*)::text
+  from public.notifications
+  where recipient_id = '44444444-4444-4444-4444-444444444444' and type = 'membership_expiring'
+    and data->>'kind' = 'expiring' and created_at >= now();
+
+  -- Un día después: sigue por vencer, no se repite.
+  update public.memberships set valid_until = private.period_end((now() at time zone 'America/Bogota')::date + 1, 0, 0)
+  where member_id = 'a0000000-0000-0000-0000-000000000001';
+  update public.membership_expiry_notices set valid_until = private.period_end((now() at time zone 'America/Bogota')::date + 1, 0, 0)
+  where member_id = 'a0000000-0000-0000-0000-000000000001';
+  perform private.job_membership_expiring();
+  insert into zz_tests.results (name, ok, detail)
+  select 'por vencer: al día siguiente no se repite', count(*) = 1, count(*)::text
+  from public.notifications
+  where recipient_id = '44444444-4444-4444-4444-444444444444' and type = 'membership_expiring' and created_at >= now();
+
+  -- El día que vence: segundo aviso.
+  update public.memberships set valid_until = private.period_end((now() at time zone 'America/Bogota')::date, 0, 0)
+  where member_id = 'a0000000-0000-0000-0000-000000000001';
+  update public.membership_expiry_notices set valid_until = private.period_end((now() at time zone 'America/Bogota')::date, 0, 0)
+  where member_id = 'a0000000-0000-0000-0000-000000000001';
+  perform private.job_membership_expiring();
+  insert into zz_tests.results (name, ok, detail)
+  select 'por vencer: aviso el día que vence', count(*) = 1, count(*)::text
+  from public.notifications
+  where recipient_id = '44444444-4444-4444-4444-444444444444' and type = 'membership_expiring'
+    and data->>'kind' = 'due_today' and title = 'Tu membresía vence hoy' and created_at >= now();
+
+  -- Al día (vence en 10 días) o bloqueado: nada.
+  delete from public.membership_expiry_notices where member_id = 'a0000000-0000-0000-0000-000000000001';
+  delete from public.notifications where type = 'membership_expiring' and created_at >= now();
+  update public.memberships set valid_until = private.period_end((now() at time zone 'America/Bogota')::date + 10, 0, 0)
+  where member_id = 'a0000000-0000-0000-0000-000000000001';
+  perform private.job_membership_expiring();
+  update public.memberships
+  set valid_until = private.period_end((now() at time zone 'America/Bogota')::date + 1, 0, 0), access_enabled = false
+  where member_id = 'a0000000-0000-0000-0000-000000000001';
+  perform private.job_membership_expiring();
+  insert into zz_tests.results (name, ok, detail)
+  select 'por vencer: ni al día ni bloqueado reciben el aviso', count(*) = 0, count(*)::text
+  from public.notifications
+  where recipient_id = '44444444-4444-4444-4444-444444444444' and type = 'membership_expiring' and created_at >= now();
+
+  -- Para lo que sigue: por vencer (mañana), con acceso y con el push ya enviado.
+  update public.memberships set access_enabled = true where member_id = 'a0000000-0000-0000-0000-000000000001';
+  perform private.job_membership_expiring();
+end $$;
+
+-- Coach: recordatorio de mensualidad por WhatsApp.
+select set_config('request.jwt.claims', '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}', true);
+set local role authenticated;
+do $$
+declare
+  v_rem public.membership_reminders;
+  v_member uuid;
+begin
+  v_rem := public.log_membership_reminder('a0000000-0000-0000-0000-000000000001');
+  insert into zz_tests.results (name, ok, detail)
+  select 'mensualidad: el coach registra el recordatorio con la vigencia actual',
+         v_rem.valid_until = (select valid_until from public.memberships
+                              where member_id = 'a0000000-0000-0000-0000-000000000001')
+         and v_rem.sent_by = '33333333-3333-3333-3333-333333333333',
+         v_rem.valid_until::text;
+  insert into zz_tests.results (name, ok, detail)
+  select 'mensualidad: la vista muestra recordado en este periodo y el push',
+         reminded_this_period and last_reminder_by = '33333333-3333-3333-3333-333333333333'
+         and push_sent_at is not null and status = 'expiring_soon',
+         coalesce(reminded_this_period::text, 'null') || ' ' || coalesce(push_sent_at::text, 'sin push')
+  from public.membership_reminder_summary where member_id = 'a0000000-0000-0000-0000-000000000001';
+  insert into zz_tests.results (name, ok, detail)
+  select 'mensualidad: la vista incluye vencidos y por vencer, no los al día',
+         bool_or(status = 'overdue') and bool_or(status = 'expiring_soon')
+         and bool_and(valid_until < now() + interval '3 days')
+         and not exists (select 1 from public.membership_status
+                         where valid_until >= now() + interval '3 days'
+                           and member_id in (select member_id from public.membership_reminder_summary)),
+         count(*)::text
+  from public.membership_reminder_summary;
+
+  begin
+    perform public.log_membership_reminder('a0000000-0000-0000-0000-000000000002');
+    insert into zz_tests.results (name, ok, detail) values ('mensualidad: al día no se registra', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('mensualidad: al día no se registra', true);
+  end;
+
+  v_member := (public.upsert_member(null, 'ZZTEST Sin Plan Recordatorio', null, null, null, null)).id;
+  begin
+    perform public.log_membership_reminder(v_member);
+    insert into zz_tests.results (name, ok, detail) values ('mensualidad: sin membresía no se registra', false, 'no falló');
+  exception when sqlstate '22023' then
+    insert into zz_tests.results (name, ok) values ('mensualidad: sin membresía no se registra', true);
+  end;
+
+  begin
+    insert into public.membership_reminders (member_id, valid_until, sent_by)
+    values ('a0000000-0000-0000-0000-000000000001', now(), '33333333-3333-3333-3333-333333333333');
+    insert into zz_tests.results (name, ok, detail) values ('mensualidad: no se inserta directo en la tabla', false, 'no falló');
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('mensualidad: no se inserta directo en la tabla', true);
+  end;
+
+  begin
+    insert into public.payment_accounts (label, account_number) values ('Hack', '123');
+    insert into zz_tests.results (name, ok, detail) values ('pagos: el coach no crea cuentas', false, 'no falló');
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('pagos: el coach no crea cuentas', true);
+  end;
+end $$;
+reset role;
+
+-- Socio: medios de pago y datos para el atleta.
+-- (Las pruebas de D43 pueden haberle quitado el rol a socio2: se le devuelve.)
+insert into public.user_roles (user_id, role) values ('22222222-2222-2222-2222-222222222222', 'partner')
+on conflict do nothing;
+select set_config('request.jwt.claims', '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into public.payment_accounts (label, account_number, holder_name, sort_order)
+  values ('ZZTEST Nequi', '3001234567', 'Socio Dos', 1);
+  insert into public.payment_accounts (label, account_number, is_active)
+  values ('ZZTEST Cuenta vieja', '999', false);
+  insert into public.app_settings (key, value) values ('payment_whatsapp', '3001112233')
+  on conflict (key) do update set value = excluded.value;
+  insert into public.app_settings (key, value) values ('payment_instructions', 'Envía el comprobante')
+  on conflict (key) do update set value = excluded.value;
+  insert into public.app_settings (key, value) values ('membership_reminder_template', 'Hola {nombre}, {vence}')
+  on conflict (key) do update set value = excluded.value;
+  insert into zz_tests.results (name, ok, detail)
+  select 'pagos: el socio crea cuentas y queda auditado',
+         exists (select 1 from public.audit_log where table_name = 'payment_accounts' and changed_at >= now()), null;
+  begin
+    insert into public.payment_accounts (label) values ('ZZTEST Vacía');
+    insert into zz_tests.results (name, ok, detail) values ('pagos: cuenta sin número ni QR se rechaza', false, 'no falló');
+  exception when check_violation then
+    insert into zz_tests.results (name, ok) values ('pagos: cuenta sin número ni QR se rechaza', true);
+  end;
+end $$;
+reset role;
+
+-- Atleta vinculado: ve las cuentas activas y los datos de pago, no las plantillas.
+select set_config('request.jwt.claims', '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'pagos: el atleta vinculado ve solo las cuentas activas',
+         count(*) filter (where label = 'ZZTEST Nequi') = 1 and count(*) filter (where label = 'ZZTEST Cuenta vieja') = 0,
+         count(*)::text
+  from public.payment_accounts;
+  insert into zz_tests.results (name, ok, detail)
+  select 'pagos: el atleta lee los datos de pago y no las plantillas',
+         count(*) filter (where key in ('payment_whatsapp', 'payment_instructions')) = 2
+         and count(*) filter (where key like '%template') = 0,
+         string_agg(key, ',')
+  from public.app_settings;
+  insert into zz_tests.results (name, ok, detail)
+  select 'mensualidad: el atleta no ve recordatorios ni avisos de otros',
+         (select count(*) from public.membership_reminders) + (select count(*) from public.membership_expiry_notices)
+         + (select count(*) from public.membership_reminder_summary where member_id <> 'a0000000-0000-0000-0000-000000000001') = 0,
+         null;
+  begin
+    perform public.log_membership_reminder('a0000000-0000-0000-0000-000000000001');
+    insert into zz_tests.results (name, ok, detail) values ('mensualidad: el atleta no registra recordatorios', false, 'no falló');
+  exception when insufficient_privilege then
+    insert into zz_tests.results (name, ok) values ('mensualidad: el atleta no registra recordatorios', true);
+  end;
+  begin
+    update public.payment_accounts set account_number = '000' where label = 'ZZTEST Nequi';
+    insert into zz_tests.results (name, ok, detail)
+    select 'pagos: el atleta no edita cuentas', account_number = '3001234567', account_number
+    from public.payment_accounts where label = 'ZZTEST Nequi';
+  end;
+end $$;
+reset role;
+
+-- Usuario sin vincular (cuenta nueva; atleta2 quedó vinculado en pruebas anteriores): no ve medios de pago.
+insert into auth.users (instance_id, id, aud, role, email, encrypted_password, created_at, updated_at)
+values ('00000000-0000-0000-0000-000000000000', 'abababab-abab-abab-abab-abababababab',
+        'authenticated', 'authenticated', 'sin.vinculo@rokbox.co', '', now(), now());
+select set_config('request.jwt.claims', '{"sub":"abababab-abab-abab-abab-abababababab","role":"authenticated"}', true);
+set local role authenticated;
+do $$ begin
+  insert into zz_tests.results (name, ok, detail)
+  select 'pagos: un usuario sin vincular no ve cuentas ni datos de pago',
+         (select count(*) from public.payment_accounts) + (select count(*) from public.app_settings) = 0, null;
 end $$;
 reset role;
 
