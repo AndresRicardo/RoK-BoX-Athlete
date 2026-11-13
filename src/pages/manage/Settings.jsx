@@ -18,6 +18,7 @@ import {
   DEFAULT_MEMBERSHIP_TEMPLATE, MEMBERSHIP_PLACEHOLDERS, buildMembershipReminder, whatsappPhone,
 } from '../../utils/whatsapp';
 import usePaymentStore, { paymentQrUrl } from '../../stores/paymentStore';
+import { shrinkImage } from '../../utils/images';
 
 const SECTIONS = [
   { key: 'partners', label: 'Socios y porcentajes', icon: Users2 },
@@ -775,10 +776,12 @@ function PaymentAccountSheet({ account, onClose, onSaved }) {
     setError(null);
   }, [account, setError]);
 
-  const pickFile = (e) => {
-    const picked = e.target.files?.[0];
+  const pickFile = async (e) => {
+    const raw = e.target.files?.[0];
     e.target.value = '';
-    if (!picked) return;
+    if (!raw) return;
+    // La galería puede entregar otros formatos (GIF, AVIF...) o fotos pesadas: se pasan a JPEG.
+    const picked = await shrinkImage(raw, 1.9 * 1024 * 1024, ['image/png', 'image/jpeg', 'image/webp']);
     if (!['image/png', 'image/jpeg', 'image/webp'].includes(picked.type)) {
       setError('El QR debe ser una imagen PNG, JPG o WebP.');
       return;
@@ -878,7 +881,7 @@ function PaymentAccountSheet({ account, onClose, onSaved }) {
               <div className="flex flex-col gap-2">
                 <label className="px-3 py-2 rounded-xl bg-[#292929] text-white text-xs font-black flex items-center gap-1.5 cursor-pointer tap-bounce">
                   <Upload className="w-4 h-4" /> {file || edit.qr_path ? 'Cambiar imagen' : 'Subir imagen'}
-                  <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={pickFile} />
+                  <input type="file" accept="image/*" className="hidden" onChange={pickFile} />
                 </label>
                 {(file || edit.qr_path) && (
                   <button

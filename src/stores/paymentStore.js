@@ -38,6 +38,8 @@ const RECEIPT_TYPES = {
   'application/pdf': 'pdf',
 };
 export const RECEIPT_ACCEPT = Object.keys(RECEIPT_TYPES).join(',');
+// HEIC no se convierte: Chrome no lo lee, pero el bucket lo acepta y el staff lo abre aparte.
+export const RECEIPT_IMAGE_TYPES = Object.keys(RECEIPT_TYPES).filter((t) => t.startsWith('image/'));
 const RECEIPT_MAX_BYTES = 5 * 1024 * 1024;
 
 /** Por qué un archivo no sirve como comprobante (null si sirve). */

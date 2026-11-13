@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Upload, FileText, CheckCircle2 } from 'lucide-react';
+import { Upload, FileText, CheckCircle2, Image as ImageIcon } from 'lucide-react';
 import {
   Sheet, Field, Select, MoneyInput, TextArea, Button, ErrorBox, useAction,
 } from './manage/ui';
-import usePaymentStore, { RECEIPT_ACCEPT, receiptProblem } from '../stores/paymentStore';
+import usePaymentStore, { RECEIPT_ACCEPT, RECEIPT_IMAGE_TYPES, receiptProblem } from '../stores/paymentStore';
 import { paymentMethodLabel } from '../utils/currency';
 import { shrinkImage } from '../utils/images';
 
@@ -71,7 +71,8 @@ export default function ReportPaymentSheet({ open, onClose, accounts, membership
     const picked = e.target.files?.[0];
     e.target.value = '';
     if (!picked) return;
-    const ready = await shrinkImage(picked);
+    // La galería puede entregar GIF, AVIF, etc.: se convierten a JPEG; los PDF pasan igual.
+    const ready = await shrinkImage(picked, undefined, picked.type === 'application/pdf' ? null : RECEIPT_IMAGE_TYPES);
     const problem = receiptProblem(ready);
     if (problem) throw new Error(problem);
     setFile(ready);
@@ -160,18 +161,25 @@ export default function ReportPaymentSheet({ open, onClose, accounts, membership
           {/* Fuera de Field (un <label>): el selector de archivo tiene su propio label. */}
           <div className="flex flex-col gap-1">
             <span className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A5]">Comprobante</span>
+            {/* Android solo abre la galería (y apps como Google Fotos) con accept="image/*";
+                si se mezclan imágenes y PDF, ofrece únicamente la cámara y Archivos. Por eso
+                hay dos botones: galería para la captura y otro para un PDF u otro archivo. */}
             <label className="p-3 rounded-xl border border-dashed border-white/15 bg-[#0A0A0C] flex items-center gap-3 cursor-pointer tap-bounce">
               {preview ? (
                 <img src={preview} alt="Comprobante" className="w-16 h-16 rounded-lg object-cover shrink-0" />
               ) : file ? (
                 <FileText className="w-8 h-8 text-[#FFC815] shrink-0" />
               ) : (
-                <Upload className="w-6 h-6 text-gray-500 shrink-0" />
+                <ImageIcon className="w-6 h-6 text-gray-500 shrink-0" />
               )}
               <span className="text-xs font-bold text-white min-w-0 truncate">
-                {file ? file.name : 'Toca para adjuntar la captura o el PDF'}
+                {file ? file.name : 'Elegir la captura de la galería'}
               </span>
-              <input type="file" accept={RECEIPT_ACCEPT} className="hidden" onChange={pickFile} />
+              <input type="file" accept="image/*" className="hidden" onChange={pickFile} data-picker="gallery" />
+            </label>
+            <label className="py-2 rounded-xl bg-[#292929] text-white text-[11px] font-black flex items-center justify-center gap-1.5 cursor-pointer tap-bounce">
+              <Upload className="w-3.5 h-3.5" /> Adjuntar un PDF u otro archivo
+              <input type="file" accept={RECEIPT_ACCEPT} className="hidden" onChange={pickFile} data-picker="files" />
             </label>
             {file && <span className="text-[10px] text-gray-500">Toca de nuevo para cambiarlo.</span>}
           </div>

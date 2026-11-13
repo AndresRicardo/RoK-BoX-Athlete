@@ -86,6 +86,10 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 
 ## Bitácora
 
+### 2026-11-13 (3) — Claude Code (comprobante desde la galería)
+- Reporte del dueño en Android: "Toca para adjuntar" solo ofrecía Cámara y Archivos. Causa: con `accept` que mezcla imágenes y PDF, Android no abre la galería ni apps como Google Fotos. Ahora hay dos botones: "Elegir la captura de la galería" (`accept="image/*"`) y "Adjuntar un PDF u otro archivo". Las imágenes de formatos no admitidos (GIF, AVIF…) se convierten a JPEG en el teléfono. El QR de Ajustes → Medios de pago también usa `image/*`.
+- Verificación: build OK; Chrome headless contra DEV con el atleta (contraseña temporal ya invalidada) **6/6**: `accept` de cada botón, GIF → JPG, PDF y PNG con vista previa, sin errores de JS. No se envió ningún reporte.
+
 ### 2026-11-13 (2) — Claude Code (pago reportado por el atleta, D52)
 - `0032_payment_reports.sql` (aplicada **solo en DEV**): `payment_reports` (auditada, en Realtime), bucket privado `payment-receipts` (cada atleta sube a su carpeta; borra solo sus archivos sin reporte), `report_payment`, `cancel_payment_report`, `approve_payment_report`, `reject_payment_report` y avisos `payment_reported` y `payment_reviewed`. Tipos regenerados.
 - App: "Ya pagué: reportar pago" en "Pagar" (`ReportPaymentSheet`, comprobante reducido en el teléfono con `utils/images.js`), estado de los reportes en "Pagar" y en las tarjetas de Inicio, Pendientes → "Pagos reportados por atletas" con `ApproveReportSheet` (renovar con valor cobrado y/o abonar) y rechazo con motivo; interruptores nuevos en Perfil → Notificaciones.
