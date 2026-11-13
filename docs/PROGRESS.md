@@ -4,7 +4,7 @@
 |---|---|
 | **Plan** | ✅ **APROBADO** (2026-10-22) |
 | **Fase actual** | F8 — Producción (app, base y bridge funcionando) |
-| **Próximo paso** | Carga manual D46 (tiqueteras y deudas), aviso a los atletas y primera semana del runbook (§4) |
+| **Próximo paso** | Revisar D50/D51 en el preview y, con orden del dueño, pasar `0031` a producción; carga manual D46 y primera semana del runbook (§4) |
 | **Bloqueos** | Ninguno |
 
 Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
@@ -85,6 +85,13 @@ Leyenda: `[ ]` pendiente · `[~]` en curso · `[x]` hecho · `[-]` descartado
 ---
 
 ## Bitácora
+
+### 2026-11-13 — Claude Code (mensualidad por vencer y botón Pagar, D50 y D51)
+- `0031_membership_reminders_payments.sql` (aplicada **solo en DEV**): `job_membership_expiring` avisa al entrar en "por vencer" y el día que vence, una vez por vigencia (`membership_expiry_notices`), con enlace `/?pay=membership`; `job_debt_reminders` enlaza a `/?pay=debt`; `membership_reminders`, `log_membership_reminder` y la vista `membership_reminder_summary`; `payment_accounts` (auditada) y bucket privado `payment-qr`; claves nuevas de `app_settings` y lectura de las de pago para atletas vinculados (`private.is_linked_member`). Tipos regenerados.
+- App: Gestión → Miembros → "Recordar por WhatsApp" (página `/manage/members/reminders`) y botón en la ficha; `WhatsAppReminderSheet` sirve para deuda y mensualidad; Ajustes → "Medios de pago" (cuentas, QR, WhatsApp de comprobantes e indicaciones) y "Mensajes de WhatsApp" (plantillas de deuda y mensualidad). Atleta: `PaySheet` desde la tarjeta de membresía, la de deudas y los avisos push (`?pay=`).
+- Tests SQL: **155/155** (20 nuevos). Además se corrigió "comunicados: quien los apagó no recibe el aviso", que fallaba por un comunicado real de DEV del 2026-11-09 (ahora cuenta solo el del test). Build OK. Asesor de seguridad sin hallazgos nuevos (solo el aviso habitual de RPC `security definer`, que validan el rol).
+- E2E en Chrome headless (390 px) contra DEV con socio2 y atleta (contraseñas temporales ya invalidadas) **25/25**: crear medio de pago con QR, guardar WhatsApp de comprobantes, recordar la mensualidad (mensaje con medios de pago, "la app le avisó", registro y salida de "Por recordar"), vista previa de la plantilla, "Renovar y pagar" y "Pagar $…", hoja con QR (URL firmada), copiar, ampliar, enlace del comprobante y `/?pay=membership`. El trabajo real en DEV generó "Vence mañana (14/11)…". DEV quedó como estaba (sin medios de pago, sin avisos ni recordatorios de prueba, membresía del atleta restaurada).
+- **Falta para producción:** backup del día, `db push` de `0031` y cargar los medios de pago (con el QR) en Ajustes → Medios de pago. `send-push` no cambia.
 
 ### 2026-11-12 — Claude Code (vínculo de cédula sin perfil)
 - Error en producción: un atleta pidió el vínculo desde la tarjeta de Inicio y vio `member_link_requests_profile_id_fkey`. Causa: la cuenta (Google) no tenía fila en `profiles` y la solicitud cuelga del perfil; como el `insert` falló, no hubo solicitud ni aviso a los socios. En producción, 15 de 45 cuentas no tienen perfil (consulta de solo lectura).
